@@ -29,10 +29,11 @@ export async function runTurn(options: RunTurnOptions) {
   } = options;
   const now = Date.now();
 
-  // Append user message
+  // Append user message with seq
   const userMsgId = randomUUID();
   const userMsg = { role: "user" as const, content: userMessage };
-  store.appendMessage(session.id, userMsgId, userMsg, now);
+  const userSeq = store.nextSeq(session.id);
+  store.appendMessage(session.id, userMsgId, userMsg, now, userSeq);
   session.messages.push(userMsg);
 
   emit("session:message", {
@@ -65,10 +66,11 @@ export async function runTurn(options: RunTurnOptions) {
   // responseMessages = accumulated generated messages (assistant + tool calls + tool results)
   const generatedMessages = await result.responseMessages;
 
-  // Persist generated messages
+  // Persist generated messages with seq
+  let seq = store.nextSeq(session.id);
   for (const msg of generatedMessages) {
     const msgId = randomUUID();
-    store.appendMessage(session.id, msgId, msg as any, Date.now());
+    store.appendMessage(session.id, msgId, msg as any, Date.now(), seq++);
     session.messages.push(msg as any);
   }
 
