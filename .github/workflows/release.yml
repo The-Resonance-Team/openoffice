@@ -1,0 +1,53 @@
+name: release
+run-name: "release ${{ inputs.bump }}"
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Version bump
+        required: true
+        type: choice
+        options: [major, minor, patch]
+        default: patch
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: oven-sh/setup-bun@v2
+        with:
+          cache: true
+      - run: bun install --frozen-lockfile
+
+      - name: Bump version
+        run: |
+          NEW_VERSION=$(bun -e 'const p=require("./package.json");const i={major:0,minor:1,patch:2}[process.argv[1]];const v=p.version.split(".").map(Number);v[i]++;for(let j=i+1;j<3;j++)v[j]=0;console.log(v.join("."))' "${{ inputs.bump }}")
+          echo "NEW_VERSION=$NEW_VERSION" >> "$GITHUB_ENV"
+
+      - name: Update package.json
+        run: |
+          bun -e 'const fs=require("fs");const p=JSON.parse(fs.readFileSync("package.json","utf8"));p.version=process.env.NEW_VERSION;fs.writeFileSync("package.json",JSON.stringify(p,null,2)+"\n")'
+
+      - name: Commit and tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add package.json bun.lock
+          git commit -m "v$NEW_VERSION"
+          git tag "v$NEW_VERSION"
+          git push
+          git push origin "v$NEW_VERSION"
+
+      - run: bun run build
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "v$NEW_VERSION" dist/openoffice --generate-notes
