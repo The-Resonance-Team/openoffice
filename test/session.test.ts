@@ -54,7 +54,13 @@ describe("SessionStore", () => {
 
   test("appendMessage stores and loads messages", () => {
     store.save(makeSession("s1"));
-    store.appendMessage("s1", "m1", { role: "user", content: "hello" }, 2000);
+    store.appendMessage(
+      "s1",
+      "m1",
+      { role: "user", content: "hello" },
+      2000,
+      1
+    );
     const loaded = store.load("s1");
     expect(loaded!.messages).toHaveLength(1);
     expect(loaded!.messages[0]).toEqual({ role: "user", content: "hello" });
@@ -70,7 +76,8 @@ describe("SessionStore", () => {
       "s1",
       "m1",
       { role: "assistant", content: parts },
-      2000
+      2000,
+      1
     );
     const loaded = store.load("s1");
     expect(loaded!.messages).toHaveLength(1);

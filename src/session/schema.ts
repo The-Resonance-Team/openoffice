@@ -18,8 +18,8 @@ export const messages = sqliteTable(
       .references(() => sessions.id),
     role: text("role").notNull(),
     content: text("content").notNull(),
-    parts: text("parts"),
+    seq: integer("seq").notNull(),
     timestamp: integer("timestamp", { mode: "timestamp_ms" }).notNull(),
   },
-  (t) => [index("idx_messages_session").on(t.sessionId)]
+  (t) => [index("idx_messages_session").on(t.sessionId, t.seq)]
 );

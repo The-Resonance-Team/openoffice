@@ -2,7 +2,7 @@ import { Database } from "bun:sqlite";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { drizzle } from "drizzle-orm/bun-sqlite";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, sql } from "drizzle-orm";
 import type { ModelMessage } from "ai";
 import type { Session } from "./types";
 import { sessions, messages } from "./schema";
@@ -31,12 +31,12 @@ export class SessionStore {
         session_id TEXT NOT NULL REFERENCES sessions(id),
         role TEXT NOT NULL,
         content TEXT NOT NULL,
-        parts TEXT,
+        seq INTEGER NOT NULL,
         timestamp INTEGER NOT NULL
       )
     `);
     this.db.run(
-      /* sql */ "CREATE INDEX IF NOT EXISTS idx_messages_session ON messages(session_id)"
+      /* sql */ "CREATE INDEX IF NOT EXISTS idx_messages_session ON messages(session_id, seq)"
     );
   }
 
@@ -75,14 +75,13 @@ export class SessionStore {
       .select()
       .from(messages)
       .where(eq(messages.sessionId, id))
-      .orderBy(messages.timestamp)
+      .orderBy(messages.seq)
       .all();
 
     const sessionMessages: ModelMessage[] = msgRows.map((r) => {
-      if (r.parts) {
-        return { role: r.role, content: JSON.parse(r.parts) } as ModelMessage;
-      }
-      return { role: r.role, content: r.content } as ModelMessage;
+      const parsed = JSON.parse(r.content);
+      // If it's a plain string, return as-is; otherwise return the parsed array
+      return { role: r.role, content: parsed } as ModelMessage;
     });
 
     return {
@@ -122,15 +121,12 @@ export class SessionStore {
     sessionId: string,
     id: string,
     message: ModelMessage,
-    timestamp: number
+    timestamp: number,
+    seq: number
   ): void {
     const content =
       typeof message.content === "string"
-        ? message.content
-        : JSON.stringify(message.content);
-    const parts =
-      typeof message.content === "string"
-        ? null
+        ? JSON.stringify(message.content)
         : JSON.stringify(message.content);
 
     this.db
@@ -140,7 +136,7 @@ export class SessionStore {
         sessionId,
         role: message.role,
         content,
-        parts,
+        seq,
         timestamp: new Date(timestamp),
       })
       .run();
@@ -150,5 +146,14 @@ export class SessionStore {
       .set({ updatedAt: new Date(timestamp) })
       .where(eq(sessions.id, sessionId))
       .run();
+  }
+
+  nextSeq(sessionId: string): number {
+    const row = this.db
+      .select({ maxSeq: sql<number>`coalesce(max(${messages.seq}), 0)` })
+      .from(messages)
+      .where(eq(messages.sessionId, sessionId))
+      .get();
+    return (row?.maxSeq ?? 0) + 1;
   }
 }

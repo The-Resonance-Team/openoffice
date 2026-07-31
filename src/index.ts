@@ -7,7 +7,7 @@ import { SessionStore } from "./session/store";
 import { runTurn } from "./session/loop";
 import type { Session } from "./session/types";
 import { ToolRegistry } from "./tool/registry";
-import { on } from "./events";
+import { on, emit } from "./events";
 
 const MODEL = "anthropic/claude-sonnet-4-20250514";
 
@@ -38,6 +38,7 @@ async function main() {
   const session = createSession(model);
 
   store.save(session);
+  emit("session:create", { sessionID: session.id });
 
   // Wire events to stdout
   on("llm:token", (data) => {
@@ -54,17 +55,22 @@ async function main() {
     prompt: "> ",
   });
 
+  let busy = false;
+
   console.log(`openoffice v0.1.0 (model: ${model})`);
   console.log("Type your message. Ctrl+C to exit.\n");
   rl.prompt();
 
   rl.on("line", async (line) => {
+    if (busy) return;
+
     const input = line.trim();
     if (!input) {
       rl.prompt();
       return;
     }
 
+    busy = true;
     try {
       await runTurn({
         session,
@@ -75,12 +81,15 @@ async function main() {
       });
     } catch (err) {
       console.error("Error:", err instanceof Error ? err.message : err);
+    } finally {
+      busy = false;
     }
 
     rl.prompt();
   });
 
   rl.on("close", () => {
+    emit("session:end", { sessionID: session.id });
     process.exit(0);
   });
 }
