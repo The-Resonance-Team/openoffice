@@ -5,9 +5,20 @@ import { join } from "node:path";
 import { resolveConfig } from "./config";
 import { SessionStore } from "./session/store";
 import { runTurn } from "./session/loop";
+import { buildSystemPrompt } from "./session/system";
 import type { Session } from "./session/types";
 import { ToolRegistry } from "./tool/registry";
+import { AgentRegistry } from "./agent";
+import { createDefaultOfficeCliTool } from "./office";
+import { createReadTool } from "./tool/builtins/read";
+import { createWriteTool } from "./tool/builtins/write";
+import { createGlobTool } from "./tool/builtins/glob";
+import { createGrepTool } from "./tool/builtins/grep";
+import { createQuestionTool } from "./tool/builtins/question";
+import { createSkillTool } from "./skills";
+import { McpManager } from "./mcp";
 import { on, emit } from "./events";
+import { execFileSync } from "node:child_process";
 
 const MODEL = "anthropic/claude-sonnet-4-20250514";
 
@@ -17,11 +28,15 @@ function getDbPath(): string {
   return join(base, "openoffice", "openoffice.db");
 }
 
-function createSession(model: string): Session {
+function getSkillsDir(): string {
+  return join(process.cwd(), "skills");
+}
+
+function createSession(model: string, agentName: string): Session {
   const now = Date.now();
   return {
     id: randomUUID(),
-    agent: "build",
+    agent: agentName,
     model,
     title: "",
     messages: [],
@@ -34,9 +49,71 @@ async function main() {
   const config = resolveConfig();
   const model = config.model ?? MODEL;
   const store = new SessionStore(getDbPath());
-  const tools = new ToolRegistry();
-  const session = createSession(model);
+  const agentRegistry = new AgentRegistry();
+  const agent = agentRegistry.getDefault();
+  const skillsDir = getSkillsDir();
 
+  // Build tool registry
+  const tools = new ToolRegistry();
+  tools.register(createDefaultOfficeCliTool());
+  tools.register(
+    createReadTool({
+      readOffice: async (file: string) => {
+        const output = execFileSync("officecli", ["get", file, "--json"], {
+          encoding: "utf-8",
+          timeout: 30000,
+        });
+        return output;
+      },
+    })
+  );
+  tools.register(createWriteTool());
+  tools.register(createGlobTool());
+  tools.register(createGrepTool());
+  tools.register(
+    createQuestionTool({
+      askUser: (question: string) =>
+        new Promise((resolve) => {
+          const rl = createInterface({
+            input: process.stdin,
+            output: process.stdout,
+          });
+          rl.question(`${question}\n> `, (answer) => {
+            rl.close();
+            resolve(answer);
+          });
+        }),
+    })
+  );
+  tools.register(createSkillTool(skillsDir));
+
+  // Connect MCP servers from config
+  const mcp = new McpManager({
+    connect: async (_mcpConfig) => {
+      // MCP connection will be implemented when @modelcontextprotocol/sdk is added
+      throw new Error(
+        "MCP connection not yet implemented. Add @modelcontextprotocol/sdk dependency."
+      );
+    },
+  });
+
+  // Build system prompt
+  const system = buildSystemPrompt({
+    agent,
+    skillsDir,
+    mcp,
+    cwd: process.cwd(),
+  });
+
+  // Filter tools by agent permission
+  const allTools = tools.list();
+  const filteredTools = agentRegistry.filterTools(allTools, agent.permission);
+  const filteredRegistry = new ToolRegistry();
+  for (const tool of filteredTools) {
+    filteredRegistry.register(tool);
+  }
+
+  const session = createSession(model, agent.name);
   store.save(session);
   emit("session:create", { sessionID: session.id });
 
@@ -57,7 +134,7 @@ async function main() {
 
   let busy = false;
 
-  console.log(`openoffice v0.1.0 (model: ${model})`);
+  console.log(`openoffice v0.1.0 (model: ${model}, agent: ${agent.name})`);
   console.log("Type your message. Ctrl+C to exit.\n");
   rl.prompt();
 
@@ -76,7 +153,8 @@ async function main() {
         session,
         userMessage: input,
         store,
-        tools,
+        tools: filteredRegistry,
+        system,
         config,
       });
     } catch (err) {

@@ -1,0 +1,102 @@
+import { readFileSync, existsSync } from "node:fs";
+import { extname } from "node:path";
+import { z } from "zod";
+import type { ToolDefinition } from "../types";
+
+const OFFICE_EXTENSIONS = new Set([".docx", ".xlsx", ".pptx"]);
+const TEXT_EXTENSIONS = new Set([
+  ".txt",
+  ".md",
+  ".ts",
+  ".tsx",
+  ".js",
+  ".jsx",
+  ".json",
+  ".jsonc",
+  ".yaml",
+  ".yml",
+  ".toml",
+  ".csv",
+  ".xml",
+  ".html",
+  ".css",
+  ".sh",
+  ".bash",
+  ".zsh",
+  ".py",
+  ".rb",
+  ".go",
+  ".rs",
+  ".java",
+  ".c",
+  ".cpp",
+  ".h",
+  ".hpp",
+  ".cs",
+  ".swift",
+  ".kt",
+]);
+
+export interface ReadDeps {
+  readOffice: (file: string) => Promise<string>;
+}
+
+export function createReadTool(deps: ReadDeps): ToolDefinition {
+  return {
+    name: "read",
+    description:
+      "Read file contents. Auto-detects format: .docx/.xlsx/.pptx via officecli, .pdf via pdf-parse, plain text for everything else. Always use this to read any file.",
+    parameters: z.object({
+      file: z.string().describe("Path to the file to read"),
+    }),
+    execute: async (params) => {
+      if (!existsSync(params.file)) {
+        return {
+          success: false,
+          error: `File not found: ${params.file}`,
+          code: "FILE_NOT_FOUND",
+        };
+      }
+
+      const ext = extname(params.file).toLowerCase();
+
+      if (OFFICE_EXTENSIONS.has(ext)) {
+        try {
+          const content = await deps.readOffice(params.file);
+          return { success: true, output: content };
+        } catch (e: any) {
+          return {
+            success: false,
+            error: e.message ?? "Failed to read office document",
+            code: "OFFICE_READ_ERROR",
+          };
+        }
+      }
+
+      if (TEXT_EXTENSIONS.has(ext) || !ext) {
+        try {
+          const content = readFileSync(params.file, "utf-8");
+          return { success: true, output: content };
+        } catch (e: any) {
+          return {
+            success: false,
+            error: e.message ?? "Failed to read file",
+            code: "READ_ERROR",
+          };
+        }
+      }
+
+      // Unknown extension — try text, might be binary
+      try {
+        const content = readFileSync(params.file, "utf-8");
+        return { success: true, output: content };
+      } catch (e: any) {
+        return {
+          success: false,
+          error: `Cannot read ${ext} files: ${e.message}`,
+          code: "UNSUPPORTED_FORMAT",
+        };
+      }
+    },
+  };
+}
