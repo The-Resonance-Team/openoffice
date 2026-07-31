@@ -11,3 +11,7 @@ Five canonical triage roles map 1:1 to labels: `needs-triage`, `needs-info`, `re
 ### Domain docs
 
 Single-context: one root `CONTEXT.md` + `docs/adr/` (ADR 0001). See `docs/agents/domain.md`.
+
+### Deep modules
+
+Domains under `src/` are deep modules — import only through a domain's root entry points, never subfolder internals. See `src/README.md` before adding or importing one.
