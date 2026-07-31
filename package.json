@@ -1,0 +1,27 @@
+{
+  "name": "openoffice",
+  "version": "0.1.0",
+  "type": "module",
+  "packageManager": "bun@1.3.14",
+  "private": true,
+  "scripts": {
+    "dev": "bun run src/index.ts",
+    "build": "bun build --compile src/index.ts --outfile dist/openoffice",
+    "typecheck": "tsgo --noEmit",
+    "lint": "oxlint",
+    "test": "bun test",
+    "prepare": "husky"
+  },
+  "dependencies": {
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.14",
+    "@typescript/native-preview": "^7.0.0-dev.20260707.2",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.3.0",
+    "oxlint": "^1.76.0",
+    "prettier": "^3.9.6",
+    "typescript": "^7.0.2"
+  }
+}
