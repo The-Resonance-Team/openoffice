@@ -17,7 +17,7 @@ An LLM service (openai, anthropic, google, ...) addressed by name. Each provider
 _Avoid_: backend, service, backend provider
 
 **Session**:
-One conversation: a live agent instance, its message history, and the active model. Identified by a runtime-generated session ID. Persisted in a SQLite database via Bun's built-in `bun:sqlite` — no ORM, raw SQL. Supports querying, compaction, and concurrent access from day one.
+One conversation: a live agent instance, its message history, and the active model. Identified by a runtime-generated session ID. Persisted in a SQLite database via Drizzle ORM with `bun:sqlite` driver. Supports querying, compaction, and concurrent access from day one.
 _Avoid_: chat, conversation, thread
 
 **Message**:

@@ -83,4 +83,67 @@ describe("SessionStore", () => {
     expect(loaded!.messages).toHaveLength(1);
     expect(loaded!.messages[0].role).toBe("assistant");
   });
+
+  test("timestamps round-trip through Date conversion", () => {
+    const s = makeSession("s1");
+    s.createdAt = 1700000000000;
+    s.updatedAt = 1700000001000;
+    store.save(s);
+    const loaded = store.load("s1");
+    expect(loaded!.createdAt).toBe(1700000000000);
+    expect(loaded!.updatedAt).toBe(1700000001000);
+  });
+
+  test("save-on-conflict preserves createdAt, bumps updatedAt", () => {
+    const s = makeSession("s1");
+    s.createdAt = 1000;
+    s.updatedAt = 1000;
+    store.save(s);
+
+    s.updatedAt = 2000;
+    s.title = "Updated";
+    store.save(s);
+
+    const loaded = store.load("s1");
+    expect(loaded!.createdAt).toBe(1000);
+    expect(loaded!.updatedAt).toBe(2000);
+    expect(loaded!.title).toBe("Updated");
+  });
+
+  test("list orders by updatedAt descending", () => {
+    const s1 = makeSession("s1");
+    s1.updatedAt = 1000;
+    store.save(s1);
+
+    const s2 = makeSession("s2");
+    s2.updatedAt = 3000;
+    store.save(s2);
+
+    const s3 = makeSession("s3");
+    s3.updatedAt = 2000;
+    store.save(s3);
+
+    const list = store.list();
+    expect(list.map((s) => s.id)).toEqual(["s2", "s3", "s1"]);
+  });
+
+  test("nextSeq increments per session", () => {
+    store.save(makeSession("s1"));
+    store.save(makeSession("s2"));
+
+    expect(store.nextSeq("s1")).toBe(1);
+    store.appendMessage("s1", "m1", { role: "user", content: "a" }, 1000, 1);
+    expect(store.nextSeq("s1")).toBe(2);
+    store.appendMessage(
+      "s1",
+      "m2",
+      { role: "assistant", content: "b" },
+      1001,
+      2
+    );
+    expect(store.nextSeq("s1")).toBe(3);
+
+    // s2 is independent
+    expect(store.nextSeq("s2")).toBe(1);
+  });
 });

@@ -15,6 +15,23 @@ export class SessionStore {
     const sqlite = new Database(dbPath);
     sqlite.run("PRAGMA journal_mode = WAL");
     this.db = drizzle(sqlite);
+    this.migrate(sqlite);
+  }
+
+  // ponytail: schema migration for v0.1.0 — drops old tables if schema
+  // doesn't match. Fine for pre-release; add proper migrations when the
+  // schema stabilizes.
+  private migrate(sqlite: Database): void {
+    const hasSeq = sqlite
+      .query(
+        "SELECT name FROM pragma_table_info('messages') WHERE name = 'seq'"
+      )
+      .get();
+    if (!hasSeq) {
+      // Schema changed: drop and recreate. Data loss is acceptable pre-release.
+      this.db.run("DROP TABLE IF EXISTS messages");
+      this.db.run("DROP TABLE IF EXISTS sessions");
+    }
     this.db.run(/* sql */ `
       CREATE TABLE IF NOT EXISTS sessions (
         id TEXT PRIMARY KEY,
@@ -80,7 +97,6 @@ export class SessionStore {
 
     const sessionMessages: ModelMessage[] = msgRows.map((r) => {
       const parsed = JSON.parse(r.content);
-      // If it's a plain string, return as-is; otherwise return the parsed array
       return { role: r.role, content: parsed } as ModelMessage;
     });
 
@@ -124,10 +140,7 @@ export class SessionStore {
     timestamp: number,
     seq: number
   ): void {
-    const content =
-      typeof message.content === "string"
-        ? JSON.stringify(message.content)
-        : JSON.stringify(message.content);
+    const content = JSON.stringify(message.content);
 
     this.db
       .insert(messages)

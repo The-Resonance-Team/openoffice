@@ -1,3 +1,5 @@
 # 0004 — SQLite for session storage via bun:sqlite
 
+**Superseded by [ADR-0005](./0005-drizzle-for-session-storage.md).**
+
 The issue spec says "JSON file per session." We're using SQLite instead, via Bun's built-in `bun:sqlite` (zero dependencies). Reasons: JSON files can't handle concurrent writes (two CLI instances corrupt the file), can't query sessions by date or search messages, and can't support compaction (summarizing old messages to save context). Raw SQL with `bun:sqlite` is ~20 lines for sessions + messages tables — no ORM needed. Schema: `sessions` table (id, agent, model, title, created_at, updated_at) and `messages` table (id, session_id, role, content, parts, timestamp). The `parts` column stores AI SDK's message content array as JSON.
