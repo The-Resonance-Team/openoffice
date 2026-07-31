@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { chat } from "../llm/chat";
+import { chat as defaultChat } from "../llm/chat";
+import type { ChatOptions } from "../llm/chat";
 import type { ToolRegistry } from "../tool/registry";
 import type { SessionStore } from "./store";
 import type { Session } from "./types";
@@ -13,10 +14,19 @@ export interface RunTurnOptions {
   tools?: ToolRegistry;
   system?: string;
   config: Config;
+  chatFn?: (options: ChatOptions, config: Config) => any;
 }
 
 export async function runTurn(options: RunTurnOptions) {
-  const { session, userMessage, store, tools, system, config } = options;
+  const {
+    session,
+    userMessage,
+    store,
+    tools,
+    system,
+    config,
+    chatFn = defaultChat,
+  } = options;
   const now = Date.now();
 
   // Append user message
@@ -31,14 +41,11 @@ export async function runTurn(options: RunTurnOptions) {
     content: userMessage,
   });
 
-  // Snapshot message count before LLM call — response.messages includes full history
-  const prevCount = session.messages.length;
-
   // Build AI tools with event emission
   const aiTools = tools?.toAIToolsWithEvents(session.id);
 
   // Call LLM
-  const result = chat(
+  const result = chatFn(
     {
       model: session.model,
       messages: session.messages,
@@ -55,12 +62,11 @@ export async function runTurn(options: RunTurnOptions) {
     emit("llm:token", { sessionID: session.id, token: chunk });
   }
 
-  // response.messages = full conversation history (original + new)
-  const response = await result.response;
-  const newMessages = response.messages.slice(prevCount);
+  // responseMessages = accumulated generated messages (assistant + tool calls + tool results)
+  const generatedMessages = await result.responseMessages;
 
-  // Persist new messages (assistant text, tool calls, tool results)
-  for (const msg of newMessages) {
+  // Persist generated messages
+  for (const msg of generatedMessages) {
     const msgId = randomUUID();
     store.appendMessage(session.id, msgId, msg as any, Date.now());
     session.messages.push(msg as any);
