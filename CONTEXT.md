@@ -17,11 +17,11 @@ A string in `provider/model-id` format (e.g. `"anthropic/claude-sonnet-4-2025051
 _Avoid_: LLM, model name
 
 **Provider**:
-An LLM service (openai, anthropic, google, ...) addressed by name. Each provider maps to an `@ai-sdk/*` npm package that implements the LanguageModelV1 interface. Provider credentials live in config via `env:` references.
+An LLM service (openai, anthropic, google, ollama, openrouter, ...) addressed by name, or a custom OpenAI/Anthropic-compatible endpoint given a `baseURL`. Each named provider maps to an `@ai-sdk/*` npm package that implements the LanguageModelV1 interface. Credentials come from config `env:` references (priority) or a stored login from `openoffice auth login` — never both silently; `env:` always wins.
 _Avoid_: backend, service, backend provider
 
 **Session**:
-One conversation: a live agent instance, its message history, and the active model. Identified by a runtime-generated session ID. Persisted in a SQLite database via Drizzle ORM with `bun:sqlite` driver. Supports querying, compaction, and concurrent access from day one.
+One conversation: a live agent instance, its message history, and the active model. Identified by a runtime-generated session ID. Persisted in a SQLite database via Drizzle ORM with `bun:sqlite` driver. Supports querying and concurrent access from day one. Compaction (summarizing old messages to stay under the context window) is deferred — not yet built, no issue owns it.
 _Avoid_: chat, conversation, thread
 
 **Message**:
@@ -61,6 +61,10 @@ _Avoid_: server (ambiguous with the HTTP framework), backend
 **Client**:
 A thin process that connects to the daemon over HTTP/SSE instead of running the agent loop itself — the TUI and, later, the desktop app. Sends commands via HTTP routes, receives token/event streams via SSE.
 _Avoid_: UI, frontend, app
+
+**Share**:
+A revocable, unguessable-token URL giving a non-participant read-only access to a session's transcript and edit previews over SSE. Cannot reach accept/undo/revert — those require the daemon's own client token, not a share token. Not collaboration: single accepting user, others only watch.
+_Avoid_: collaboration, multi-user, link
 
 ### Draft lifecycle
 
