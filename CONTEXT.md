@@ -2,6 +2,10 @@
 
 A CLI that runs LLM agents equipped with tools to automate office document work.
 
+## Rules
+
+**Reference source**: When building or improving features, always reference the opencode source at `/Users/xirothedev/workspace/opencode`.
+
 ## Language
 
 **Agent**:
@@ -47,3 +51,43 @@ _Avoid_: Office, document tools, doc tools
 **Config**:
 The project's typed configuration, loaded from layered sources (defaults, global, project) with environment overrides and `env:` references. API keys are stored as `env:VAR_NAME` strings resolved at load time.
 _Avoid_: settings, options
+
+### Daemon & clients
+
+**Daemon**:
+The long-running background process (`openoffice serve`) that hosts the session loop, tools, and the HTTP/SSE API. Auto-spawned detached by the CLI if none is running for the current user. All agent work happens in the daemon, never in a client.
+_Avoid_: server (ambiguous with the HTTP framework), backend
+
+**Client**:
+A thin process that connects to the daemon over HTTP/SSE instead of running the agent loop itself — the TUI and, later, the desktop app. Sends commands via HTTP routes, receives token/event streams via SSE.
+_Avoid_: UI, frontend, app
+
+### Draft lifecycle
+
+**Draft**:
+A working copy of a document that the agent edits; the real file is untouched until accept. Keyed by the real file's path hash, not by session, so any session can discover a file's drafts: `drafts/{filePathHash}/{sessionID}.{ext}`.
+_Avoid_: copy, working file, temp file
+
+**Lock**:
+A per-file claim (keyed by `filePathHash`) granting one session the right to hold an active draft for that file. Stale locks (>24h untouched) can be overridden by another session.
+_Avoid_: mutex, session lock
+
+**Accept**:
+The only operation that writes to the real file. Flushes the draft, copies it over the real file, records an accept-point in that file's version history, and releases the draft and lock.
+_Avoid_: save, commit, apply
+
+**Undo**:
+Discards the current draft before accept. The real file was never touched, so there is nothing to revert. Distinct from Revert, which acts on an already-accepted file.
+_Avoid_: discard, cancel
+
+**Revert**:
+Restores a file to a previously accepted state. Creates a new draft from the recorded snapshot and routes it through the normal Accept flow — never writes the real file directly. The real file has exactly one write path: Accept.
+_Avoid_: rollback, restore
+
+**Accept-point**:
+A recorded entry in a file's version history: timestamp, snapshot, and which session made it. Keyed by `filePathHash` (`history/{filePathHash}.json`), so any session can look up or revert a file's history without knowing which session last accepted it.
+_Avoid_: version, checkpoint
+
+**Preview**:
+A before/after screenshot comparison shown after a mutating edit. Before is always the untouched real file; after is the draft's current state. Comparisons are cumulative since the last accept, not incremental per edit.
+_Avoid_: diff, comparison
