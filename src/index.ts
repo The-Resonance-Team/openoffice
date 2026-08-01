@@ -65,6 +65,12 @@ async function main() {
         });
         return output;
       },
+      readPdf: async (file: string) => {
+        return execFileSync("pdftotext", ["-layout", file, "-"], {
+          encoding: "utf-8",
+          timeout: 30000,
+        });
+      },
     })
   );
   tools.register(createWriteTool());

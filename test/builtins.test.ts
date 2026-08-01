@@ -94,14 +94,81 @@ describe("read tool", () => {
     expect(calledWith).toBe(file);
   });
 
-  test("reads .pdf as text", async () => {
+  test("delegates .pdf to readPdf when available", async () => {
     const dir = tempDir();
     const file = join(dir, "test.pdf");
-    writeFileSync(file, "raw pdf bytes");
+    writeFileSync(file, "%PDF-1.4 binary");
+
+    let calledWith = "";
+    const tool = createReadTool({
+      readOffice: async () => "",
+      readPdf: async (f: string) => {
+        calledWith = f;
+        return "extracted pdf text";
+      },
+    });
+    const result = await tool.execute({ file });
+    expect(result.success).toBe(true);
+    expect(calledWith).toBe(file);
+    if (result.success) expect(result.output).toBe("extracted pdf text");
+  });
+
+  test("errors on .pdf when readPdf not configured", async () => {
+    const dir = tempDir();
+    const file = join(dir, "test.pdf");
+    writeFileSync(file, "%PDF-1.4 binary");
 
     const tool = createReadTool({ readOffice: async () => "" });
     const result = await tool.execute({ file });
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.code).toBe("PDF_READ_ERROR");
+  });
+
+  test("errors on legacy .doc format with conversion hint", async () => {
+    const dir = tempDir();
+    const file = join(dir, "test.doc");
+    writeFileSync(file, "legacy binary");
+
+    const tool = createReadTool({ readOffice: async () => "" });
+    const result = await tool.execute({ file });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.code).toBe("LEGACY_FORMAT");
+      expect(result.error).toContain("docx");
+    }
+  });
+
+  test("delegates .dotx template to readOffice", async () => {
+    const dir = tempDir();
+    const file = join(dir, "template.dotx");
+    writeFileSync(file, "binary");
+
+    let calledWith = "";
+    const tool = createReadTool({
+      readOffice: async (f: string) => {
+        calledWith = f;
+        return "template content";
+      },
+    });
+    const result = await tool.execute({ file });
     expect(result.success).toBe(true);
-    if (result.success) expect(result.output).toBe("raw pdf bytes");
+    expect(calledWith).toBe(file);
+  });
+
+  test("delegates .docm macro-enabled to readOffice", async () => {
+    const dir = tempDir();
+    const file = join(dir, "macro.docm");
+    writeFileSync(file, "binary");
+
+    let calledWith = "";
+    const tool = createReadTool({
+      readOffice: async (f: string) => {
+        calledWith = f;
+        return "macro content";
+      },
+    });
+    const result = await tool.execute({ file });
+    expect(result.success).toBe(true);
+    expect(calledWith).toBe(file);
   });
 });

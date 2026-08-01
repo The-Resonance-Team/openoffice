@@ -3,7 +3,25 @@ import { extname } from "node:path";
 import { z } from "zod";
 import type { ToolDefinition } from "../types";
 
-const OFFICE_EXTENSIONS = new Set([".docx", ".xlsx", ".pptx"]);
+const OFFICE_EXTENSIONS = new Set([
+  ".docx",
+  ".xlsx",
+  ".pptx",
+  ".docm",
+  ".xlsm",
+  ".pptm",
+  ".dotx",
+  ".xltx",
+  ".potx",
+]);
+const LEGACY_OFFICE_EXTENSIONS = new Set([
+  ".doc",
+  ".xls",
+  ".ppt",
+  ".dot",
+  ".xlt",
+  ".pot",
+]);
 const TEXT_EXTENSIONS = new Set([
   ".txt",
   ".md",
@@ -39,13 +57,14 @@ const TEXT_EXTENSIONS = new Set([
 
 export interface ReadDeps {
   readOffice: (file: string) => Promise<string>;
+  readPdf?: (file: string) => Promise<string>;
 }
 
 export function createReadTool(deps: ReadDeps): ToolDefinition {
   return {
     name: "read",
     description:
-      "Read file contents. Auto-detects format: .docx/.xlsx/.pptx via officecli, .pdf via pdf-parse, plain text for everything else. Always use this to read any file.",
+      "Read file contents. Auto-detects format: Office documents (.docx/.xlsx/.pptx and OpenXML variants) via officecli, .pdf via pdftotext, plain text for everything else. Always use this to read any file.",
     parameters: z.object({
       file: z.string().describe("Path to the file to read"),
     }),
@@ -71,6 +90,34 @@ export function createReadTool(deps: ReadDeps): ToolDefinition {
             code: "OFFICE_READ_ERROR",
           };
         }
+      }
+
+      if (ext === ".pdf") {
+        if (!deps.readPdf) {
+          return {
+            success: false,
+            error: "PDF reading is not available (pdftotext not configured)",
+            code: "PDF_READ_ERROR",
+          };
+        }
+        try {
+          const content = await deps.readPdf(params.file);
+          return { success: true, output: content };
+        } catch (e: any) {
+          return {
+            success: false,
+            error: e.message ?? "Failed to read PDF",
+            code: "PDF_READ_ERROR",
+          };
+        }
+      }
+
+      if (LEGACY_OFFICE_EXTENSIONS.has(ext)) {
+        return {
+          success: false,
+          error: `Legacy binary Office format (.${ext.slice(1)}) is not supported. Convert it to the OpenXML equivalent first (e.g. LibreOffice: soffice --headless --convert-to docx file.doc)`,
+          code: "LEGACY_FORMAT",
+        };
       }
 
       if (TEXT_EXTENSIONS.has(ext) || !ext) {
