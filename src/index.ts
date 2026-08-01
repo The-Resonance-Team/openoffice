@@ -1,7 +1,7 @@
 import { createInterface } from "node:readline";
 import { randomUUID } from "node:crypto";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { join, dirname, basename, extname } from "node:path";
 import { resolveConfig } from "./config";
 import { SessionStore } from "./session/store";
 import { runTurn } from "./session/loop";
@@ -15,6 +15,7 @@ import { createWriteTool } from "./tool/builtins/write";
 import { createGlobTool } from "./tool/builtins/glob";
 import { createGrepTool } from "./tool/builtins/grep";
 import { createQuestionTool } from "./tool/builtins/question";
+import { createConvertTool } from "./tool/builtins/convert";
 import { createSkillTool } from "./skills";
 import { McpManager } from "./mcp";
 import { on, emit } from "./events";
@@ -30,6 +31,19 @@ function getDbPath(): string {
 
 function getSkillsDir(): string {
   return join(process.cwd(), "skills");
+}
+
+function askUser(question: string): Promise<string> {
+  return new Promise((resolve) => {
+    const rl = createInterface({
+      input: process.stdin,
+      output: process.stdout,
+    });
+    rl.question(`${question}\n> `, (answer) => {
+      rl.close();
+      resolve(answer);
+    });
+  });
 }
 
 function createSession(model: string, agentName: string): Session {
@@ -78,17 +92,25 @@ async function main() {
   tools.register(createGrepTool());
   tools.register(
     createQuestionTool({
-      askUser: (question: string) =>
-        new Promise((resolve) => {
-          const rl = createInterface({
-            input: process.stdin,
-            output: process.stdout,
-          });
-          rl.question(`${question}\n> `, (answer) => {
-            rl.close();
-            resolve(answer);
-          });
-        }),
+      askUser,
+    })
+  );
+  tools.register(
+    createConvertTool({
+      askUser,
+      convertFile: async (file: string, format: string) => {
+        const dir = dirname(file);
+        execFileSync(
+          "soffice",
+          ["--headless", "--convert-to", format, "--outdir", dir, file],
+          {
+            encoding: "utf-8",
+            timeout: 60000,
+          }
+        );
+        const base = basename(file, extname(file));
+        return join(dir, `${base}.${format}`);
+      },
     })
   );
   tools.register(createSkillTool(skillsDir));

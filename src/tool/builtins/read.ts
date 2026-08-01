@@ -115,7 +115,7 @@ export function createReadTool(deps: ReadDeps): ToolDefinition {
       if (LEGACY_OFFICE_EXTENSIONS.has(ext)) {
         return {
           success: false,
-          error: `Legacy binary Office format (.${ext.slice(1)}) is not supported. Convert it to the OpenXML equivalent first (e.g. LibreOffice: soffice --headless --convert-to docx file.doc)`,
+          error: `Legacy binary Office format (.${ext.slice(1)}) is not supported. Use the convert tool to convert it to the OpenXML equivalent (.docx/.xlsx/.pptx) first`,
           code: "LEGACY_FORMAT",
         };
       }
