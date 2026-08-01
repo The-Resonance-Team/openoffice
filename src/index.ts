@@ -18,6 +18,8 @@ import { createQuestionTool } from "./tool/builtins/question";
 import { createConvertTool } from "./tool/builtins/convert";
 import { createSkillTool } from "./skills";
 import { McpManager } from "./mcp";
+import { createSdkMcpClient, planMcpConnections } from "./mcp/sdk-client";
+import type { ToolDefinition } from "./tool";
 import { on, emit } from "./events";
 import { execFileSync } from "node:child_process";
 
@@ -115,15 +117,36 @@ async function main() {
   );
   tools.register(createSkillTool(skillsDir));
 
-  // Connect MCP servers from config
-  const mcp = new McpManager({
-    connect: async (_mcpConfig) => {
-      // MCP connection will be implemented when @modelcontextprotocol/sdk is added
-      throw new Error(
-        "MCP connection not yet implemented. Add @modelcontextprotocol/sdk dependency."
+  // Connect MCP servers from config; skip any whose name collides with a
+  // native tool — the native integration is strictly better (dogfooding).
+  const mcp = new McpManager({ connect: createSdkMcpClient });
+  const { toConnect, skipped } = planMcpConnections(
+    config.mcp,
+    tools.list().map((t) => t.name)
+  );
+  for (const name of skipped) {
+    console.warn(
+      `MCP server "${name}" skipped: provided natively, use the built-in tool`
+    );
+  }
+  for (const [name, mcpConfig] of toConnect) {
+    try {
+      await mcp.connect(name, mcpConfig);
+    } catch (e) {
+      console.warn(
+        `MCP server "${name}" failed to connect: ${e instanceof Error ? e.message : e}`
       );
-    },
-  });
+    }
+  }
+  for (const tool of await mcp.listAllTools()) {
+    tools.register({
+      name: mcp.toolName(tool.clientName, tool.name),
+      description: tool.description,
+      // ponytail: MCP inputSchema is JSON Schema; AI SDK tool() accepts it directly
+      parameters: tool.inputSchema as unknown as ToolDefinition["parameters"],
+      execute: (args) => mcp.callTool(tool.clientName, tool.name, args),
+    });
+  }
 
   // Build system prompt
   const system = buildSystemPrompt({

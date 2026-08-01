@@ -14,6 +14,7 @@ export const McpConfigSchema = z.object({
   type: z.enum(["local", "remote"]),
   command: z.array(z.string()).optional(),
   url: z.string().optional(),
+  environment: z.record(z.string(), z.string()).optional(),
 });
 
 export const OfficeConfigSchema = z.object({
