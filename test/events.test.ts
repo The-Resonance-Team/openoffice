@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { emit, on } from "../src/events/bus";
+import { emit, on } from "../src/events";
 
 describe("event bus", () => {
   test("emit delivers to subscribed listeners", () => {

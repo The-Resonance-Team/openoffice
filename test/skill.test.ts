@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { mkdtempSync, writeFileSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { loadSkill, listSkills, type Skill } from "../src/skills/loader";
+import { loadSkill, listSkills, type Skill } from "../src/skills";
 
 function tempDir(): string {
   return mkdtempSync(join(tmpdir(), "openoffice-test-"));

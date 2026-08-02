@@ -3,11 +3,9 @@ import { mkdtempSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { randomUUID } from "node:crypto";
-import { SessionStore } from "../src/session/store";
-import { runTurn } from "../src/session/loop";
-import type { Session } from "../src/session/types";
+import { SessionStore, runTurn, type Session } from "../src/session";
 import type { Config } from "../src/config";
-import type { ChatOptions } from "../src/llm/chat";
+import type { ChatOptions } from "../src/llm";
 
 let dir: string;
 let store: SessionStore;

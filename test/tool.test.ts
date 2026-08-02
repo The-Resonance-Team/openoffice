@@ -1,8 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { z } from "zod";
-import { executeTool } from "../src/tool/execute";
-import { ToolRegistry } from "../src/tool/registry";
-import type { ToolDefinition } from "../src/tool/types";
+import { executeTool, ToolRegistry, type ToolDefinition } from "../src/tool";
 import { on } from "../src/events";
 
 const echoTool: ToolDefinition = {

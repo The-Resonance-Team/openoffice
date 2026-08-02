@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { McpManager, type McpClient } from "../src/mcp/manager";
+import { McpManager, type McpClient } from "../src/mcp";
 
 function createMockClient(
   tools: Array<{ name: string; description: string }> = []

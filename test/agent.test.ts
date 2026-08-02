@@ -1,7 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { AgentRegistry } from "../src/agent/registry";
-import { evaluate } from "../src/agent/permission";
-import type { ToolDefinition } from "../src/tool/types";
+import { AgentRegistry, evaluate } from "../src/agent";
+import type { ToolDefinition } from "../src/tool";
 import { z } from "zod";
 
 const makeTool = (name: string): ToolDefinition => ({

@@ -3,6 +3,7 @@ import { createOfficeCliTool, isMutating, parseError } from "./tool";
 import { checkInstalled, resetCache } from "./install";
 
 export { isMutating, parseError, checkInstalled, resetCache };
+export { createOfficeCliTool };
 export type { OfficeCliDeps } from "./tool";
 
 export function createDefaultOfficeCliTool() {

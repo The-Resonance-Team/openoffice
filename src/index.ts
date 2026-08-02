@@ -3,23 +3,27 @@ import { randomUUID } from "node:crypto";
 import { homedir } from "node:os";
 import { join, dirname, basename, extname } from "node:path";
 import { resolveConfig } from "./config";
-import { SessionStore } from "./session/store";
-import { runTurn } from "./session/loop";
-import { buildSystemPrompt } from "./session/system";
-import type { Session } from "./session/types";
-import { ToolRegistry } from "./tool/registry";
+import {
+  SessionStore,
+  runTurn,
+  buildSystemPrompt,
+  type Session,
+} from "./session";
+import {
+  ToolRegistry,
+  createConvertTool,
+  createGlobTool,
+  createGrepTool,
+  createQuestionTool,
+  createReadTool,
+  createWriteTool,
+  type ToolDefinition,
+} from "./tool";
 import { AgentRegistry } from "./agent";
 import { createDefaultOfficeCliTool } from "./office";
-import { createReadTool } from "./tool/builtins/read";
-import { createWriteTool } from "./tool/builtins/write";
-import { createGlobTool } from "./tool/builtins/glob";
-import { createGrepTool } from "./tool/builtins/grep";
-import { createQuestionTool } from "./tool/builtins/question";
-import { createConvertTool } from "./tool/builtins/convert";
 import { createSkillTool } from "./skills";
 import { McpManager } from "./mcp";
 import { createSdkMcpClient, planMcpConnections } from "./mcp/sdk-client";
-import type { ToolDefinition } from "./tool";
 import { on, emit } from "./events";
 import { execFileSync } from "node:child_process";
 

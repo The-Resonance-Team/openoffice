@@ -31,7 +31,9 @@ module.exports = {
       comment:
         "App/root code may import a domain's entry points (its root files), but nothing inside its subfolders.",
       severity: "error",
-      from: { pathNot: `^${R}/` }, // importer is NOT inside any domain
+      // importer is NOT inside any domain (app entry points like src/index.ts
+      // live at the src root, not in a domain subfolder)
+      from: { pathNot: `^${R}/[^/]+/` }, // importer is NOT inside any domain
       to: { path: PACKAGE_INTERNALS },
     },
     {

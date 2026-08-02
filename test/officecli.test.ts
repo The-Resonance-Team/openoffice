@@ -1,9 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import {
-  createOfficeCliTool,
-  isMutating,
-  parseError,
-} from "../src/office/tool";
+import { createOfficeCliTool, isMutating, parseError } from "../src/office";
 
 describe("isMutating", () => {
   test("set is mutating", () => expect(isMutating("set")).toBe(true));

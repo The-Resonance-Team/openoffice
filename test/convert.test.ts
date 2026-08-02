@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { mkdtempSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createConvertTool } from "../src/tool/builtins/convert";
+import { createConvertTool } from "../src/tool";
 
 function tempDir(): string {
   return mkdtempSync(join(tmpdir(), "openoffice-convert-test-"));

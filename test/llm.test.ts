@@ -1,6 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { resolveModel } from "../src/llm/providers";
-import { chat } from "../src/llm/chat";
+import { resolveModel, chat } from "../src/llm";
 import type { Config } from "../src/config";
 
 const config: Config = {

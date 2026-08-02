@@ -2,8 +2,7 @@ import { describe, expect, test, beforeEach } from "bun:test";
 import { mkdtempSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { SessionStore } from "../src/session/store";
-import type { Session } from "../src/session/types";
+import { SessionStore, type Session } from "../src/session";
 
 let dir: string;
 let store: SessionStore;
