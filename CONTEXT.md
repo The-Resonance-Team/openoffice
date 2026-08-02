@@ -6,6 +6,8 @@ A CLI that runs LLM agents equipped with tools to automate office document work.
 
 **Reference source**: When building or improving features, always reference the opencode source at `/Users/xirothedev/workspace/opencode`.
 
+**Dogfooding**: A configured MCP server whose name matches a native tool is never connected — the native integration (typed verbs, install check, chaining) is strictly better than the MCP `command`-string surface. Native wins.
+
 ## Language
 
 **Agent**:
@@ -29,8 +31,12 @@ A single turn in a session. Uses AI SDK's `ModelMessage` type directly — roles
 _Avoid_: entry, record
 
 **Tool**:
-A callable unit exposed to the agent to perform an action. Defined with a Zod `inputSchema` and an `execute` function. Converted to AI SDK format via the `tool()` helper before passing to `streamText()`. Tools can reference other tools for chaining (e.g., a document reader delegates to officecli or pdf-parse based on file extension).
+A callable unit exposed to the agent to perform an action. Defined with a Zod `inputSchema` and an `execute` function. Converted to AI SDK format via the `tool()` helper before passing to `streamText()`. Tools can reference other tools for chaining (e.g., a document reader delegates to officecli or pdf-parse based on file extension). MCP tools are the exception: they carry their server's JSON Schema (not Zod) and the AI SDK accepts it directly.
 _Avoid_: action, function, plugin, capability
+
+**MCP server**:
+A Model Context Protocol server configured in `config.mcp` as `local` (stdio command) or `remote` (streamable HTTP URL). Connected at startup via `@modelcontextprotocol/sdk`; its tools are exposed namespaced as `{serverName}_{toolName}` with the server's input schema passed through to the AI SDK. A server whose name matches a native tool is skipped (see Rules → Dogfooding).
+_Avoid_: plugin, backend server
 
 **ToolResult**:
 The outcome of a tool execution. A strict discriminated union: `{ success: true, output: string, data?: unknown }` or `{ success: false, error: string, code?: string }`. The `output` field is human-readable text the LLM sees. The `data` field is optional structured data for programmatic consumers (session loop, draft lifecycle). Each tool normalizes its internal output into this shape.

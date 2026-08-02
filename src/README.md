@@ -30,3 +30,5 @@ Runs `depcruise src` (also in the pre-commit hook). Violations are reported with
 ## No barrels
 
 Public surface is _every_ root file, so expose several small entry points (`index.ts`, `client.ts`, …) instead of funnelling everything through one giant `index.ts`. Barrel files that re-export a whole subtree are discouraged — keep entry points small and hide implementation in subfolders. Adding an entry point is just adding a root file — no config change.
+
+Exception: when a subfolder is fully private (depcruise blocks direct imports), its domain root `index.ts` re-exports the public creators — e.g. `tool/index.ts` exposes the `builtins/*` factories. Outside code imports `./tool`, never `./tool/builtins/*`.
