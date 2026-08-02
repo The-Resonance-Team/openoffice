@@ -21,7 +21,7 @@ An LLM service (openai, anthropic, google, ollama, openrouter, ...) addressed by
 _Avoid_: backend, service, backend provider
 
 **Session**:
-One conversation: a live agent instance, its message history, and the active model. Identified by a runtime-generated session ID. Persisted in a SQLite database via Drizzle ORM with `bun:sqlite` driver. Supports querying and concurrent access from day one. Compaction (summarizing old messages to stay under the context window) is deferred — not yet built, no issue owns it.
+One conversation: a live agent instance, its message history, and the active model. Identified by a runtime-generated session ID. Persisted in a SQLite database via Drizzle ORM with `bun:sqlite` driver. Supports querying and concurrent access from day one. Compaction (pruning old tool outputs, then summarizing older turns to stay under the context window) is deferred — not yet built, owned by #17.
 _Avoid_: chat, conversation, thread
 
 **Message**:
