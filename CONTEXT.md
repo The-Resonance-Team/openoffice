@@ -66,6 +66,10 @@ _Avoid_: UI, frontend, app
 A revocable, unguessable-token URL giving a non-participant read-only access to a session's transcript and edit previews over SSE. Cannot reach accept/undo/revert — those require the daemon's own client token, not a share token. Not collaboration: single accepting user, others only watch.
 _Avoid_: collaboration, multi-user, link
 
+**Sync**:
+A second device (the same user's) reaching the same daemon as a full client — same token as any other client, not a separate identity. Requires widening the daemon's bind beyond loopback; the token becomes the only boundary once that happens. Not per-device pairing, not concurrent editing.
+_Avoid_: collaboration, multi-user, replication
+
 ### Draft lifecycle
 
 **Draft**:
