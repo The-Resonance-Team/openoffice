@@ -15,10 +15,11 @@ export function createGrepTool(): ToolDefinition {
         .optional()
         .describe("File pattern to include (e.g., *.ts)"),
     }),
-    execute: async (params) => {
+    execute: async (params, ctx) => {
       try {
         const args: string[] = ["--no-heading", "--line-number", params.query];
         if (params.path) args.push(params.path);
+        else args.push(ctx.cwd ?? process.cwd());
         if (params.include) args.push("--glob", params.include);
 
         const output = execFileSync("rg", args, {

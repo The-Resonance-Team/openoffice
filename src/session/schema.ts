@@ -5,6 +5,7 @@ export const sessions = sqliteTable("sessions", {
   agent: text("agent").notNull(),
   model: text("model").notNull(),
   title: text("title").notNull().default(""),
+  cwd: text("cwd").notNull().default(""),
   createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
 });

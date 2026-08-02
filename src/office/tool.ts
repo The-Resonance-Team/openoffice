@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { ToolDefinition, ToolResult } from "../tool";
+import type { DraftManager } from "../draft";
 
 const VERBS = [
   "open",
@@ -83,6 +84,7 @@ const VIEW_MODES = [
 export interface OfficeCliDeps {
   checkInstalled: () => Promise<boolean>;
   execCli: (args: string[], opts?: { timeout?: number }) => Promise<string>;
+  draftManager?: DraftManager;
 }
 
 export function createOfficeCliTool(deps: OfficeCliDeps): ToolDefinition {
@@ -195,7 +197,7 @@ export function createOfficeCliTool(deps: OfficeCliDeps): ToolDefinition {
       query: z.string().optional().describe("Alias for selector (query)"),
       content: z.string().optional().describe("Deprecated: use props instead"),
     }),
-    execute: async (params): Promise<ToolResult> => {
+    execute: async (params, ctx): Promise<ToolResult> => {
       if (!(await deps.checkInstalled())) {
         return {
           success: false,
@@ -206,13 +208,36 @@ export function createOfficeCliTool(deps: OfficeCliDeps): ToolDefinition {
       }
 
       const cmd = params.command;
+
+      // Draft interception: mutating/open/create commands run against a draft
+      // copy; reads follow the draft once one exists. merge targets the output
+      // path via template, not params.file — left outside the draft path.
+      let file = params.file;
+      if (deps.draftManager && file && cmd !== "merge") {
+        const createsDraft =
+          isMutating(cmd) || cmd === "open" || cmd === "create";
+        const resolved = await deps.draftManager.resolve(
+          file,
+          ctx.sessionID,
+          createsDraft
+        );
+        if (resolved.lockError) {
+          return {
+            success: false,
+            error: resolved.lockError,
+            code: "LOCKED",
+          };
+        }
+        file = resolved.path!;
+      }
+
       const args: string[] = [cmd];
 
       if (cmd === "merge") {
         args.push(params.template ?? "", params.output ?? "");
         if (params.data) args.push("--data", params.data);
       } else {
-        args.push(params.file ?? "");
+        args.push(file ?? "");
         if (
           cmd === "get" ||
           cmd === "set" ||

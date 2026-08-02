@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdtempSync, writeFileSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createReadTool } from "../src/tool";
+import { createReadTool, createWriteTool } from "../src/tool";
 
 function tempDir(): string {
   return mkdtempSync(join(tmpdir(), "openoffice-test-"));
@@ -19,7 +19,7 @@ describe("read tool", () => {
     writeFileSync(file, "hello world");
 
     const tool = createReadTool(noopDeps);
-    const result = await tool.execute({ file });
+    const result = await tool.execute({ file }, { sessionID: "test" });
     expect(result.success).toBe(true);
     if (result.success) expect(result.output).toBe("hello world");
   });
@@ -30,14 +30,17 @@ describe("read tool", () => {
     writeFileSync(file, "# Title");
 
     const tool = createReadTool(noopDeps);
-    const result = await tool.execute({ file });
+    const result = await tool.execute({ file }, { sessionID: "test" });
     expect(result.success).toBe(true);
     if (result.success) expect(result.output).toBe("# Title");
   });
 
   test("returns error for missing file", async () => {
     const tool = createReadTool(noopDeps);
-    const result = await tool.execute({ file: "/nonexistent/file.txt" });
+    const result = await tool.execute(
+      { file: "/nonexistent/file.txt" },
+      { sessionID: "test" }
+    );
     expect(result.success).toBe(false);
     if (!result.success) expect(result.code).toBe("FILE_NOT_FOUND");
   });
@@ -54,7 +57,7 @@ describe("read tool", () => {
         return "document content";
       },
     });
-    const result = await tool.execute({ file });
+    const result = await tool.execute({ file }, { sessionID: "test" });
     expect(result.success).toBe(true);
     expect(calledWith).toBe(file);
     if (result.success) expect(result.output).toBe("document content");
@@ -72,7 +75,7 @@ describe("read tool", () => {
         return "spreadsheet content";
       },
     });
-    const result = await tool.execute({ file });
+    const result = await tool.execute({ file }, { sessionID: "test" });
     expect(result.success).toBe(true);
     expect(calledWith).toBe(file);
   });
@@ -89,7 +92,7 @@ describe("read tool", () => {
         return "presentation content";
       },
     });
-    const result = await tool.execute({ file });
+    const result = await tool.execute({ file }, { sessionID: "test" });
     expect(result.success).toBe(true);
     expect(calledWith).toBe(file);
   });
@@ -107,7 +110,7 @@ describe("read tool", () => {
         return "extracted pdf text";
       },
     });
-    const result = await tool.execute({ file });
+    const result = await tool.execute({ file }, { sessionID: "test" });
     expect(result.success).toBe(true);
     expect(calledWith).toBe(file);
     if (result.success) expect(result.output).toBe("extracted pdf text");
@@ -119,7 +122,7 @@ describe("read tool", () => {
     writeFileSync(file, "%PDF-1.4 binary");
 
     const tool = createReadTool({ readOffice: async () => "" });
-    const result = await tool.execute({ file });
+    const result = await tool.execute({ file }, { sessionID: "test" });
     expect(result.success).toBe(false);
     if (!result.success) expect(result.code).toBe("PDF_READ_ERROR");
   });
@@ -130,7 +133,7 @@ describe("read tool", () => {
     writeFileSync(file, "legacy binary");
 
     const tool = createReadTool({ readOffice: async () => "" });
-    const result = await tool.execute({ file });
+    const result = await tool.execute({ file }, { sessionID: "test" });
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(result.code).toBe("LEGACY_FORMAT");
@@ -150,7 +153,7 @@ describe("read tool", () => {
         return "template content";
       },
     });
-    const result = await tool.execute({ file });
+    const result = await tool.execute({ file }, { sessionID: "test" });
     expect(result.success).toBe(true);
     expect(calledWith).toBe(file);
   });
@@ -167,8 +170,37 @@ describe("read tool", () => {
         return "macro content";
       },
     });
-    const result = await tool.execute({ file });
+    const result = await tool.execute({ file }, { sessionID: "test" });
     expect(result.success).toBe(true);
     expect(calledWith).toBe(file);
+  });
+});
+
+describe("write tool", () => {
+  test("writes text files", async () => {
+    const dir = tempDir();
+    const file = join(dir, "note.txt");
+    const tool = createWriteTool();
+    const result = await tool.execute(
+      { file, content: "hello" },
+      { sessionID: "test" }
+    );
+    expect(result.success).toBe(true);
+    expect(readFileSync(file, "utf-8")).toBe("hello");
+  });
+
+  test("rejects office extensions", async () => {
+    const dir = tempDir();
+    const tool = createWriteTool();
+    for (const ext of [".docx", ".xlsx", ".pptx", ".doc", ".xls"]) {
+      const result = await tool.execute(
+        { file: join(dir, `file${ext}`), content: "garbage" },
+        { sessionID: "test" }
+      );
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error).toContain("officecli");
+      }
+    }
   });
 });

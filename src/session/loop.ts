@@ -43,7 +43,7 @@ export async function runTurn(options: RunTurnOptions) {
   });
 
   // Build AI tools with event emission
-  const aiTools = tools?.toAIToolsWithEvents(session.id);
+  const aiTools = tools?.toAIToolsWithEvents(session.id, session.cwd);
 
   // Call LLM
   const result = chatFn(

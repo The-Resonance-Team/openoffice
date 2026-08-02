@@ -22,6 +22,7 @@ function makeSession(): Session {
     agent: "build",
     model: "anthropic/claude-sonnet-4-20250514",
     title: "Test",
+    cwd: process.cwd(),
     messages: [],
     createdAt: now,
     updatedAt: now,
