@@ -3,7 +3,11 @@ import { mkdtempSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { CredentialStore } from "../../auth/store";
-import { resolveCredential, resolveModel } from "../providers";
+import {
+  resolveCredential,
+  resolveModel,
+  AuthRequiredError,
+} from "../providers";
 import type { Config } from "../../config";
 
 let dir: string;
@@ -50,6 +54,21 @@ describe("resolveCredential — resolution order", () => {
     ).toThrow(/anthropic.*apiKey.*auth login anthropic/);
   });
 
+  test("missing credential is an AuthRequiredError naming the provider", () => {
+    let thrown: unknown;
+    try {
+      resolveCredential(
+        anthropicConfig(undefined).provider?.anthropic,
+        "anthropic",
+        store
+      );
+    } catch (err) {
+      thrown = err;
+    }
+    expect(thrown).toBeInstanceOf(AuthRequiredError);
+    expect((thrown as AuthRequiredError).provider).toBe("anthropic");
+  });
+
   test("undeclared provider with no stored credential returns empty (SDK env fallback)", () => {
     const result = resolveCredential(undefined, "anthropic", store);
     expect(result).toEqual({});
@@ -74,9 +93,15 @@ describe("resolveCredential — oauth expiry", () => {
       access: "tok-1",
       expires: Date.now() - 1,
     });
-    expect(() => resolveCredential(undefined, "anthropic", store)).toThrow(
-      /expired.*auth login anthropic/
-    );
+    let thrown: unknown;
+    try {
+      resolveCredential(undefined, "anthropic", store);
+    } catch (err) {
+      thrown = err;
+    }
+    expect(thrown).toBeInstanceOf(AuthRequiredError);
+    expect((thrown as AuthRequiredError).provider).toBe("anthropic");
+    expect((thrown as Error).message).toMatch(/expired.*auth login anthropic/);
   });
 
   test("credential expiring in the future is still usable", () => {

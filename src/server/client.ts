@@ -1,6 +1,16 @@
 import { getDataDir, readDaemonInfo, isAlive, spawnDaemon } from "./daemon";
 import type { Session } from "../session";
 
+export class ApiError extends Error {
+  constructor(
+    public status: number,
+    public data: unknown
+  ) {
+    super(`request failed (${status})`);
+    this.name = "ApiError";
+  }
+}
+
 export interface StreamHandlers {
   token?: (token: string) => void;
   done?: (response: string) => void;
@@ -50,10 +60,11 @@ export class OpenOfficeClient {
   }
 
   async turn(id: string, message: string): Promise<{ text: string }> {
-    const { data } = await this.request<{ text: string }>(
+    const { status, data } = await this.request<{ text: string }>(
       `/api/sessions/${id}/turn`,
       { method: "POST", body: JSON.stringify({ message }) }
     );
+    if (status !== 200) throw new ApiError(status, data);
     return data;
   }
 
