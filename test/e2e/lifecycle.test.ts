@@ -6,13 +6,7 @@ import {
   afterAll,
   afterEach,
 } from "bun:test";
-import {
-  existsSync,
-  readFileSync,
-  readdirSync,
-  writeFileSync,
-  statSync,
-} from "node:fs";
+import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
 import { SessionStore } from "../../src/session/store";
@@ -252,19 +246,7 @@ describe("draft lifecycle E2E (full stack, scripted LLM)", () => {
     expect(status).toBe(200);
 
     expect(draftMetaFiles(id).length).toBe(1);
-    expect(existsSync(file)).toBe(false);
-    const dbg = draftMetaFiles(id)[0];
-    console.log("DEBUG draft:", dbg, dbg ? statSync(dbg).size : "none");
-    console.log(
-      "DEBUG draft content:",
-      dbg
-        ? execFileSync(
-            "officecli",
-            ["get", dbg.replace(".meta.json", ""), "/body", "--json"],
-            { encoding: "utf-8", timeout: 30000 }
-          ).slice(0, 150)
-        : ""
-    ); // draft-born doc: real file appears on accept
+    expect(existsSync(file)).toBe(false); // draft-born doc: real file appears on accept
 
     expect(await post(id, "accept", { filePath: file })).toBe(200);
     expect(existsSync(file)).toBe(true);

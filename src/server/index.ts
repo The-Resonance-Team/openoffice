@@ -8,6 +8,7 @@ import type { ToolRegistry } from "../tool";
 import { filePathHash, type DraftManager } from "../draft";
 import type { HistoryStore } from "../history";
 import type { UpdateStatus } from "../update";
+import { AuthRequiredError } from "../llm";
 
 export class AskChannel {
   private pending = new Map<string, (answer: string) => void>();
@@ -96,12 +97,24 @@ export function createApp(deps: ServerDeps) {
     const message = typeof body.message === "string" ? body.message : "";
     if (!message) return c.json({ error: "message is required" }, 400);
 
-    const text = await enqueueTurn(sessionID, async () => {
-      const runtime = deps.buildRuntime(session);
-      const result = await deps.runTurn(session, message, runtime, deps.store);
-      return result.text;
-    });
-    return c.json({ text });
+    try {
+      const text = await enqueueTurn(sessionID, async () => {
+        const runtime = deps.buildRuntime(session);
+        const result = await deps.runTurn(
+          session,
+          message,
+          runtime,
+          deps.store
+        );
+        return result.text;
+      });
+      return c.json({ text });
+    } catch (err) {
+      if (err instanceof AuthRequiredError) {
+        return c.json({ error: "auth-required", provider: err.provider }, 401);
+      }
+      throw err;
+    }
   });
 
   app.get("/api/sessions/:id/stream", (c) => {

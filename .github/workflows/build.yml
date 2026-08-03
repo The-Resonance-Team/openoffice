@@ -91,7 +91,7 @@ jobs:
           endpoint: ${{ vars.TRUSTED_SIGNING_ENDPOINT }}
           trusted-signing-account-name: ${{ vars.TRUSTED_SIGNING_ACCOUNT }}
           certificate-profile-name: ${{ vars.TRUSTED_SIGNING_CERT_PROFILE }}
-          files: dist/openoffice-win32-x64.exe
+          files: dist/openoffice-windows-x64.exe
 
       # ---- Release + npm ----
       - name: Generate SHA256SUMS

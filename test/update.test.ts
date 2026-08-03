@@ -94,6 +94,7 @@ describe("artifactName", () => {
     expect(artifactName("darwin", "x64")).toBe("openoffice-darwin-x64");
     expect(artifactName("linux", "x64")).toBe("openoffice-linux-x64");
     expect(artifactName("win32", "x64")).toBe("openoffice-windows-x64.exe");
+    expect(artifactName("windows", "x64")).toBe("openoffice-windows-x64.exe");
   });
 });
 
@@ -169,6 +170,26 @@ describe("checkForUpdate", () => {
     const second = await checkForUpdate("0.1.0", dir, fakeFetch);
     expect(second.available).toBe(true);
     expect(calls).toBe(1);
+  });
+
+  test("cache is invalidated when the installed version changes", async () => {
+    let calls = 0;
+    const fakeFetch = async () => {
+      calls++;
+      return new Response(
+        JSON.stringify([{ tag_name: "v9.9.9", prerelease: false }]),
+        {
+          headers: { "content-type": "application/json" },
+        }
+      );
+    };
+    const dir = mkdtempSync(join(tmpdir(), "ooo-check-"));
+    await checkForUpdate("0.1.0", dir, fakeFetch);
+    expect(calls).toBe(1);
+    // upgrade to 0.2.0: the cached "9.9.9 available" must be recomputed, not served
+    const afterUpgrade = await checkForUpdate("0.2.0", dir, fakeFetch);
+    expect(afterUpgrade.current).toBe("0.2.0");
+    expect(calls).toBe(2);
   });
 });
 

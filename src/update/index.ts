@@ -106,11 +106,17 @@ export async function listReleases(
     }));
 }
 
-export function artifactName(platform: NodeJS.Platform, arch: string): string {
+export function artifactName(platform: string, arch: string): string {
+  // bun types call it "windows", node calls it "win32" — the release
+  // artifact name is openoffice-windows-x64.exe (matches build.yml).
   const os =
-    platform === "win32" ? "windows" : platform === "darwin" ? "darwin" : "linux";
+    platform === "win32" || platform === "windows"
+      ? "windows"
+      : platform === "darwin"
+        ? "darwin"
+        : "linux";
   const a = arch === "x64" ? "x64" : arch === "arm64" ? "arm64" : "x64";
-  const suffix = os === "win32" ? ".exe" : "";
+  const suffix = os === "windows" ? ".exe" : "";
   return `openoffice-${os}-${a}${suffix}`;
 }
 
