@@ -51,7 +51,7 @@ An agent-level ruleset controlling which tools are accessible. Uses allow/deny p
 _Avoid*: access control, tool list, capability
 
 **Document toolkit**:
-The collection of tools available for document manipulation: officecli (OOXML editing), pdf-parse (PDF reading), oocr (text extraction), pandoc (format conversion). Each tool has its own `ToolDefinition` and can reference other tools for chaining. The `read` tool auto-detects file format and delegates to the appropriate backend.
+The collection of tools available for document manipulation: officecli (OOXML editing), pdf-inspector (text-based PDF reading — tables, images, structure; owned by #22, not the `pdftotext` shell-out it replaces), oocr (OCR fallback for scanned/image-based PDFs and standalone images via local Tesseract — owned by #23, not yet built), pandoc (format conversion). Each tool has its own `ToolDefinition` and can reference other tools for chaining. The `read` tool auto-detects file format and delegates to the appropriate backend.
 _Avoid_: Office, document tools, doc tools
 
 **Config**:
