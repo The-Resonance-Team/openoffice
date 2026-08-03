@@ -194,6 +194,12 @@ describe("checkForUpdate", () => {
 });
 
 describe("performUpdate", () => {
+  // performUpdate resolves the artifact name from the RUNNING platform, so
+  // the routes must be keyed per platform (darwin-arm64 locally, linux-x64
+  // on CI).
+  const asset = artifactName(process.platform, process.arch);
+  const assetURL = `https://github.com/The-Resonance-Team/openoffice/releases/download/v2.0.0/${asset}`;
+
   test("downloads, verifies, and swaps", async () => {
     const data = Buffer.from("fresh-binary");
     const hash = sha256(data);
@@ -203,10 +209,9 @@ describe("performUpdate", () => {
           JSON.stringify([{ tag_name: "v2.0.0", prerelease: false }]),
           { headers: { "content-type": "application/json" } }
         ),
-      "https://github.com/The-Resonance-Team/openoffice/releases/download/v2.0.0/openoffice-darwin-arm64":
-        new Response(data),
+      [assetURL]: new Response(data),
       "https://github.com/The-Resonance-Team/openoffice/releases/download/v2.0.0/SHA256SUMS":
-        new Response(`${hash}  openoffice-darwin-arm64\n`),
+        new Response(`${hash}  ${asset}\n`),
     };
     const fakeFetch = async (url: string | URL | Request) => {
       const u = String(url);
@@ -230,10 +235,9 @@ describe("performUpdate", () => {
           JSON.stringify([{ tag_name: "v2.0.0", prerelease: false }]),
           { headers: { "content-type": "application/json" } }
         ),
-      "https://github.com/The-Resonance-Team/openoffice/releases/download/v2.0.0/openoffice-darwin-arm64":
-        new Response("tampered"),
+      [assetURL]: new Response("tampered"),
       "https://github.com/The-Resonance-Team/openoffice/releases/download/v2.0.0/SHA256SUMS":
-        new Response(`${"0".repeat(64)}  openoffice-darwin-arm64\n`),
+        new Response(`${"0".repeat(64)}  ${asset}\n`),
     };
     const fakeFetch = async (url: string | URL | Request) =>
       routes[String(url)];
