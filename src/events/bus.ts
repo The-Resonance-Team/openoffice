@@ -5,6 +5,7 @@ export type EventMap = {
   "tool:done": { sessionID: string; tool: string; result: unknown };
   "session:create": { sessionID: string };
   "session:message": { sessionID: string; role: string; content: string };
+  "session:compacted": { sessionID: string };
   "session:ask": { sessionID: string; promptID: string; question: string };
   "session:end": { sessionID: string };
 };
@@ -18,6 +19,7 @@ const listeners: Listeners = {
   "tool:done": new Set(),
   "session:create": new Set(),
   "session:message": new Set(),
+  "session:compacted": new Set(),
   "session:ask": new Set(),
   "session:end": new Set(),
 };

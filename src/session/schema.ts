@@ -19,6 +19,7 @@ export const messages = sqliteTable(
       .references(() => sessions.id),
     role: text("role").notNull(),
     content: text("content").notNull(),
+    tokens: text("tokens"),
     seq: integer("seq").notNull(),
     timestamp: integer("timestamp", { mode: "timestamp_ms" }).notNull(),
   },
