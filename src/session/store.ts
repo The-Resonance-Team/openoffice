@@ -27,7 +27,12 @@ export class SessionStore {
         "SELECT name FROM pragma_table_info('messages') WHERE name = 'seq'"
       )
       .get();
-    if (!hasSeq) {
+    const hasCwd = sqlite
+      .query(
+        "SELECT name FROM pragma_table_info('sessions') WHERE name = 'cwd'"
+      )
+      .get();
+    if (!hasSeq || !hasCwd) {
       // Schema changed: drop and recreate. Data loss is acceptable pre-release.
       this.db.run("DROP TABLE IF EXISTS messages");
       this.db.run("DROP TABLE IF EXISTS sessions");
@@ -38,6 +43,7 @@ export class SessionStore {
         agent TEXT NOT NULL,
         model TEXT NOT NULL,
         title TEXT NOT NULL DEFAULT '',
+        cwd TEXT NOT NULL DEFAULT '',
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL
       )
@@ -65,6 +71,7 @@ export class SessionStore {
         agent: session.agent,
         model: session.model,
         title: session.title,
+        cwd: session.cwd,
         createdAt: new Date(session.createdAt),
         updatedAt: new Date(session.updatedAt),
       })
@@ -74,6 +81,7 @@ export class SessionStore {
           agent: session.agent,
           model: session.model,
           title: session.title,
+          cwd: session.cwd,
           updatedAt: new Date(session.updatedAt),
         },
       })
@@ -105,6 +113,7 @@ export class SessionStore {
       agent: row.agent,
       model: row.model,
       title: row.title,
+      cwd: row.cwd,
       messages: sessionMessages,
       createdAt: row.createdAt.getTime(),
       updatedAt: row.updatedAt.getTime(),
@@ -122,6 +131,7 @@ export class SessionStore {
       agent: r.agent,
       model: r.model,
       title: r.title,
+      cwd: r.cwd,
       messages: [],
       createdAt: r.createdAt.getTime(),
       updatedAt: r.updatedAt.getTime(),

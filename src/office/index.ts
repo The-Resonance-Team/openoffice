@@ -1,12 +1,15 @@
 import { execFileSync } from "node:child_process";
 import { createOfficeCliTool, isMutating, parseError } from "./tool";
 import { checkInstalled, resetCache } from "./install";
+import type { OfficeCliDeps } from "./tool";
 
 export { isMutating, parseError, checkInstalled, resetCache };
 export { createOfficeCliTool };
 export type { OfficeCliDeps } from "./tool";
 
-export function createDefaultOfficeCliTool() {
+export function createDefaultOfficeCliTool(
+  extraDeps: Partial<OfficeCliDeps> = {}
+) {
   return createOfficeCliTool({
     checkInstalled,
     execCli: (args, opts) => {
@@ -17,5 +20,6 @@ export function createDefaultOfficeCliTool() {
       });
       return Promise.resolve(output);
     },
+    ...extraDeps,
   });
 }

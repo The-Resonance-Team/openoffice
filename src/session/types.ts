@@ -5,6 +5,7 @@ export interface Session {
   agent: string;
   model: string;
   title: string;
+  cwd: string;
   messages: ModelMessage[];
   createdAt: number;
   updatedAt: number;

@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test";
+import { mkdtempSync, writeFileSync, readFileSync, mkdirSync } from "node:fs";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 import { createOfficeCliTool, isMutating, parseError } from "../src/office";
+import { DraftManager } from "../src/draft";
+import { HistoryStore } from "../src/history";
 
 describe("isMutating", () => {
   test("set is mutating", () => expect(isMutating("set")).toBe(true));
@@ -67,7 +72,10 @@ describe("officecli tool", () => {
       checkInstalled: async () => false,
       execCli: async () => "",
     });
-    const result = await tool.execute({ command: "get", file: "test.docx" });
+    const result = await tool.execute(
+      { command: "get", file: "test.docx" },
+      { sessionID: "test" }
+    );
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(result.error).toContain("not installed");
@@ -84,7 +92,10 @@ describe("officecli tool", () => {
       checkInstalled: async () => true,
       execCli: async () => mockOutput,
     });
-    const result = await tool.execute({ command: "get", file: "test.docx" });
+    const result = await tool.execute(
+      { command: "get", file: "test.docx" },
+      { sessionID: "test" }
+    );
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data).toEqual({
@@ -107,7 +118,10 @@ describe("officecli tool", () => {
         throw err;
       },
     });
-    const result = await tool.execute({ command: "get", file: "test.docx" });
+    const result = await tool.execute(
+      { command: "get", file: "test.docx" },
+      { sessionID: "test" }
+    );
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(result.error).toBe("Invalid path");
@@ -124,7 +138,10 @@ describe("officecli tool", () => {
         throw err;
       },
     });
-    const result = await tool.execute({ command: "get", file: "test.docx" });
+    const result = await tool.execute(
+      { command: "get", file: "test.docx" },
+      { sessionID: "test" }
+    );
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(result.error).toContain("not installed");
@@ -141,7 +158,10 @@ describe("officecli tool", () => {
           warnings: [{ code: "unsupported_property" }],
         }),
     });
-    const result = await tool.execute({ command: "set", file: "test.docx" });
+    const result = await tool.execute(
+      { command: "set", file: "test.docx" },
+      { sessionID: "test" }
+    );
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(result.error).toContain("No properties applied");
@@ -157,7 +177,10 @@ describe("officecli tool", () => {
         return '{"success":true}';
       },
     });
-    await tool.execute({ command: "batch", file: "test.xlsx", operations: [] });
+    await tool.execute(
+      { command: "batch", file: "test.xlsx", operations: [] },
+      { sessionID: "test" }
+    );
     expect(timeoutUsed).toBe(60000);
   });
 
@@ -170,7 +193,10 @@ describe("officecli tool", () => {
         return '{"success":true}';
       },
     });
-    await tool.execute({ command: "get", file: "test.docx" });
+    await tool.execute(
+      { command: "get", file: "test.docx" },
+      { sessionID: "test" }
+    );
     expect(timeoutUsed).toBe(30000);
   });
 
@@ -183,12 +209,15 @@ describe("officecli tool", () => {
         return '{"success":true}';
       },
     });
-    await tool.execute({
-      command: "set",
-      file: "test.docx",
-      path: "/body/p[1]",
-      props: { text: "Hi", bold: "true" },
-    });
+    await tool.execute(
+      {
+        command: "set",
+        file: "test.docx",
+        path: "/body/p[1]",
+        props: { text: "Hi", bold: "true" },
+      },
+      { sessionID: "test" }
+    );
     expect(args).toContain("--prop");
     expect(args).toContain("text=Hi");
     expect(args).toContain("bold=true");
@@ -204,7 +233,10 @@ describe("officecli tool", () => {
         return '{"success":true}';
       },
     });
-    await tool.execute({ command: "view", file: "test.docx", mode: "outline" });
+    await tool.execute(
+      { command: "view", file: "test.docx", mode: "outline" },
+      { sessionID: "test" }
+    );
     expect(args).toContain("view");
     expect(args).toContain("test.docx");
     expect(args).toContain("outline");
@@ -219,11 +251,14 @@ describe("officecli tool", () => {
         return '{"success":true}';
       },
     });
-    await tool.execute({
-      command: "query",
-      file: "test.docx",
-      selector: "paragraph[style=Normal]",
-    });
+    await tool.execute(
+      {
+        command: "query",
+        file: "test.docx",
+        selector: "paragraph[style=Normal]",
+      },
+      { sessionID: "test" }
+    );
     expect(args).toContain("paragraph[style=Normal]");
   });
 
@@ -236,12 +271,15 @@ describe("officecli tool", () => {
         return '{"success":true}';
       },
     });
-    await tool.execute({
-      command: "swap",
-      file: "test.pptx",
-      path: "/slide[1]/shape[1]",
-      path2: "/slide[1]/shape[2]",
-    });
+    await tool.execute(
+      {
+        command: "swap",
+        file: "test.pptx",
+        path: "/slide[1]/shape[1]",
+        path2: "/slide[1]/shape[2]",
+      },
+      { sessionID: "test" }
+    );
     expect(args).toContain("/slide[1]/shape[1]");
     expect(args).toContain("/slide[1]/shape[2]");
   });
@@ -255,12 +293,15 @@ describe("officecli tool", () => {
         return '{"success":true}';
       },
     });
-    await tool.execute({
-      command: "merge",
-      template: "tpl.docx",
-      output: "out.docx",
-      data: '{"name":"An"}',
-    });
+    await tool.execute(
+      {
+        command: "merge",
+        template: "tpl.docx",
+        output: "out.docx",
+        data: '{"name":"An"}',
+      },
+      { sessionID: "test" }
+    );
     expect(args[0]).toBe("merge");
     expect(args).toContain("tpl.docx");
     expect(args).toContain("out.docx");
@@ -276,7 +317,10 @@ describe("officecli tool", () => {
         return '{"success":true}';
       },
     });
-    await tool.execute({ command: "help", format: "docx", path: "paragraph" });
+    await tool.execute(
+      { command: "help", format: "docx", path: "paragraph" },
+      { sessionID: "test" }
+    );
     expect(args).not.toContain("--json");
     expect(args).toContain("docx");
     expect(args).toContain("paragraph");
@@ -291,14 +335,17 @@ describe("officecli tool", () => {
         return '{"success":true}';
       },
     });
-    await tool.execute({
-      command: "raw-set",
-      file: "test.docx",
-      part: "/document",
-      xpath: "//w:p",
-      action: "replace",
-      xml: "<w:p/>",
-    });
+    await tool.execute(
+      {
+        command: "raw-set",
+        file: "test.docx",
+        part: "/document",
+        xpath: "//w:p",
+        action: "replace",
+        xml: "<w:p/>",
+      },
+      { sessionID: "test" }
+    );
     expect(args).toContain("/document");
     expect(args).toContain("--xpath");
     expect(args).toContain("//w:p");
@@ -316,14 +363,114 @@ describe("officecli tool", () => {
         return '{"success":true}';
       },
     });
-    await tool.execute({
-      command: "add",
-      file: "test.pptx",
-      parent: "/slide[1]",
-      type: "shape",
-    });
+    await tool.execute(
+      {
+        command: "add",
+        file: "test.pptx",
+        parent: "/slide[1]",
+        type: "shape",
+      },
+      { sessionID: "test" }
+    );
     expect(args).toContain("/slide[1]");
     expect(args).toContain("--type");
     expect(args).toContain("shape");
+  });
+});
+
+describe("draft interception", () => {
+  function makeDraftManager(dir: string) {
+    return new DraftManager({
+      dataDir: dir,
+      history: new HistoryStore(dir),
+      execOfficeCli: async () => ({ stdout: "", exitCode: 0 }),
+    });
+  }
+
+  test("mutating commands run against the draft, not the real file", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "oo-ocli-"));
+    const realFile = join(dir, "report.docx");
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(realFile, "original");
+
+    let lastArgs: string[] = [];
+    const tool = createOfficeCliTool({
+      checkInstalled: async () => true,
+      execCli: async (args) => {
+        lastArgs = args;
+        return JSON.stringify({ success: true });
+      },
+      draftManager: makeDraftManager(dir),
+    });
+
+    const result = await tool.execute(
+      { command: "set", file: realFile, path: "/p", props: { x: "1" } },
+      { sessionID: "sess-1" }
+    );
+    expect(result.success).toBe(true);
+    expect(lastArgs[1]).not.toBe(realFile);
+    expect(lastArgs[1]).toContain("drafts");
+    expect(lastArgs[1]).toContain("sess-1.docx");
+    expect(readFileSync(realFile, "utf-8")).toBe("original");
+  });
+
+  test("read commands follow the draft once one exists", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "oo-ocli-"));
+    const realFile = join(dir, "report.docx");
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(realFile, "original");
+
+    let lastArgs: string[] = [];
+    const tool = createOfficeCliTool({
+      checkInstalled: async () => true,
+      execCli: async (args) => {
+        lastArgs = args;
+        return JSON.stringify({ success: true });
+      },
+      draftManager: makeDraftManager(dir),
+    });
+
+    await tool.execute(
+      { command: "get", file: realFile },
+      { sessionID: "sess-1" }
+    );
+    expect(lastArgs[1]).toBe(realFile);
+
+    await tool.execute(
+      { command: "set", file: realFile, path: "/p", props: { x: "1" } },
+      { sessionID: "sess-1" }
+    );
+    await tool.execute(
+      { command: "get", file: realFile },
+      { sessionID: "sess-1" }
+    );
+    expect(lastArgs[1]).toContain("drafts");
+  });
+
+  test("a locked file returns the lock error", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "oo-ocli-"));
+    const realFile = join(dir, "report.docx");
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(realFile, "original");
+
+    const tool = createOfficeCliTool({
+      checkInstalled: async () => true,
+      execCli: async () => JSON.stringify({ success: true }),
+      draftManager: makeDraftManager(dir),
+    });
+
+    await tool.execute(
+      { command: "set", file: realFile, path: "/p", props: { x: "1" } },
+      { sessionID: "sess-1" }
+    );
+    const result = await tool.execute(
+      { command: "set", file: realFile, path: "/p", props: { x: "1" } },
+      { sessionID: "sess-2" }
+    );
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toBe("File is being edited in another session");
+      expect(result.code).toBe("LOCKED");
+    }
   });
 });

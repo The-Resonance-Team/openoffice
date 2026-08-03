@@ -1,8 +1,9 @@
 import { writeFileSync } from "node:fs";
-import { dirname } from "node:path";
+import { dirname, extname } from "node:path";
 import { mkdirSync } from "node:fs";
 import { z } from "zod";
 import type { ToolDefinition } from "../types";
+import { OFFICE_EXTENSIONS, LEGACY_OFFICE_EXTENSIONS } from "./read";
 
 export function createWriteTool(): ToolDefinition {
   return {
@@ -14,6 +15,15 @@ export function createWriteTool(): ToolDefinition {
       content: z.string().describe("Content to write"),
     }),
     execute: async (params) => {
+      const ext = extname(params.file).toLowerCase();
+      if (OFFICE_EXTENSIONS.has(ext) || LEGACY_OFFICE_EXTENSIONS.has(ext)) {
+        return {
+          success: false,
+          error:
+            "Office documents cannot be written as text. Use the officecli tool instead",
+          code: "OFFICE_FORMAT",
+        };
+      }
       try {
         mkdirSync(dirname(params.file), { recursive: true });
         writeFileSync(params.file, params.content, "utf-8");

@@ -27,7 +27,10 @@ describe("convert tool", () => {
         return "y";
       },
     });
-    const result = await tool.execute({ file: "report.doc" });
+    const result = await tool.execute(
+      { file: "report.doc" },
+      { sessionID: "test" }
+    );
     expect(asked).toContain("report.doc");
     expect(asked).toContain("docx");
     expect(result.success).toBe(true);
@@ -35,7 +38,10 @@ describe("convert tool", () => {
 
   test("cancels when user says no", async () => {
     const tool = makeTool({ askUser: async () => "n" });
-    const result = await tool.execute({ file: "report.doc" });
+    const result = await tool.execute(
+      { file: "report.doc" },
+      { sessionID: "test" }
+    );
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(result.code).toBe("CANCELLED");
@@ -50,7 +56,7 @@ describe("convert tool", () => {
         return "report.docx";
       },
     });
-    await tool.execute({ file: "report.doc" });
+    await tool.execute({ file: "report.doc" }, { sessionID: "test" });
     expect(convertedFormat).toBe("docx");
   });
 
@@ -62,8 +68,8 @@ describe("convert tool", () => {
         return "out." + fmt;
       },
     });
-    await tool.execute({ file: "data.xls" });
-    await tool.execute({ file: "deck.ppt" });
+    await tool.execute({ file: "data.xls" }, { sessionID: "test" });
+    await tool.execute({ file: "deck.ppt" }, { sessionID: "test" });
     expect(formats).toEqual(["xlsx", "pptx"]);
   });
 
@@ -75,13 +81,19 @@ describe("convert tool", () => {
         return "out." + fmt;
       },
     });
-    await tool.execute({ file: "report.doc", format: "pptx" });
+    await tool.execute(
+      { file: "report.doc", format: "pptx" },
+      { sessionID: "test" }
+    );
     expect(convertedFormat).toBe("pptx");
   });
 
   test("rejects non-legacy source files", async () => {
     const tool = makeTool();
-    const result = await tool.execute({ file: "report.docx" });
+    const result = await tool.execute(
+      { file: "report.docx" },
+      { sessionID: "test" }
+    );
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(result.code).toBe("NOT_LEGACY");
@@ -90,7 +102,10 @@ describe("convert tool", () => {
 
   test("rejects unknown legacy extensions", async () => {
     const tool = makeTool();
-    const result = await tool.execute({ file: "archive.rtf" });
+    const result = await tool.execute(
+      { file: "archive.rtf" },
+      { sessionID: "test" }
+    );
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(result.code).toBe("UNSUPPORTED_SOURCE_FORMAT");
@@ -103,7 +118,10 @@ describe("convert tool", () => {
         throw new Error("soffice failed");
       },
     });
-    const result = await tool.execute({ file: "report.doc" });
+    const result = await tool.execute(
+      { file: "report.doc" },
+      { sessionID: "test" }
+    );
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(result.code).toBe("CONVERT_ERROR");
@@ -115,7 +133,10 @@ describe("convert tool", () => {
     const tool = makeTool({
       convertFile: async () => "/tmp/report.docx",
     });
-    const result = await tool.execute({ file: "report.doc" });
+    const result = await tool.execute(
+      { file: "report.doc" },
+      { sessionID: "test" }
+    );
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.output).toContain("/tmp/report.docx");
@@ -170,7 +191,7 @@ describe("convert tool", () => {
       },
     });
 
-    const result = await tool.execute({ file: source });
+    const result = await tool.execute({ file: source }, { sessionID: "test" });
     expect(result.success).toBe(true);
     expect(existsSync(target)).toBe(true);
     expect(existsSync(source)).toBe(true);

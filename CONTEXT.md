@@ -79,12 +79,16 @@ _Avoid_: collaboration, multi-user, replication
 ### Draft lifecycle
 
 **Draft**:
-A working copy of a document that the agent edits; the real file is untouched until accept. Keyed by the real file's path hash, not by session, so any session can discover a file's drafts: `drafts/{filePathHash}/{sessionID}.{ext}`.
+A working copy of a document that the agent edits; the real file is untouched until accept. Keyed by the real file's path hash, not by session, so any session can discover a file's drafts: `drafts/{filePathHash}/{sessionID}.{ext}`. A draft may exist without a real file — new documents (officecli `create`, convert) are born as drafts and Accept creates the real file. New drafts with no real file have no "before" preview.
 _Avoid_: copy, working file, temp file
 
 **Lock**:
-A per-file claim (keyed by `filePathHash`) granting one session the right to hold an active draft for that file. Stale locks (>24h untouched) can be overridden by another session.
+A per-file claim (keyed by `filePathHash`) granting one session the right to hold an active draft for that file. Touched by every mutating command; stale (>24h since the last touch) locks can be overridden by another session. Released only on Accept, Undo, or stale override — never on client disconnect, because sessions persist beyond their clients. A session whose lock was overridden gets a clear error on its next mutating command; the agent re-reads the file and the orphan scan surfaces the abandoned draft for accept or discard.
 _Avoid_: mutex, session lock
+
+**Orphaned draft**:
+A draft whose session lost its lock (stale override) or ended without accept or discard. Discoverable by the file-keyed orphan scan (`drafts/{filePathHash}/*`) when the file is opened from any session, and resolvable only through the accept-or-discard prompt — never deleted silently.
+_Avoid_: abandoned draft, lost edits
 
 **Accept**:
 The only operation that writes to the real file. Flushes the draft, copies it over the real file, records an accept-point in that file's version history, and releases the draft and lock.

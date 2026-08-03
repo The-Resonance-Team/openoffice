@@ -16,12 +16,12 @@ export function createGlobTool(): ToolDefinition {
         .optional()
         .describe("Directory to search in (defaults to cwd)"),
     }),
-    execute: async (params) => {
+    execute: async (params, ctx) => {
       try {
         const glob = new Glob(params.pattern);
         const matches: string[] = [];
         for await (const match of glob.scan({
-          cwd: params.path ?? process.cwd(),
+          cwd: params.path ?? ctx.cwd ?? process.cwd(),
         })) {
           matches.push(match);
         }

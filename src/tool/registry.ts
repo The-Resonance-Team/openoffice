@@ -26,13 +26,13 @@ export class ToolRegistry {
       out[name] = tool({
         description: def.description,
         inputSchema: def.parameters,
-        execute: def.execute,
+        execute: (params: any) => def.execute(params, { sessionID: "" }),
       });
     }
     return out;
   }
 
-  toAIToolsWithEvents(sessionID: string): Record<string, any> {
+  toAIToolsWithEvents(sessionID: string, cwd?: string): Record<string, any> {
     const out: Record<string, any> = {};
     for (const [name, def] of this.tools) {
       out[name] = tool({
@@ -40,7 +40,7 @@ export class ToolRegistry {
         inputSchema: def.parameters,
         execute: async (params: any) => {
           emit("tool:start", { sessionID, tool: name, params });
-          const result = await def.execute(params);
+          const result = await def.execute(params, { sessionID, cwd });
           emit("tool:done", { sessionID, tool: name, result });
           return result;
         },

@@ -1,8 +1,11 @@
-import type { ToolDefinition, ToolResult } from "./types";
+import type { ToolContext, ToolDefinition, ToolResult } from "./types";
 
 export async function executeTool(
   def: ToolDefinition,
-  params: unknown
+  params: unknown,
+  // ponytail: empty sessionID default — safe only for tools that ignore ctx;
+  // runTurn always passes the real session via toAIToolsWithEvents
+  ctx: ToolContext = { sessionID: "" }
 ): Promise<ToolResult> {
   const parsed = def.parameters.safeParse(params);
   if (!parsed.success) {
@@ -13,7 +16,7 @@ export async function executeTool(
     };
   }
   try {
-    return await def.execute(parsed.data);
+    return await def.execute(parsed.data, ctx);
   } catch (err) {
     return {
       success: false,
