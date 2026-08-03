@@ -7,6 +7,7 @@ import type { SessionStore, Session } from "../session";
 import type { ToolRegistry } from "../tool";
 import { filePathHash, type DraftManager } from "../draft";
 import type { HistoryStore } from "../history";
+import type { UpdateStatus } from "../update";
 import { AuthRequiredError } from "../llm";
 
 export class AskChannel {
@@ -54,6 +55,7 @@ export interface ServerDeps {
     runtime: SessionRuntime,
     store: SessionStore
   ) => Promise<{ text: string }>;
+  updateStatus?: () => Promise<UpdateStatus>;
 }
 
 export function createApp(deps: ServerDeps) {
@@ -98,7 +100,12 @@ export function createApp(deps: ServerDeps) {
     try {
       const text = await enqueueTurn(sessionID, async () => {
         const runtime = deps.buildRuntime(session);
-        const result = await deps.runTurn(session, message, runtime, deps.store);
+        const result = await deps.runTurn(
+          session,
+          message,
+          runtime,
+          deps.store
+        );
         return result.text;
       });
       return c.json({ text });
@@ -220,6 +227,23 @@ export function createApp(deps: ServerDeps) {
     emit("session:end", { sessionID });
     return c.json({ ok: true });
   });
+
+  if (deps.updateStatus) {
+    app.get("/api/update", async (c) => {
+      try {
+        return c.json(await deps.updateStatus!());
+      } catch (e) {
+        return c.json(
+          {
+            check: true,
+            available: false,
+            error: e instanceof Error ? e.message : "update check failed",
+          },
+          502
+        );
+      }
+    });
+  }
 
   return { app, askChannel: deps.askChannel };
 }

@@ -238,6 +238,11 @@ export function createOfficeCliTool(deps: OfficeCliDeps): ToolDefinition {
         if (params.data) args.push("--data", params.data);
       } else {
         args.push(file ?? "");
+        if (cmd === "create" && deps.draftManager && params.file) {
+          // Drafts are born as empty files by resolve(); officecli create
+          // refuses to overwrite an existing file unless --force is given.
+          args.push("--force");
+        }
         if (
           cmd === "get" ||
           cmd === "set" ||

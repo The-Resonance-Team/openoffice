@@ -1,0 +1,3 @@
+# Azure Trusted Signing for Windows binaries
+
+Windows artifacts are signed with Azure Trusted Signing (secrets `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`) rather than an EV certificate. Azure Trusted Signing is CI-native — no hardware token that must physically attend a GitHub Actions run — and pay-per-signing. macOS signing stays Apple Developer ID + notarytool. Signing steps ship behind empty secrets and are skipped until credentials exist, so the pipeline is proven by an unsigned shakedown release before any certs are bought. Linux is never signed; package managers handle trust.

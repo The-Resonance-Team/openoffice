@@ -23,12 +23,16 @@ An LLM service (openai, anthropic, google, ollama, openrouter, ...) addressed by
 _Avoid_: backend, service, backend provider
 
 **Session**:
-One conversation: a live agent instance, its message history, and the active model. Identified by a runtime-generated session ID. Persisted in a SQLite database via Drizzle ORM with `bun:sqlite` driver. Supports querying and concurrent access from day one. Compaction (pruning old tool outputs, then summarizing older turns to stay under the context window) is deferred — not yet built, owned by #17.
+One conversation: a live agent instance, its message history, and the active model. Identified by a runtime-generated session ID. Persisted in a SQLite database via Drizzle ORM with `bun:sqlite` driver. Supports querying and concurrent access from day one. Compaction (pruning old tool outputs, then summarizing older turns to stay under the context window) is deferred — not yet built, owned by #17. Ends via an explicit client call or, once its heartbeat goes stale, a background sweep — never merely on a client's connection dropping. Owned by #39.
 _Avoid_: chat, conversation, thread
 
 **Message**:
 A single turn in a session. Uses AI SDK's `ModelMessage` type directly — roles are `user`, `assistant`, `tool`, and `system`. Tool calls and results are embedded in the message content, not stored as separate fields. A user message may include attached images as content parts (resized/compressed before send — owned by #26), not just text.
 _Avoid_: entry, record
+
+**Todo**:
+A structured task-list item the agent maintains during a session (`content`, `status`, `priority`), written wholesale via a `todo` tool call — not merged incrementally. Exactly one `in_progress` at a time. Session-scoped, independent of message-history compaction. Owned by #39.
+_Avoid_: task, checklist item
 
 **Job**:
 A turn running detached from any connected client — started, then polled or cancelled rather than streamed to a blocking caller. Not a separate entity from Session: a Job is "this session's turn, running server-side, independent of whether a client is still attached." Owned by #25.
@@ -122,3 +126,25 @@ _Avoid_: version, checkpoint
 **Preview**:
 A before/after screenshot comparison shown after a mutating edit. Before is always the untouched real file; after is the draft's current state. Comparisons are cumulative since the last accept, not incremental per edit.
 _Avoid_: diff, comparison
+
+**Snapshot**:
+A recorded copy of a file's state at an Accept-point, stored in that file's version history. The source Revert restores from and the "before" in previews.
+_Avoid_: copy, backup, old version
+
+**Version history**:
+A file's ordered list of Accept-points, keyed by the real file's path hash so any session can look it up or revert without knowing which session accepted last.
+_Avoid_: history (bare), changelog
+
+### Release & update
+
+**Release**:
+A tagged distribution of openoffice: a semver tag (`vX.Y.Z`, optionally a pre-release like `v0.2.0-rc.1`), a GitHub Release carrying the platform artifacts, and the npm package — all cut from the same tag by the build pipeline. The only thing a client can install or Update to.
+_Avoid_: build, tag, publish, version
+
+**Artifact**:
+A platform-specific distribution unit attached to a Release: a compiled CLI binary (`openoffice-{os}-{arch}`, e.g. `openoffice-win32-x64.exe`) or a desktop installer. Everything a Release attaches is an Artifact.
+_Avoid_: binary, build output, bundle
+
+**Update**:
+Replacing an installed openoffice with a newer Release — the daemon checks GitHub Releases periodically (cached result), and the CLI `update` command forces a fresh check, verifies the downloaded Artifact's checksum, and swaps the binary in, keeping the previous one until the next run succeeds. Both stable and pre-release Releases are offered; whichever tag is newest by semver wins. Gated by config (`update.check`).
+_Avoid_: upgrade, auto-update (fine casually), self-update

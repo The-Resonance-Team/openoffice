@@ -57,10 +57,14 @@ describe("CredentialStore", () => {
 
   test("writes create a 0600 file in a 0700 directory", () => {
     store.set("anthropic", { type: "api", key: "a" });
-    const fileMode = statSync(join(dir, "auth.json")).mode & 0o777;
-    const dirMode = statSync(dir).mode & 0o777;
-    expect(fileMode).toBe(0o600);
-    expect(dirMode).toBe(0o700);
+    // POSIX modes are meaningless on Windows; the write-path behavior is
+    // still exercised, only the mode assertions are skipped.
+    if (process.platform !== "win32") {
+      const fileMode = statSync(join(dir, "auth.json")).mode & 0o777;
+      const dirMode = statSync(dir).mode & 0o777;
+      expect(fileMode).toBe(0o600);
+      expect(dirMode).toBe(0o700);
+    }
   });
 
   test("corrupt file raises an error naming the file instead of overwriting", () => {

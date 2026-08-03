@@ -1,7 +1,6 @@
 import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
-import { homedir } from "node:os";
 import { execFileSync } from "node:child_process";
 import { resolveConfig } from "../config";
 import {
@@ -28,13 +27,12 @@ import { createDefaultOfficeCliTool } from "../office";
 import { createSkillTool } from "../skills";
 import { McpManager } from "../mcp";
 import { createSdkMcpClient, planMcpConnections } from "../mcp/sdk-client";
+import { checkForUpdate } from "../update";
+import { VERSION } from "../version";
 import { randomUUID } from "node:crypto";
 
-export function getDataDir(): string {
-  const xdg = process.env.XDG_DATA_HOME;
-  const base = xdg ?? join(homedir(), ".local", "share");
-  return join(base, "openoffice");
-}
+import { getDataDir } from "../data-dir";
+export { getDataDir } from "../data-dir";
 
 interface DaemonInfo {
   pid: number;
@@ -248,6 +246,12 @@ export async function startDaemon(): Promise<DaemonHandle> {
         system: runtime.system,
         config,
       }),
+    updateStatus: async () => {
+      if (config.update?.check === false) {
+        return { check: false, available: false };
+      }
+      return checkForUpdate(VERSION, dataDir);
+    },
   });
 
   const server = Bun.serve({

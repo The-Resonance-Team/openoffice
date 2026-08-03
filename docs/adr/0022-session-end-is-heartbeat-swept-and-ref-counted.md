@@ -1,0 +1,5 @@
+# 0022 — Session-end is heartbeat-swept and ref-counted, not disconnect-triggered
+
+Extends ADR 0013: the explicit `/end` route (called on CLI readline close) already established that "session end" is a deliberate call, not a raw disconnect — but crash/SIGKILL never reaches that call, leaving killed sessions unmarked at the session level (only the per-file 24h stale-lock override eventually recovers, and only reactively on next file-open). We add a `lastActiveAt` heartbeat per session and a background sweep that treats a session as ended past that same 24h threshold, running the identical orphan + `session:end` path the explicit route already uses — one staleness number to reason about, not two.
+
+We also gate both the sweep and `/end` behind an attached-client count instead of firing on any single disconnect. With Sync (#18) not yet built this is currently a no-op (count always goes 1→0), but ref-counting now avoids a breaking change to what `/end` means once multi-client attach exists — the alternative (retrofitting ref-counting later) would mean redefining `/end`'s contract out from under every existing single-client caller. Owned by #39.
