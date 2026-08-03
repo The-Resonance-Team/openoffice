@@ -31,6 +31,7 @@ export const CompactionConfigSchema = z.object({
   pruneProtectTokens: z.number().optional(),
   pruneMinimumTokens: z.number().optional(),
   tailTurns: z.number().optional(),
+  preserveRecentTokens: z.number().optional(),
   reservedTokens: z.number().optional(),
   windows: z
     .record(

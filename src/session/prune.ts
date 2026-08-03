@@ -6,6 +6,8 @@ import type { Config } from "../config";
 export const DEFAULT_PRUNE_PROTECT = 40_000;
 export const DEFAULT_PRUNE_MINIMUM = 20_000;
 export const PRUNE_PLACEHOLDER = "[pruned — see history]";
+// Tool outputs that carry instructions are never pruned (mirrors opencode).
+export const PRUNE_PROTECTED_TOOLS = ["skill"];
 
 // opencode's Token.estimate: ~4 chars per token, cheap, no tokenizer.
 export function estimateTokens(text: string): number {
@@ -53,6 +55,7 @@ export function selectPruneTargets(
     for (let partIndex = msg.content.length - 1; partIndex >= 0; partIndex--) {
       const part = msg.content[partIndex] as Partial<ToolResultPart>;
       if (part.type !== "tool-result") continue;
+      if (PRUNE_PROTECTED_TOOLS.includes(part.toolName ?? "")) continue;
       const text = partText(part as ToolResultPart);
       if (text === PRUNE_PLACEHOLDER) continue;
       const estimate = estimateTokens(text);

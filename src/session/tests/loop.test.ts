@@ -232,8 +232,11 @@ describe("runTurn compaction trigger", () => {
       session,
       userMessage: "next",
       store,
-      // shrink the usable window so the post-prune estimate triggers compact
-      config: { compaction: { reservedTokens: 999_000 } },
+      // shrink the usable window so the post-prune estimate triggers compact;
+      // keep the tail budget generous so two turns survive
+      config: {
+        compaction: { reservedTokens: 999_000, preserveRecentTokens: 100_000 },
+      },
       chatFn: (options) => {
         seen = [...options.messages];
         return fakeChat([{ role: "assistant", content: "ok" }])(

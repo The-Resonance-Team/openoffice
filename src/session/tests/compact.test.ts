@@ -5,7 +5,14 @@ import { tmpdir } from "node:os";
 import { randomUUID } from "node:crypto";
 import type { ModelMessage } from "ai";
 import { SessionStore, type Session } from "../index";
-import { compactHistory, tailCutoff, DEFAULT_TAIL_TURNS } from "../compact";
+import {
+  compactHistory,
+  tailCutoff,
+  preserveRecentTokens,
+  truncateToolOutputs,
+  DEFAULT_TAIL_TURNS,
+} from "../compact";
+import { estimateTokens } from "../prune";
 import { on } from "../../events";
 import type { Config } from "../../config";
 
@@ -45,6 +52,80 @@ describe("tailCutoff", () => {
   test("default tail turns is 2", () => {
     expect(DEFAULT_TAIL_TURNS).toBe(2);
   });
+
+  test("an unbounded budget behaves like the fixed tail", () => {
+    expect(tailCutoff(messages(5), 2, Number.POSITIVE_INFINITY)).toBe(6);
+  });
+
+  test("drops turns that do not fit the token budget", () => {
+    const msgs = messages(5); // each turn: "user N" + "reply N", ~30 chars each
+    const perTurn = estimateTokens(JSON.stringify(turn(1)));
+    const budget = perTurn + 1; // newest turn fits, the next one does not
+    expect(tailCutoff(msgs, 2, budget)).toBe(6);
+    expect(tailCutoff(msgs, 2, perTurn - 1)).toBe(8);
+  });
+
+  test("a zero tail summarizes everything regardless of budget", () => {
+    expect(tailCutoff(messages(5), 0, 1_000_000)).toBe(0);
+  });
+});
+
+describe("preserveRecentTokens", () => {
+  test("is a quarter of the usable window, clamped to 2k-8k", () => {
+    expect(preserveRecentTokens(undefined, 980_000)).toBe(8_000);
+    expect(preserveRecentTokens(undefined, 20_000)).toBe(5_000);
+    expect(preserveRecentTokens(undefined, 4_000)).toBe(2_000);
+  });
+
+  test("config override wins", () => {
+    expect(preserveRecentTokens({ preserveRecentTokens: 1_000 }, 980_000)).toBe(
+      1_000
+    );
+  });
+});
+
+describe("truncateToolOutputs", () => {
+  const toolMsg = (n: number): ModelMessage[] => [
+    {
+      role: "assistant",
+      content: [
+        {
+          type: "tool-call",
+          toolCallId: "c1",
+          toolName: "officecli",
+          input: {},
+        },
+      ],
+    },
+    {
+      role: "tool",
+      content: [
+        {
+          type: "tool-result",
+          toolCallId: "c1",
+          toolName: "officecli",
+          output: { type: "text", value: "x".repeat(n) },
+        },
+      ],
+    },
+  ];
+
+  test("truncates long tool outputs with a marker, keeps short ones", () => {
+    const msgs = [...turn(1), ...toolMsg(5_000), ...toolMsg(10)];
+    const out = truncateToolOutputs(msgs, 2_000);
+    const parts = out[3].content as any[];
+    expect((parts[0].output.value as string).length).toBe(2_000 + 14);
+    expect((parts[0].output.value as string).endsWith("… [truncated]")).toBe(
+      true
+    );
+    expect((out[5].content as any[])[0].output.value).toBe("x".repeat(10));
+  });
+
+  test("does not mutate the original history", () => {
+    const msgs = [...toolMsg(5_000)];
+    truncateToolOutputs(msgs, 2_000);
+    expect((msgs[1].content as any[])[0].output.value).toBe("x".repeat(5_000));
+  });
 });
 
 describe("compactHistory", () => {
@@ -67,6 +148,9 @@ describe("compactHistory", () => {
     updatedAt: Date.now(),
   });
 
+  const offlineFetch = () =>
+    Promise.reject(new Error("offline (test)")).then(() => new Response());
+
   const fakeSummarize = async (
     head: ModelMessage[],
     _model: string,
@@ -84,6 +168,7 @@ describe("compactHistory", () => {
       store,
       config: {},
       summarizeFn: fakeSummarize,
+      fetchFn: offlineFetch,
     });
     expect(changed).toBe(true);
 
@@ -114,6 +199,7 @@ describe("compactHistory", () => {
         summarized++;
         return "SUMMARY";
       },
+      fetchFn: offlineFetch,
     });
     expect(changed).toBe(false);
     expect(summarized).toBe(0);
@@ -131,6 +217,7 @@ describe("compactHistory", () => {
       store,
       config: { compaction: { tailTurns: 1 } },
       summarizeFn: fakeSummarize,
+      fetchFn: offlineFetch,
     });
 
     expect(session.messages).toHaveLength(3);
@@ -149,6 +236,7 @@ describe("compactHistory", () => {
       store,
       config: {},
       summarizeFn: fakeSummarize,
+      fetchFn: offlineFetch,
     });
     const first = session.messages;
 
@@ -157,6 +245,7 @@ describe("compactHistory", () => {
       store,
       config: {},
       summarizeFn: fakeSummarize,
+      fetchFn: offlineFetch,
     });
 
     // head = the previous summary alone (1 msg), summarized again
@@ -178,6 +267,7 @@ describe("compactHistory", () => {
       store,
       config: {},
       summarizeFn: fakeSummarize,
+      fetchFn: offlineFetch,
     });
     off();
 

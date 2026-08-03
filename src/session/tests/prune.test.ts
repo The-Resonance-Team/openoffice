@@ -120,6 +120,26 @@ describe("selectPruneTargets", () => {
     expect(selection.pruned).toBe(1_000);
     expect(selection.targets.map((t) => t.msgIndex)).toEqual([6]);
   });
+
+  test("skill tool outputs are never pruned", () => {
+    const messages = [
+      ...toolTurn(1, 4_000),
+      ...toolTurn(2, 4_000),
+      ...toolTurn(3, 4_000),
+      ...toolTurn(4, 4_000),
+    ];
+    // turn 1 is a skill instruction dump — prunable range, but protected
+    messages[2].content = [
+      {
+        type: "tool-result",
+        toolCallId: "call-1",
+        toolName: "skill",
+        output: { type: "text", value: "y".repeat(40_000) },
+      },
+    ];
+    const selection = selectPruneTargets(messages, 0);
+    expect(selection.targets.map((t) => t.msgIndex)).toEqual([6]);
+  });
 });
 
 describe("applyPrune", () => {
