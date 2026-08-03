@@ -83,6 +83,7 @@ _Avoid_: collaboration, multi-user, link
 **Sync**:
 A second device (the same user's) reaching the same daemon as a full client — same token as any other client, not a separate identity. Requires widening the daemon's bind beyond loopback; the token becomes the only boundary once that happens. Not per-device pairing, not concurrent editing.
 _Avoid_: collaboration, multi-user, replication
+_Distinct from_: Cloud Config (`cloud/CONTEXT.md`) — an Org distributing provider/skill config to a member's daemon. That's config distribution to possibly-many devices belonging to possibly-many people; Sync is one person's second device joining one daemon.
 
 ### Draft lifecycle
 

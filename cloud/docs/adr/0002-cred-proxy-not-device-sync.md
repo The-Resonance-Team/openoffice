@@ -1,0 +1,3 @@
+# 0002 — Org provider credentials stay server-side behind a Cred Proxy, never synced to member devices
+
+We considered syncing the admin's resolved provider API key down to each member's device (same trust level as today's local `env:` credential). We chose an org-side proxy instead: the member's daemon authenticates to the Cred Proxy with its own session credential, and the Cred Proxy makes the actual provider call — the raw key never leaves Cloud's infrastructure. This trades an extra network hop and a dependency on Cloud's uptime for the ability to revoke a member's access or rotate a provider key without touching every device it was ever synced to.

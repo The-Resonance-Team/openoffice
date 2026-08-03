@@ -1,5 +1,15 @@
 # Context Map
 
+## Contexts
+
+- [OpenOffice](./CONTEXT.md) — the CLI/daemon: agents, tools, document engine, local sessions. Single-tenant, local-first.
+- [Cloud](./cloud/CONTEXT.md) — hosted multi-tenant service: orgs, teams, roles, managed provider credentials, cloud-published skills, and usage analytics.
+
+## Relationships
+
+- **OpenOffice → Cloud**: the daemon's provider/config/skill resolution reaches out to Cloud as an optional layer beneath local config — local config always wins when both are present (see `cloud/docs/adr/`). The daemon works fully offline with no Cloud account at all.
+- **Cloud → OpenOffice**: Cloud never reaches into the daemon directly; it only serves config/skills/credentials the daemon pulls, and receives the analytics events the daemon's event bus chooses to forward.
+
 Reference source for building and improving features: `/Users/xirothedev/workspace/opencode`.
 
 ## Glossary / Context map → opencode source

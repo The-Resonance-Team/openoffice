@@ -1,0 +1,3 @@
+# 0003 — One Analytics pipeline, permission-scoped at read time — not separate org-dashboard and maintainer-datalake systems
+
+We considered building the org-facing usage dashboard and the maintainer's cross-install analytics as two separate collection mechanisms with different consent/retention rules. We chose one event pipeline instead, with Role gating what a given viewer can query: an Org's Admin/Team Leader sees only their Org's (or Team's) slice — a maintainer-level aggregate view is a distinct, higher permission over the same underlying data. Simpler to build and reason about than two pipelines, at the cost of a single schema having to satisfy both audiences.
