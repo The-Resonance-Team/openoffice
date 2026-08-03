@@ -11,6 +11,16 @@ type ParsedProviderConfig = ReturnType<typeof ProviderConfigSchema.parse>;
 
 export const BUILTIN_PROVIDERS = ["anthropic", "openai", "google"] as const;
 
+export class AuthRequiredError extends Error {
+  constructor(
+    public provider: string,
+    message: string
+  ) {
+    super(message);
+    this.name = "AuthRequiredError";
+  }
+}
+
 const providers: Record<string, ProviderFactory> = {
   anthropic: (c) =>
     createAnthropic({ apiKey: c.apiKey, authToken: c.authToken }),
@@ -33,7 +43,8 @@ export function resolveCredential(
   const credential = store.get(providerName);
   if (credential === undefined) {
     if (providerConfig !== undefined) {
-      throw new Error(
+      throw new AuthRequiredError(
+        providerName,
         `Provider "${providerName}": no credential. Set \`provider.${providerName}.apiKey\` in config (or export the env: variable it references), or run \`openoffice auth login ${providerName}\`.`
       );
     }
@@ -41,7 +52,8 @@ export function resolveCredential(
   }
   if (credential.type === "api") return { apiKey: credential.key };
   if (credential.expires !== undefined && credential.expires <= Date.now()) {
-    throw new Error(
+    throw new AuthRequiredError(
+      providerName,
       `Stored credential for ${providerName} is expired — run \`openoffice auth login ${providerName}\` to re-authenticate.`
     );
   }

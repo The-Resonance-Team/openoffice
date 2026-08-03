@@ -7,6 +7,7 @@ import { createApp, AskChannel } from "../index";
 import { SessionStore, type Session } from "../../session";
 import { DraftManager, filePathHash } from "../../draft";
 import { HistoryStore } from "../../history";
+import { AuthRequiredError } from "../../llm";
 import type { SessionRuntime } from "../index";
 
 let dir: string;
@@ -137,6 +138,34 @@ describe("server API", () => {
     expect(b.status).toBe(200);
     expect(maxConcurrent).toBe(1);
     expect(turnCalls.map((t) => t.message).sort()).toEqual(["a", "b"]);
+  });
+
+  test("turn with a missing credential returns 401 auth-required with the provider", async () => {
+    const { app } = createApp({
+      store,
+      draftManager,
+      history,
+      askChannel,
+      createSession: makeSession,
+      buildRuntime: () => fakeRuntime,
+      runTurn: async () => {
+        throw new AuthRequiredError(
+          "anthropic",
+          'Provider "anthropic": no credential.'
+        );
+      },
+    });
+    const created = await post(app, "/api/sessions", { cwd: "/tmp" });
+    const id = created.json.id;
+
+    const turn = await post(app, `/api/sessions/${id}/turn`, {
+      message: "hi",
+    });
+    expect(turn.status).toBe(401);
+    expect(turn.json).toEqual({
+      error: "auth-required",
+      provider: "anthropic",
+    });
   });
 
   test("accept copies the draft to the real file", async () => {

@@ -1,5 +1,9 @@
 import { createInterface } from "node:readline";
-import { connectClient } from "./server/client";
+import {
+  connectClient,
+  ApiError,
+  type OpenOfficeClient,
+} from "./server/client";
 import { startDaemon } from "./server/daemon";
 import { CredentialStore } from "./auth/store";
 import { login } from "./auth/login";
@@ -56,7 +60,7 @@ async function mainClient() {
 
     busy = true;
     try {
-      await client.turn(session.id, input);
+      await runTurnWithAuth(client, session.id, input);
     } catch (err) {
       console.error("Error:", err instanceof Error ? err.message : err);
     } finally {
@@ -69,6 +73,39 @@ async function mainClient() {
     await client.endSession(session.id);
     process.exit(0);
   });
+}
+
+async function runTurnWithAuth(
+  client: OpenOfficeClient,
+  sessionID: string,
+  input: string
+) {
+  try {
+    await client.turn(sessionID, input);
+  } catch (err) {
+    if (
+      err instanceof ApiError &&
+      (err.data as any)?.error === "auth-required"
+    ) {
+      const provider = (err.data as any)?.provider as string;
+      const answer = await askUser(
+        `No credential for ${provider}. Log in now? (y/N)`
+      );
+      if (answer.trim().toLowerCase() !== "y") {
+        console.log(
+          `Skipped — run \`openoffice auth login ${provider}\` to store a key.`
+        );
+        return;
+      }
+      const credential = await login(new CredentialStore(), provider);
+      console.log(
+        `Stored ${credential.type} credential for ${provider}. Retrying...`
+      );
+      await client.turn(sessionID, input);
+      return;
+    }
+    throw err;
+  }
 }
 
 function knownProviderNames(): Set<string> {
