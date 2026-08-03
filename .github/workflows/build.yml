@@ -10,7 +10,9 @@ permissions:
 
 jobs:
   build-release:
-    runs-on: macos-14
+    # macOS runner needed only for codesign/notarytool; all targets are
+    # cross-compiled, so the newest image works fine and cannot go stale.
+    runs-on: macos-latest
     env:
       # Signing/publishing activate when the secrets exist; the shakedown
       # release ships unsigned until they do.
