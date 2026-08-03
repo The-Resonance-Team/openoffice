@@ -5,26 +5,28 @@ import { createGoogle } from "@ai-sdk/google";
 import { CredentialStore } from "../auth/store";
 import type { ProviderConfigSchema } from "../config/schema";
 
-type ProviderConfig = { apiKey?: string; authToken?: string };
+type ProviderConfig = {
+  apiKey?: string;
+  authToken?: string;
+  baseURL?: string;
+};
 type ProviderFactory = (config: ProviderConfig) => any;
 type ParsedProviderConfig = ReturnType<typeof ProviderConfigSchema.parse>;
 
 export const BUILTIN_PROVIDERS = ["anthropic", "openai", "google"] as const;
 
-export class AuthRequiredError extends Error {
-  constructor(
-    public provider: string,
-    message: string
-  ) {
-    super(message);
-    this.name = "AuthRequiredError";
-  }
-}
-
 const providers: Record<string, ProviderFactory> = {
   anthropic: (c) =>
     createAnthropic({ apiKey: c.apiKey, authToken: c.authToken }),
-  openai: (c) => createOpenAI({ apiKey: c.apiKey }),
+  openai: (c) => {
+    const client = createOpenAI({ apiKey: c.apiKey });
+    // ponytail: custom endpoints (e.g. local test servers, proxies) speak the
+    // chat-completions wire format; baseURL handling for anthropic/google comes with #12.
+    return c.baseURL
+      ? (modelId: string) =>
+          createOpenAI({ apiKey: c.apiKey, baseURL: c.baseURL }).chat(modelId)
+      : (modelId: string) => client(modelId);
+  },
   google: (c) => createGoogle({ apiKey: c.apiKey }),
 };
 
@@ -37,14 +39,12 @@ export function resolveCredential(
   providerName: string,
   store: CredentialStore
 ): { apiKey?: string; authToken?: string } {
-  if (providerConfig?.apiKey !== undefined) {
+  if (providerConfig?.apiKey !== undefined)
     return { apiKey: providerConfig.apiKey };
-  }
   const credential = store.get(providerName);
   if (credential === undefined) {
     if (providerConfig !== undefined) {
-      throw new AuthRequiredError(
-        providerName,
+      throw new Error(
         `Provider "${providerName}": no credential. Set \`provider.${providerName}.apiKey\` in config (or export the env: variable it references), or run \`openoffice auth login ${providerName}\`.`
       );
     }
@@ -52,8 +52,7 @@ export function resolveCredential(
   }
   if (credential.type === "api") return { apiKey: credential.key };
   if (credential.expires !== undefined && credential.expires <= Date.now()) {
-    throw new AuthRequiredError(
-      providerName,
+    throw new Error(
       `Stored credential for ${providerName} is expired — run \`openoffice auth login ${providerName}\` to re-authenticate.`
     );
   }
@@ -89,5 +88,7 @@ export function resolveModel(
     providerName,
     store
   );
-  return factory({ apiKey, authToken })(modelId);
+  return factory({ apiKey, authToken, baseURL: providerConfig?.baseURL })(
+    modelId
+  );
 }

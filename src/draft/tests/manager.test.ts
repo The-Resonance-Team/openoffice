@@ -165,7 +165,7 @@ describe("DraftManager", () => {
 
     const result = await mgr.accept(SESS_A, REAL);
     expect(result.ok).toBe(true);
-    expect(closes).toEqual([draftPath(SESS_A)]);
+    expect(closes).toEqual([draftPath(SESS_A), REAL]);
     expect(readFileSync(REAL_PATH, "utf-8")).toBe("edited");
     expect(mgr.history.list(`${filePathHash(REAL)}`)).toHaveLength(1);
     expect(existsSync(draftPath(SESS_A))).toBe(false);

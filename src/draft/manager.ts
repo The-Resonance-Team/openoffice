@@ -323,6 +323,15 @@ export class DraftManager {
     }
     const real = draft.meta.realFilePath;
     mkdirSync(dirname(real), { recursive: true });
+    // A resident officecli process may hold the real path open with stale
+    // in-memory state from before this accept. Close it BEFORE copying — a
+    // resident saves its state on close, so closing after would clobber the
+    // freshly accepted file. Closing a path with no resident is a no-op.
+    try {
+      await this.deps.execOfficeCli(["close", real]);
+    } catch {
+      // no resident for the path — nothing to close
+    }
     copyFileSync(draft.file, real);
     await this.deps.history.record(
       draft.meta.filePathHash,

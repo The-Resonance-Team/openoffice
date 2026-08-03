@@ -45,9 +45,5 @@ jobs:
           git push
           git push origin "v$NEW_VERSION"
 
-      - run: bun run build
-
-      - name: Create release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh release create "v$NEW_VERSION" dist/openoffice --generate-notes
+      # build.yml takes over from here: it runs on the tag push and is the
+      # only writer of the GitHub Release (binaries, SHA256SUMS, npm publish).

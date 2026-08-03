@@ -2,6 +2,11 @@ import { z } from "zod";
 
 export const ProviderConfigSchema = z.object({
   apiKey: z.string().optional(),
+  baseURL: z.string().optional(),
+});
+
+export const UpdateConfigSchema = z.object({
+  check: z.boolean().optional(),
 });
 
 export const AgentConfigSchema = z.object({
@@ -27,6 +32,7 @@ export const ConfigSchema = z.object({
   agent: z.record(z.string(), AgentConfigSchema).optional(),
   mcp: z.record(z.string(), McpConfigSchema).optional(),
   office: OfficeConfigSchema.optional(),
+  update: UpdateConfigSchema.optional(),
 });
 
 export type Config = z.infer<typeof ConfigSchema>;

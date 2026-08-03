@@ -7,7 +7,7 @@ import type { SessionStore, Session } from "../session";
 import type { ToolRegistry } from "../tool";
 import { filePathHash, type DraftManager } from "../draft";
 import type { HistoryStore } from "../history";
-import { AuthRequiredError } from "../llm";
+import type { UpdateStatus } from "../update";
 
 export class AskChannel {
   private pending = new Map<string, (answer: string) => void>();
@@ -54,6 +54,7 @@ export interface ServerDeps {
     runtime: SessionRuntime,
     store: SessionStore
   ) => Promise<{ text: string }>;
+  updateStatus?: () => Promise<UpdateStatus>;
 }
 
 export function createApp(deps: ServerDeps) {
@@ -95,19 +96,12 @@ export function createApp(deps: ServerDeps) {
     const message = typeof body.message === "string" ? body.message : "";
     if (!message) return c.json({ error: "message is required" }, 400);
 
-    try {
-      const text = await enqueueTurn(sessionID, async () => {
-        const runtime = deps.buildRuntime(session);
-        const result = await deps.runTurn(session, message, runtime, deps.store);
-        return result.text;
-      });
-      return c.json({ text });
-    } catch (err) {
-      if (err instanceof AuthRequiredError) {
-        return c.json({ error: "auth-required", provider: err.provider }, 401);
-      }
-      throw err;
-    }
+    const text = await enqueueTurn(sessionID, async () => {
+      const runtime = deps.buildRuntime(session);
+      const result = await deps.runTurn(session, message, runtime, deps.store);
+      return result.text;
+    });
+    return c.json({ text });
   });
 
   app.get("/api/sessions/:id/stream", (c) => {
@@ -220,6 +214,23 @@ export function createApp(deps: ServerDeps) {
     emit("session:end", { sessionID });
     return c.json({ ok: true });
   });
+
+  if (deps.updateStatus) {
+    app.get("/api/update", async (c) => {
+      try {
+        return c.json(await deps.updateStatus!());
+      } catch (e) {
+        return c.json(
+          {
+            check: true,
+            available: false,
+            error: e instanceof Error ? e.message : "update check failed",
+          },
+          502
+        );
+      }
+    });
+  }
 
   return { app, askChannel: deps.askChannel };
 }

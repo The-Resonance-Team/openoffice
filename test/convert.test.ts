@@ -144,11 +144,12 @@ describe("convert tool", () => {
   });
 
   test("integration: converts real .doc via soffice when available", async () => {
-    const soffice = Bun.spawnSync(["which", "soffice"], {
-      stdout: "pipe",
-      stderr: "pipe",
-    });
-    if (soffice.exitCode !== 0) {
+    const have = (cmd: string) =>
+      Bun.spawnSync(["which", cmd], { stdout: "pipe", stderr: "pipe" })
+        .exitCode === 0;
+    // Runs on the unit CI matrix (ubuntu/windows) where neither binary is
+    // installed — skip instead of failing on ENOENT.
+    if (!have("soffice") || !have("officecli")) {
       return;
     }
 
@@ -158,6 +159,11 @@ describe("convert tool", () => {
     const { execFileSync } = await import("node:child_process");
     const { dirname, basename, extname } = await import("node:path");
 
+    // Concurrent headless soffice runs collide on the shared user profile;
+    // give each conversion a private profile dir.
+    const profileFlag = (name: string) =>
+      `-env:UserInstallation=file://${join(dir, name).replace(/\\/g, "/")}`;
+
     // Generate a real legacy .doc by down-converting a .docx
     execFileSync("officecli", ["create", docx, "--json"], {
       encoding: "utf-8",
@@ -165,7 +171,15 @@ describe("convert tool", () => {
     });
     execFileSync(
       "soffice",
-      ["--headless", "--convert-to", "doc", "--outdir", dir, docx],
+      [
+        "--headless",
+        profileFlag("lo-profile-down"),
+        "--convert-to",
+        "doc",
+        "--outdir",
+        dir,
+        docx,
+      ],
       {
         encoding: "utf-8",
         timeout: 60000,
@@ -181,7 +195,15 @@ describe("convert tool", () => {
         const outDir = dirname(file);
         execFileSync(
           "soffice",
-          ["--headless", "--convert-to", format, "--outdir", outDir, file],
+          [
+            "--headless",
+            profileFlag("lo-profile-up"),
+            "--convert-to",
+            format,
+            "--outdir",
+            outDir,
+            file,
+          ],
           {
             encoding: "utf-8",
             timeout: 60000,

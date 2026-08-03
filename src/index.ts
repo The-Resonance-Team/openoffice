@@ -1,14 +1,29 @@
 import { createInterface } from "node:readline";
-import {
-  connectClient,
-  ApiError,
-  type OpenOfficeClient,
-} from "./server/client";
+import { basename } from "node:path";
+import { connectClient } from "./server/client";
 import { startDaemon } from "./server/daemon";
+import { cleanupPendingUpdate, performUpdate } from "./update";
+import { VERSION } from "./version";
 import { CredentialStore } from "./auth/store";
 import { login } from "./auth/login";
 import { resolveConfig } from "./config";
 import { BUILTIN_PROVIDERS } from "./llm";
+
+const HELP = `openoffice ${VERSION} — an LLM agent CLI for office document work.
+
+Usage:
+  openoffice                Interactive chat (auto-spawns the daemon)
+  openoffice serve          Run the daemon in the foreground (auto-spawned on demand)
+  openoffice update         Check GitHub Releases and update the installed binary
+  openoffice auth login <provider>    Store an API key for a provider
+  openoffice auth logout <provider>   Remove a stored credential
+  openoffice auth list                Show providers with stored credentials
+  openoffice --version      Print the version
+  openoffice --help         Show this help
+
+Configuration lives in openoffice.json (project) or the global config — see
+https://github.com/The-Resonance-Team/openoffice (docs/config.md).
+`;
 
 function askUser(question: string): Promise<string> {
   return new Promise((resolve) => {
@@ -27,8 +42,13 @@ async function mainClient() {
   const client = await connectClient();
   const session = await client.createSession(process.cwd());
 
-  console.log(`openoffice v0.1.0 (session: ${session.id})`);
-  console.log("Type your message. Ctrl+C to exit.\n");
+  console.log(`openoffice ${VERSION} (session: ${session.id})`);
+  const upd = await client.updateStatus().catch(() => null);
+  if (upd && upd.check !== false && upd.available) {
+    console.log(
+      `Update available: v${upd.version} — run \`openoffice update\``
+    );
+  }
 
   const rl = createInterface({
     input: process.stdin,
@@ -60,7 +80,7 @@ async function mainClient() {
 
     busy = true;
     try {
-      await runTurnWithAuth(client, session.id, input);
+      await client.turn(session.id, input);
     } catch (err) {
       console.error("Error:", err instanceof Error ? err.message : err);
     } finally {
@@ -75,36 +95,34 @@ async function mainClient() {
   });
 }
 
-async function runTurnWithAuth(
-  client: OpenOfficeClient,
-  sessionID: string,
-  input: string
-) {
+function isInstalledBinary(execPath: string): boolean {
+  const name = basename(execPath);
+  return /^openoffice(\.exe)?$/.test(name);
+}
+
+async function runUpdate() {
+  cleanupPendingUpdate();
+  if (!isInstalledBinary(process.execPath)) {
+    console.error(
+      "openoffice update replaces the installed binary — run it from the installed CLI (npm -g or dist/openoffice), not the dev runner."
+    );
+    process.exit(1);
+  }
   try {
-    await client.turn(sessionID, input);
-  } catch (err) {
-    if (
-      err instanceof ApiError &&
-      (err.data as any)?.error === "auth-required"
-    ) {
-      const provider = (err.data as any)?.provider as string;
-      const answer = await askUser(
-        `No credential for ${provider}. Log in now? (y/N)`
-      );
-      if (answer.trim().toLowerCase() !== "y") {
-        console.log(
-          `Skipped — run \`openoffice auth login ${provider}\` to store a key.`
-        );
-        return;
-      }
-      const credential = await login(new CredentialStore(), provider);
+    const result = await performUpdate(VERSION, process.execPath);
+    if (result.status === "up-to-date") {
+      console.log(`openoffice ${VERSION} is up to date.`);
+    } else if (result.status === "updated") {
       console.log(
-        `Stored ${credential.type} credential for ${provider}. Retrying...`
+        `Updated to ${result.version}. Restart to use the new binary.`
       );
-      await client.turn(sessionID, input);
-      return;
+    } else {
+      console.error(`Update failed: ${result.error}`);
+      process.exit(1);
     }
-    throw err;
+  } catch (e) {
+    console.error("Update failed:", e instanceof Error ? e.message : e);
+    process.exit(1);
   }
 }
 
@@ -157,17 +175,38 @@ async function runAuth(sub?: string, provider?: string) {
 }
 
 async function main() {
-  const command = process.argv[2];
-  if (command === "serve") {
-    const daemon = await startDaemon();
-    console.log(`openoffice daemon listening on port ${daemon.port}`);
-    return;
+  cleanupPendingUpdate();
+
+  const args = process.argv.slice(2);
+  switch (args[0]) {
+    case "--version":
+    case "-v":
+      console.log(VERSION);
+      return;
+    case "--help":
+    case "-h":
+      console.log(HELP);
+      return;
+    case undefined:
+      await mainClient();
+      return;
+    case "serve": {
+      const daemon = await startDaemon();
+      console.log(`openoffice daemon listening on port ${daemon.port}`);
+      return;
+    }
+    case "update":
+      await runUpdate();
+      return;
+    case "auth":
+      await runAuth(args[1], args[2]);
+      return;
+    default:
+      console.error(
+        `Unknown command "${args[0]}". Run \`openoffice --help\` for usage.`
+      );
+      process.exit(1);
   }
-  if (command === "auth") {
-    await runAuth(process.argv[3], process.argv[4]);
-    return;
-  }
-  await mainClient();
 }
 
 main();

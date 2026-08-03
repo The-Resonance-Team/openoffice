@@ -1,0 +1,120 @@
+name: build
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+  id-token: write # npm provenance
+
+jobs:
+  build-release:
+    runs-on: macos-14
+    env:
+      # Signing/publishing activate when the secrets exist; the shakedown
+      # release ships unsigned until they do.
+      HAS_APPLE: ${{ secrets.APPLE_CERTIFICATE != '' }}
+      HAS_AZURE: ${{ secrets.AZURE_CLIENT_ID != '' }}
+      HAS_NPM: ${{ secrets.NPM_TOKEN != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          cache: true
+      - run: bun install --frozen-lockfile
+
+      - name: Build CLI binaries (all platforms)
+        run: |
+          VERSION=$(echo "${{ github.ref_name }}" | sed 's/^v//')
+          for target in darwin-arm64 darwin-x64 linux-arm64 linux-x64 windows-x64; do
+            bun build --compile src/index.ts \
+              --target="bun-$target" \
+              --outfile="dist/openoffice-$target" \
+              --define:OOO_VERSION="$VERSION"
+          done
+
+      # ---- macOS signing (Developer ID + notarization) ----
+      - name: Import Apple certificate
+        if: env.HAS_APPLE == 'true'
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          echo "$APPLE_CERTIFICATE" | base64 --decode > /tmp/apple.p12
+          KEYCHAIN="$RUNNER_TEMP/app-signing.keychain-db"
+          security create-keychain -p "" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "" "$KEYCHAIN"
+          security import /tmp/apple.p12 -P "$APPLE_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN"
+          security list-keychain -d user -s "$KEYCHAIN"
+
+      - name: Codesign macOS binaries
+        if: env.HAS_APPLE == 'true'
+        run: |
+          IDENTITY=$(security find-identity -v -p codesigning | grep -o 'Developer ID Application: [^"]*' | head -1)
+          if [ -z "$IDENTITY" ]; then echo "::error::no Developer ID Application identity found"; exit 1; fi
+          for f in dist/openoffice-darwin-*; do
+            codesign --force --options runtime --entitlements entitlements/openoffice.entitlements --sign "$IDENTITY" "$f"
+          done
+
+      - name: Notarize macOS binaries
+        if: env.HAS_APPLE == 'true'
+        env:
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+        run: |
+          for f in dist/openoffice-darwin-*; do
+            ditto -c -k --sequesterRsrc --keepParent "$f" "$f.zip"
+            xcrun notarytool submit "$f.zip" --api-key "$APPLE_API_KEY" --api-issuer "$APPLE_API_ISSUER" --wait
+            xcrun stapler staple "$f"
+            rm "$f.zip"
+          done
+
+      # ---- Windows signing (Azure Trusted Signing) ----
+      - name: Check Azure signing variables
+        if: env.HAS_AZURE == 'true'
+        run: |
+          if [ -z "${{ vars.TRUSTED_SIGNING_ENDPOINT }}" ] || [ -z "${{ vars.TRUSTED_SIGNING_ACCOUNT }}" ] || [ -z "${{ vars.TRUSTED_SIGNING_CERT_PROFILE }}" ]; then
+            echo "::error::AZURE secrets are set but the TRUSTED_SIGNING_ENDPOINT / TRUSTED_SIGNING_ACCOUNT / TRUSTED_SIGNING_CERT_PROFILE repo variables are missing. Add them under Settings → Secrets and variables → Actions → Variables."
+            exit 1
+          fi
+
+      - name: Sign Windows binary
+        if: env.HAS_AZURE == 'true'
+        uses: azure/trusted-signing-action@v0
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        with:
+          endpoint: ${{ vars.TRUSTED_SIGNING_ENDPOINT }}
+          trusted-signing-account-name: ${{ vars.TRUSTED_SIGNING_ACCOUNT }}
+          certificate-profile-name: ${{ vars.TRUSTED_SIGNING_CERT_PROFILE }}
+          files: dist/openoffice-win32-x64.exe
+
+      # ---- Release + npm ----
+      - name: Generate SHA256SUMS
+        run: |
+          cd dist
+          shasum -a 256 openoffice-* > SHA256SUMS
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${{ github.ref_name }}" dist/* --generate-notes
+
+      - uses: actions/setup-node@v4
+        if: env.HAS_NPM == 'true'
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+
+      - name: Publish npm package
+        if: env.HAS_NPM == 'true'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --provenance --access public
+
+      # Desktop (electron-builder) artifacts land here with #5 — the job slot
+      # exists; the app does not yet.

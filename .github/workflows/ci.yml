@@ -30,8 +30,23 @@ jobs:
           cache: true
       - run: bun install --frozen-lockfile
       - run: bun run lint
+      - run: bun run lint:boundaries
 
-  test:
+  unit:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          cache: true
+      - run: bun install --frozen-lockfile
+      - run: bun test --timeout=30000 --path-ignore-patterns=test/e2e
+
+  coverage:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -39,4 +54,19 @@ jobs:
         with:
           cache: true
       - run: bun install --frozen-lockfile
-      - run: bun test
+      - run: bun test --timeout=30000 --coverage --coverage-reporter=lcov --path-ignore-patterns=test/e2e
+      - run: bun run scripts/check-coverage.ts
+
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          cache: true
+      - run: bun install --frozen-lockfile
+      - name: Install officecli
+        run: |
+          curl -fsSL https://d.officecli.ai/install.sh | bash
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - run: bun test --timeout=60000 test/e2e/
