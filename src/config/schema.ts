@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const ProviderConfigSchema = z.object({
-  apiKey: z.string(),
+  apiKey: z.string().optional(),
 });
 
 export const AgentConfigSchema = z.object({

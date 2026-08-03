@@ -66,6 +66,10 @@ _Avoid_: Office, document tools, doc tools
 The project's typed configuration, loaded from layered sources (defaults, global, project) with environment overrides and `env:` references. API keys are stored as `env:VAR_NAME` strings resolved at load time.
 _Avoid_: settings, options
 
+**Credential**:
+A provider's stored authentication material — OAuth access/refresh tokens or a plain API key — obtained via `openoffice auth login` and persisted locally. Resolution order: an explicit config `env:` reference always wins; a stored Credential is used only when config supplies no value; with neither, the user gets a clear error naming the provider. Never logged and never printed by `auth list`.
+_Avoid_: key, token, secret
+
 ### Daemon & clients
 
 **Daemon**:

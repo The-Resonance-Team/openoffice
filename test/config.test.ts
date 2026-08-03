@@ -129,12 +129,27 @@ describe("config loading", () => {
     expect(config.provider?.openai?.apiKey).toBe("sk-123");
   });
 
-  test("missing env: variable is a hard error", () => {
+  test("missing env: at a provider apiKey falls through (stored credential may supply it)", () => {
     const dir = tempDir();
     const path = join(dir, "openoffice.json");
     writeFileSync(
       path,
       JSON.stringify({ provider: { openai: { apiKey: "env:OPENAI_KEY" } } })
+    );
+    const config = resolveConfig({
+      globalPath: join(dir, "missing.json"),
+      projectPath: path,
+      env: {},
+    });
+    expect(config.provider?.openai?.apiKey).toBeUndefined();
+  });
+
+  test("missing env: anywhere else is still a hard error", () => {
+    const dir = tempDir();
+    const path = join(dir, "openoffice.json");
+    writeFileSync(
+      path,
+      JSON.stringify({ office: { managedDocumentsFolder: "env:OOO_DOCS" } })
     );
     expect(() =>
       resolveConfig({
@@ -142,7 +157,7 @@ describe("config loading", () => {
         projectPath: path,
         env: {},
       })
-    ).toThrow(/OPENAI_KEY is not set/);
+    ).toThrow(/OOO_DOCS is not set/);
   });
 
   test("~/ expands in string values", () => {

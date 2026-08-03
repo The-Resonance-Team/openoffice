@@ -13,12 +13,19 @@ export function resolveRefs(
   config: Config,
   env: Record<string, string | undefined>
 ): Config {
-  const walk = (value: unknown): unknown => {
+  const walk = (value: unknown, path: string[] = []): unknown => {
     if (typeof value === "string") {
       if (value.startsWith("env:")) {
         const name = value.slice("env:".length);
         const resolved = env[name];
         if (resolved === undefined) {
+          if (
+            path[0] === "provider" &&
+            path[2] === "apiKey" &&
+            path.length === 3
+          ) {
+            return undefined; // a stored credential (src/auth) may supply it
+          }
           throw new Error(
             `config references env:${name} but ${name} is not set`
           );
@@ -29,10 +36,12 @@ export function resolveRefs(
         return join(homedir(), value.slice("~/".length));
       return value;
     }
-    if (Array.isArray(value)) return value.map(walk);
+    if (Array.isArray(value)) {
+      return value.map((v, i) => walk(v, [...path, String(i)]));
+    }
     if (value !== null && typeof value === "object") {
       return Object.fromEntries(
-        Object.entries(value).map(([k, v]) => [k, walk(v)])
+        Object.entries(value).map(([k, v]) => [k, walk(v, [...path, k])])
       );
     }
     return value;
