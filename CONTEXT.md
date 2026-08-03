@@ -27,8 +27,12 @@ One conversation: a live agent instance, its message history, and the active mod
 _Avoid_: chat, conversation, thread
 
 **Message**:
-A single turn in a session. Uses AI SDK's `ModelMessage` type directly — roles are `user`, `assistant`, `tool`, and `system`. Tool calls and results are embedded in the message content, not stored as separate fields.
+A single turn in a session. Uses AI SDK's `ModelMessage` type directly — roles are `user`, `assistant`, `tool`, and `system`. Tool calls and results are embedded in the message content, not stored as separate fields. A user message may include attached images as content parts (resized/compressed before send — owned by #26), not just text.
 _Avoid_: entry, record
+
+**Job**:
+A turn running detached from any connected client — started, then polled or cancelled rather than streamed to a blocking caller. Not a separate entity from Session: a Job is "this session's turn, running server-side, independent of whether a client is still attached." Owned by #25.
+_Avoid_: task, background task, worker
 
 **Tool**:
 A callable unit exposed to the agent to perform an action. Defined with a Zod `inputSchema` and an `execute` function. Converted to AI SDK format via the `tool()` helper before passing to `streamText()`. Tools can reference other tools for chaining (e.g., a document reader delegates to officecli or pdf-parse based on file extension). MCP tools are the exception: they carry their server's JSON Schema (not Zod) and the AI SDK accepts it directly.
@@ -45,6 +49,10 @@ _Avoid_: response, output
 **Skill**:
 Markdown content (.md file with frontmatter) that teaches the LLM how to use a specific tool or domain. Loaded on demand via the `skill` tool — listed in the system prompt as available skills, but full content is only injected when the LLM calls `skill("name")`. Skills are prompt content, not executable code.
 _Avoid_: instructions, guide, documentation
+
+**Command**:
+A named, reusable prompt template (`$ARGUMENTS` substituted, optional agent/model override) dispatched by the user typing `/name args`. Distinct from a Skill (teaches the LLM how to use something, loaded lazily by the LLM itself) and a Tool (a callable action) — a Command is the user invoking a canned instruction, resolved before the LLM ever sees the turn. Owned by #24.
+_Avoid_: slash command (fine casually, but "Command" is the canonical term in code), macro, template
 
 **Permission**:
 An agent-level ruleset controlling which tools are accessible. Uses allow/deny patterns per tool name. Replaces a static `tools: string[]` list with a flexible permission system. The `skill` capability is a permission, not a tool — it controls whether the agent can load skills.
