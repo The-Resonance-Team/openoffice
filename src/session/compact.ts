@@ -16,18 +16,28 @@ export const COMPACTION_PROMPT =
   "what matters for the remaining work: the task, decisions made, and the " +
   "current state of any documents. Do not include tool output details.";
 
-// Summarizes the given history with one plain completion (no tools).
+// One plain completion (no tools) with a system prompt.
+export async function complete(
+  messages: ModelMessage[],
+  model: string,
+  config: Config,
+  prompt: string
+): Promise<string> {
+  const result = streamText({
+    model: resolveModel(model, config),
+    messages: [{ role: "system", content: prompt }, ...messages],
+    stopWhen: isStepCount(1),
+  });
+  return await result.text;
+}
+
+// Summarizes the given history with the compaction prompt.
 export async function summarize(
   messages: ModelMessage[],
   model: string,
   config: Config
 ): Promise<string> {
-  const result = streamText({
-    model: resolveModel(model, config),
-    messages: [{ role: "system", content: COMPACTION_PROMPT }, ...messages],
-    stopWhen: isStepCount(1),
-  });
-  return await result.text;
+  return complete(messages, model, config, COMPACTION_PROMPT);
 }
 
 // opencode's preserveRecentBudget: a quarter of the usable window, clamped to

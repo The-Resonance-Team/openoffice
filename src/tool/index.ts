@@ -7,3 +7,4 @@ export { createGlobTool } from "./builtins/glob";
 export { createGrepTool } from "./builtins/grep";
 export { createQuestionTool, type QuestionDeps } from "./builtins/question";
 export { createConvertTool, type ConvertDeps } from "./builtins/convert";
+export { createHandoffTool, type HandoffDeps } from "./builtins/handoff";
