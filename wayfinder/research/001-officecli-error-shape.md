@@ -146,38 +146,36 @@ Per-item errors include the original `item` object for debugging.
 
 ### Permission-Denied Handling
 
-**Status**: ✅ Tested (mocked officecli responses)
+**Status**: ✅ Resolved (tool-level mapping tested; real-binary behavior still stubbed)
 
-- Read-only file returns `io_error` code (validated error mapping)
-- Read-only directory returns `io_error` code (validated error mapping)
+- Read-only file (`chmod 444`) maps to `io_error` code — tested with a real chmod'd file and a mode-aware stub of the process layer
+- Read-only directory (`chmod 555`) maps to `io_error` code — same approach
 - Both map to same code; distinction not needed for user recovery
 - Test: `test/officecli.test.ts` - permission errors suite
-- Note: Tests mock officecli responses to validate error parsing, not actual filesystem behavior
+- Note: the `execCli` layer is stubbed (officecli binary not exercised); the stub branches on the real filesystem writable bit, so the io_error flow is driven by actual file modes
 
 ### Concurrent File Access
 
-**Status**: ✅ Tested (mocked concurrent calls)
+**Status**: ✅ Resolved (session-level lock path tested; raw officecli race not empirically tested)
 
-- Mock test validates `Promise.all` execution path doesn't throw
-- openoffice protection: Session-level Lock in draft-lifecycle (issue #4) prevents races in normal use
+- Two sessions racing the same file via `Promise.all`: exactly one succeeds, the other receives `LOCKED` — exercises the real DraftManager lock (issue #4)
+- Raw concurrent officecli invocations _outside_ openoffice remain unprotected; that behavior was not empirically tested against the binary
 - Test: `test/officecli.test.ts` - concurrent access suite
-- Note: Tests mock officecli to verify tool handles concurrent calls. Real officecli concurrent behavior not empirically tested
 
 ### Locale-Specific Errors
 
-**Status**: ✅ Tested (mocked locale scenario)
+**Status**: ✅ Resolved (tool-level; real binary under alternate locales not empirically tested)
 
-- `LC_ALL=C` preserves JSON error structure in tests
+- `LC_ALL=C` path preserves JSON error structure in the tool
 - Error codes remain machine-readable
-- JSON parsing succeeds in test environment
 - Test: `test/officecli.test.ts` - locale handling suite
-- Note: Tests mock officecli output. Real officecli behavior under locale changes not empirically tested
+- Note: output comes from a stubbed `execCli`, so this validates the tool's mapping, not officecli's actual locale behavior
 
 ### Large File Handling
 
-**Status**: ✅ Tested (mocked batch operations)
+**Status**: ✅ Resolved (serialization + timeout tested; real-binary throughput not empirically tested)
 
-- 500-operation batch structure validated
-- Mock test verifies timeout parameter passed correctly
+- 500-op batch serializes into `--commands` (asserted from captured args)
+- Batch timeout is 60000ms (asserted from captured opts)
 - Test: `test/officecli.test.ts` - large files suite
-- Note: Tests mock officecli to verify batch structure. Real timeout behavior not empirically tested
+- Note: `execCli` is stubbed, so wall-clock completion of a real 500-page document was not empirically verified
