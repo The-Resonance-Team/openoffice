@@ -4,6 +4,7 @@ export { runTurn } from "./loop";
 export type { RunTurnOptions } from "./loop";
 export {
   generateHandoff,
+  summarizeHandoff,
   redactHandoff,
   writeHandoffDoc,
   withFocus,
@@ -13,7 +14,6 @@ export type { HandoffSummarizeFn } from "./handoff";
 export {
   compactHistory,
   maybeCompact,
-  summarize,
   tailCutoff,
   preserveRecentTokens,
   truncateToolOutputs,

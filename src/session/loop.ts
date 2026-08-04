@@ -6,7 +6,8 @@ import type { SessionStore } from "./store";
 import type { Session } from "./types";
 import { emit } from "../events";
 import type { Config } from "../config";
-import { maybeCompact, summarize as defaultSummarize } from "./compact";
+import { maybeCompact } from "./compact";
+import { summarizeHandoff as defaultSummarize } from "./handoff";
 
 export interface RunTurnOptions {
   session: Session;

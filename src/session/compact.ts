@@ -1,14 +1,8 @@
 import { tmpdir } from "node:os";
 import type { ModelMessage } from "ai";
-import { complete } from "../llm/complete";
 import { getModelLimits, usableTokens } from "../llm/context-window";
 import { estimateTokens, pruneSession } from "./prune";
-import {
-  HANDOFF_PROMPT,
-  redactHandoff,
-  withFocus,
-  writeHandoffDoc,
-} from "./handoff";
+import { summarizeHandoff, redactHandoff, writeHandoffDoc } from "./handoff";
 import type { HandoffSummarizeFn } from "./handoff";
 import type { SessionStore } from "./store";
 import type { Session } from "./types";
@@ -19,22 +13,6 @@ export const DEFAULT_TAIL_TURNS = 2;
 export const TOOL_OUTPUT_MAX_CHARS = 2_000; // opencode's constant
 const MIN_PRESERVE_RECENT_TOKENS = 2_000;
 const MAX_PRESERVE_RECENT_TOKENS = 8_000;
-
-// The compaction summary is a handoff document (see HANDOFF_PROMPT): a fresh
-// continuation — same session or a new one — picks up the work from it.
-export async function summarize(
-  messages: ModelMessage[],
-  model: string,
-  config: Config,
-  focus?: string
-): Promise<string> {
-  return complete({
-    model,
-    messages,
-    config,
-    prompt: withFocus(HANDOFF_PROMPT, focus),
-  });
-}
 
 // opencode's preserveRecentBudget: a quarter of the usable window, clamped to
 // 2k-8k tokens — the tail should be small enough that the head still fits a
@@ -114,7 +92,7 @@ export async function compactHistory({
   session,
   store,
   config,
-  summarizeFn = summarize,
+  summarizeFn = summarizeHandoff,
   fetchFn,
   focus,
   dir,

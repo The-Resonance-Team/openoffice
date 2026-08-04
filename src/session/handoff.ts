@@ -58,6 +58,23 @@ export type HandoffSummarizeFn = (
   focus?: string
 ) => Promise<string>;
 
+// The one handoff-document operation: summarize a conversation into a handoff
+// document. Compaction (head of the session) and the handoff tool (whole
+// session) are both call sites of this.
+export async function summarizeHandoff(
+  messages: ModelMessage[],
+  model: string,
+  config: Config,
+  focus?: string
+): Promise<string> {
+  return complete({
+    model,
+    messages,
+    config,
+    prompt: withFocus(HANDOFF_PROMPT, focus),
+  });
+}
+
 export interface HandoffOptions {
   session: Session;
   config: Config;
@@ -73,17 +90,7 @@ export async function generateHandoff({
   dir = tmpdir(),
   focus,
 }: HandoffOptions): Promise<{ path: string }> {
-  const summarize: HandoffSummarizeFn =
-    summarizeFn ??
-    ((messages, model, cfg, focusHint) =>
-      complete({
-        model,
-        messages,
-        config: cfg,
-        prompt: withFocus(HANDOFF_PROMPT, focusHint),
-      }));
-
-  const summary = await summarize(
+  const summary = await (summarizeFn ?? summarizeHandoff)(
     session.messages,
     session.model,
     config,
