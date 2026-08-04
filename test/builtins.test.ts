@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { mkdtempSync, writeFileSync, readFileSync, mkdirSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -9,6 +10,15 @@ import {
   createGrepTool,
   createQuestionTool,
 } from "../src/tool";
+
+function hasRg(): boolean {
+  try {
+    execFileSync("rg", ["--version"], { stdio: "pipe" });
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 function tempDir(): string {
   return mkdtempSync(join(tmpdir(), "openoffice-test-"));
@@ -246,6 +256,7 @@ describe("glob tool", () => {
 
 describe("grep tool", () => {
   test("returns matching lines", async () => {
+    if (!hasRg()) return;
     const dir = tempDir();
     const file = join(dir, "search.txt");
     writeFileSync(file, "alpha\nbeta\nalpha gamma\n");
@@ -263,6 +274,7 @@ describe("grep tool", () => {
   });
 
   test("reports no matches without failing", async () => {
+    if (!hasRg()) return;
     const dir = tempDir();
     const file = join(dir, "search.txt");
     writeFileSync(file, "alpha");

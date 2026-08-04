@@ -1,5 +1,5 @@
 import { describe, expect, test, beforeEach, afterEach } from "bun:test";
-import { unlinkSync, existsSync } from "node:fs";
+import { rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { SessionStore } from "../store";
@@ -16,7 +16,7 @@ describe("SessionStore", () => {
 
   afterEach(() => {
     store.close();
-    if (existsSync(dbPath)) unlinkSync(dbPath);
+    rmSync(dbPath, { force: true, maxRetries: 10, retryDelay: 50 });
   });
 
   const makeSession = (id: string): Session => ({
