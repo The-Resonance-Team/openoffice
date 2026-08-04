@@ -36,8 +36,16 @@ export async function runTurn(options: RunTurnOptions) {
 
   // Prune/compact the persisted history before the new user message is
   // appended, so the protected tail is the last completed turns. Skipped when
-  // the last known usage is under the model's usable context window.
-  await maybeCompact({ session, store, config, summarizeFn, fetchFn });
+  // the last known usage is under the model's usable context window. The
+  // in-flight user message becomes the handoff summary's focus.
+  await maybeCompact({
+    session,
+    store,
+    config,
+    summarizeFn,
+    fetchFn,
+    focus: userMessage,
+  });
 
   // Append user message with seq
   const userMsgId = randomUUID();

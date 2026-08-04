@@ -1,5 +1,5 @@
 import { describe, expect, test, beforeEach } from "bun:test";
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { randomUUID } from "node:crypto";
@@ -252,6 +252,69 @@ describe("compactHistory", () => {
     expect(session.messages).toHaveLength(5);
     expect(session.messages[0].content).toBe("SUMMARY(1 msgs)");
     expect(session.messages.slice(1)).toEqual(first.slice(1));
+  });
+
+  test("passes the focus hint to the summarizer", async () => {
+    const msgs = messages(5);
+    const session = makeSession(msgs);
+    store.save(session);
+    store.replaceMessages(session.id, msgs);
+
+    let seenFocus = "";
+    await compactHistory({
+      session,
+      store,
+      config: {},
+      focus: "sign the contract",
+      summarizeFn: async (_head, _model, _cfg, focus) => {
+        seenFocus = focus ?? "";
+        return "SUMMARY";
+      },
+      fetchFn: offlineFetch,
+    });
+
+    expect(seenFocus).toContain("sign the contract");
+  });
+
+  test("redacts secrets from the summary message", async () => {
+    const msgs = messages(5);
+    const session = makeSession(msgs);
+    store.save(session);
+    store.replaceMessages(session.id, msgs);
+
+    await compactHistory({
+      session,
+      store,
+      config: {},
+      summarizeFn: async () =>
+        `Connected with api key sk-SECRETKEY0123456789ABCDEFGHIJ.`,
+      fetchFn: offlineFetch,
+    });
+
+    expect(session.messages[0].content).not.toContain("sk-SECRETKEY");
+    expect(session.messages[0].content).toContain("[REDACTED]");
+  });
+
+  test("saves the handoff document to the temp dir", async () => {
+    const msgs = messages(5);
+    const session = makeSession(msgs);
+    store.save(session);
+    store.replaceMessages(session.id, msgs);
+
+    const dir = mkdtempSync(join(tmpdir(), "oo-compact-doc-"));
+    await compactHistory({
+      session,
+      store,
+      config: {},
+      summarizeFn: async () => "# Handoff\n\nDrafted the contract.",
+      fetchFn: offlineFetch,
+      dir,
+    });
+
+    const files = readdirSync(dir);
+    expect(files).toHaveLength(1);
+    expect(files[0].endsWith(".md")).toBe(true);
+    expect(readFileSync(join(dir, files[0]), "utf8")).toContain("# Handoff");
   });
 
   test("emits session:compacted", async () => {

@@ -2,12 +2,17 @@ export type { Session } from "./types";
 export { SessionStore } from "./store";
 export { runTurn } from "./loop";
 export type { RunTurnOptions } from "./loop";
-export { generateHandoff, redactHandoff, HANDOFF_PROMPT } from "./handoff";
+export {
+  generateHandoff,
+  redactHandoff,
+  writeHandoffDoc,
+  withFocus,
+  HANDOFF_PROMPT,
+} from "./handoff";
 export type { HandoffSummarizeFn } from "./handoff";
 export {
   compactHistory,
   maybeCompact,
-  complete,
   summarize,
   tailCutoff,
   preserveRecentTokens,

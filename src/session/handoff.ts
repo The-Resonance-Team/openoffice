@@ -2,12 +2,13 @@ import { writeFile, mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import type { ModelMessage } from "ai";
-import { complete } from "./compact";
+import { complete } from "../llm/complete";
 import type { Session } from "./types";
 import type { Config } from "../config";
 
-// Mirrors the handoff skill's rules (reference artifacts by path, suggested
-// skills section, redaction, markdown output).
+// The handoff document spec — the compaction summary follows it too: a
+// handoff document so a fresh session (or the same session, compacted) can
+// continue the work.
 export const HANDOFF_PROMPT = `You are writing a handoff document so a fresh session can continue this work.
 
 Rules:
@@ -16,6 +17,12 @@ Rules:
 - Include a "Suggested skills" section listing skills the next session should invoke.
 - Redact sensitive information (API keys, passwords, personally identifiable information).
 - Output Markdown.`;
+
+export function withFocus(prompt: string, focus?: string): string {
+  return focus
+    ? `${prompt}\n\nThe next session will focus on: ${focus}`
+    : prompt;
+}
 
 const REDACT_PATTERNS: RegExp[] = [
   /sk-[A-Za-z0-9_-]{16,}/g,
@@ -31,6 +38,17 @@ export function redactHandoff(text: string): string {
     out = out.replace(pattern, "[REDACTED]");
   }
   return out;
+}
+
+export async function writeHandoffDoc(
+  dir: string,
+  sessionId: string,
+  content: string
+): Promise<string> {
+  const path = join(dir, `handoff-${sessionId}-${Date.now()}.md`);
+  await mkdir(dir, { recursive: true });
+  await writeFile(path, content, "utf8");
+  return path;
 }
 
 export type HandoffSummarizeFn = (
@@ -57,12 +75,13 @@ export async function generateHandoff({
 }: HandoffOptions): Promise<{ path: string }> {
   const summarize: HandoffSummarizeFn =
     summarizeFn ??
-    ((messages, model, cfg, focusHint) => {
-      const prompt = focusHint
-        ? `${HANDOFF_PROMPT}\n\nThe next session will focus on: ${focusHint}`
-        : HANDOFF_PROMPT;
-      return complete(messages, model, cfg, prompt);
-    });
+    ((messages, model, cfg, focusHint) =>
+      complete({
+        model,
+        messages,
+        config: cfg,
+        prompt: withFocus(HANDOFF_PROMPT, focusHint),
+      }));
 
   const summary = await summarize(
     session.messages,
@@ -70,8 +89,6 @@ export async function generateHandoff({
     config,
     focus
   );
-  const path = join(dir, `handoff-${session.id}-${Date.now()}.md`);
-  await mkdir(dir, { recursive: true });
-  await writeFile(path, redactHandoff(summary), "utf8");
+  const path = await writeHandoffDoc(dir, session.id, redactHandoff(summary));
   return { path };
 }

@@ -1,7 +1,15 @@
-import { streamText, isStepCount, type ModelMessage } from "ai";
-import { resolveModel } from "../llm/providers";
+import { tmpdir } from "node:os";
+import type { ModelMessage } from "ai";
+import { complete } from "../llm/complete";
 import { getModelLimits, usableTokens } from "../llm/context-window";
 import { estimateTokens, pruneSession } from "./prune";
+import {
+  HANDOFF_PROMPT,
+  redactHandoff,
+  withFocus,
+  writeHandoffDoc,
+} from "./handoff";
+import type { HandoffSummarizeFn } from "./handoff";
 import type { SessionStore } from "./store";
 import type { Session } from "./types";
 import type { Config } from "../config";
@@ -11,33 +19,21 @@ export const DEFAULT_TAIL_TURNS = 2;
 export const TOOL_OUTPUT_MAX_CHARS = 2_000; // opencode's constant
 const MIN_PRESERVE_RECENT_TOKENS = 2_000;
 const MAX_PRESERVE_RECENT_TOKENS = 8_000;
-export const COMPACTION_PROMPT =
-  "Summarize this conversation so it can continue. Keep the summary focused on " +
-  "what matters for the remaining work: the task, decisions made, and the " +
-  "current state of any documents. Do not include tool output details.";
 
-// One plain completion (no tools) with a system prompt.
-export async function complete(
-  messages: ModelMessage[],
-  model: string,
-  config: Config,
-  prompt: string
-): Promise<string> {
-  const result = streamText({
-    model: resolveModel(model, config),
-    messages: [{ role: "system", content: prompt }, ...messages],
-    stopWhen: isStepCount(1),
-  });
-  return await result.text;
-}
-
-// Summarizes the given history with the compaction prompt.
+// The compaction summary is a handoff document (see HANDOFF_PROMPT): a fresh
+// continuation — same session or a new one — picks up the work from it.
 export async function summarize(
   messages: ModelMessage[],
   model: string,
-  config: Config
+  config: Config,
+  focus?: string
 ): Promise<string> {
-  return complete(messages, model, config, COMPACTION_PROMPT);
+  return complete({
+    model,
+    messages,
+    config,
+    prompt: withFocus(HANDOFF_PROMPT, focus),
+  });
 }
 
 // opencode's preserveRecentBudget: a quarter of the usable window, clamped to
@@ -105,18 +101,23 @@ export interface CompactOptions {
   session: Session;
   store: SessionStore;
   config: Config;
-  summarizeFn?: typeof summarize;
+  summarizeFn?: HandoffSummarizeFn;
   fetchFn?: (url: string, init?: RequestInit) => Promise<Response>;
+  focus?: string;
+  dir?: string;
 }
 
-// Summarizes everything before the tail into one system message. Returns true
-// when the history was rewritten.
+// Summarizes everything before the tail into one system message — a handoff
+// document, redacted, and saved to the OS temp dir so a fresh session can
+// continue from it. Returns true when the history was rewritten.
 export async function compactHistory({
   session,
   store,
   config,
   summarizeFn = summarize,
   fetchFn,
+  focus,
+  dir,
 }: CompactOptions): Promise<boolean> {
   const tailTurns = config.compaction?.tailTurns ?? DEFAULT_TAIL_TURNS;
   const limits = await getModelLimits(session.model, config, fetchFn).catch(
@@ -134,10 +135,13 @@ export async function compactHistory({
   const summary = await summarizeFn(
     truncateToolOutputs(head, TOOL_OUTPUT_MAX_CHARS),
     session.model,
-    config
+    config,
+    focus
   );
+  const redacted = redactHandoff(summary);
+  await writeHandoffDoc(dir ?? tmpdir(), session.id, redacted);
 
-  session.messages = [{ role: "system", content: summary }, ...tail];
+  session.messages = [{ role: "system", content: redacted }, ...tail];
   store.replaceMessages(session.id, session.messages);
   emit("session:compacted", { sessionID: session.id });
   return true;
@@ -147,8 +151,10 @@ export interface MaybeCompactOptions {
   session: Session;
   store: SessionStore;
   config: Config;
-  summarizeFn?: typeof summarize;
+  summarizeFn?: HandoffSummarizeFn;
   fetchFn?: (url: string, init?: RequestInit) => Promise<Response>;
+  focus?: string;
+  dir?: string;
 }
 
 // Trigger point, run at the top of every turn: when the last persisted token
@@ -160,6 +166,8 @@ export async function maybeCompact({
   config,
   summarizeFn,
   fetchFn,
+  focus,
+  dir,
 }: MaybeCompactOptions): Promise<void> {
   const usage = store.lastUsage(session.id);
   if (!usage) return;
@@ -184,7 +192,15 @@ export async function maybeCompact({
   // opencode solves that with turn-splitting, which ADR 0011 rejects. The
   // failure is swallowed: the turn proceeds un-compacted and retries next turn.
   try {
-    await compactHistory({ session, store, config, summarizeFn, fetchFn });
+    await compactHistory({
+      session,
+      store,
+      config,
+      summarizeFn,
+      fetchFn,
+      focus,
+      dir,
+    });
   } catch (error) {
     console.error(`[compaction] summarize failed, skipping: ${error}`);
   }
