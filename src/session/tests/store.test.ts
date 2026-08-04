@@ -1,5 +1,5 @@
 import { describe, expect, test, beforeEach, afterEach } from "bun:test";
-import { unlinkSync, existsSync } from "node:fs";
+import { rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { SessionStore } from "../store";
@@ -15,7 +15,15 @@ describe("SessionStore", () => {
   });
 
   afterEach(() => {
-    if (existsSync(dbPath)) unlinkSync(dbPath);
+    store.close();
+    // Windows keeps the WAL handle locked briefly after close() even with
+    // retries (bun:sqlite). Best-effort cleanup — the OS temp dir is purged
+    // by the OS, so a leaked file here is harmless.
+    try {
+      rmSync(dbPath, { force: true });
+    } catch {
+      // ignore: see above
+    }
   });
 
   const makeSession = (id: string): Session => ({

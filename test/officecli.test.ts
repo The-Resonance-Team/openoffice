@@ -1,6 +1,15 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtempSync, writeFileSync, readFileSync, mkdirSync } from "node:fs";
-import { join } from "node:path";
+import {
+  mkdtempSync,
+  writeFileSync,
+  readFileSync,
+  mkdirSync,
+  chmodSync,
+  statSync,
+  existsSync,
+  rmSync,
+} from "node:fs";
+import { join, dirname } from "node:path";
 import { tmpdir } from "node:os";
 import { createOfficeCliTool, isMutating, parseError } from "../src/office";
 import { DraftManager } from "../src/draft";
@@ -472,5 +481,204 @@ describe("draft interception", () => {
       expect(result.error).toBe("File is being edited in another session");
       expect(result.code).toBe("LOCKED");
     }
+  });
+});
+
+describe("permission errors", () => {
+  // Stubs the process layer but reacts to the REAL filesystem state of the
+  // target (writable bit), so the io_error flow is exercised against an
+  // actual read-only file/directory, not a hardcoded mock.
+  function ioErrorOnReadOnlyTool() {
+    return createOfficeCliTool({
+      checkInstalled: async () => true,
+      execCli: async (args) => {
+        const target = args[1];
+        // create targets a not-yet-existing file; the write lands in the
+        // parent directory, so check that one's mode instead.
+        const statPath = existsSync(target) ? target : dirname(target);
+        const writable = (statSync(statPath).mode & 0o222) !== 0;
+        if (writable) return JSON.stringify({ success: true });
+        const err = new Error("officecli exited with code 1");
+        (err as any).stdout = JSON.stringify({
+          success: false,
+          error: { error: "Permission denied", code: "io_error" },
+        });
+        throw err;
+      },
+    });
+  }
+
+  test("read-only file maps to io_error", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "oo-perm-"));
+    const file = join(dir, "readonly.docx");
+    writeFileSync(file, "original");
+    chmodSync(file, 0o444);
+
+    try {
+      const tool = ioErrorOnReadOnlyTool();
+      const result = await tool.execute(
+        { command: "set", file, path: "/body/p[1]", props: { text: "test" } },
+        { sessionID: "test" }
+      );
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.code).toBe("io_error");
+        expect(result.error).toContain("Permission denied");
+      }
+    } finally {
+      chmodSync(file, 0o644);
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("read-only directory maps to io_error", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "oo-perm-"));
+    chmodSync(dir, 0o555);
+
+    try {
+      const tool = ioErrorOnReadOnlyTool();
+      const result = await tool.execute(
+        { command: "create", file: join(dir, "new.docx") },
+        { sessionID: "test" }
+      );
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.code).toBe("io_error");
+      }
+    } finally {
+      chmodSync(dir, 0o755);
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("writable file passes through unchanged", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "oo-perm-"));
+    const file = join(dir, "writable.docx");
+    writeFileSync(file, "original");
+
+    try {
+      const tool = ioErrorOnReadOnlyTool();
+      const result = await tool.execute(
+        { command: "set", file, path: "/body/p[1]", props: { text: "test" } },
+        { sessionID: "test" }
+      );
+      expect(result.success).toBe(true);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("concurrent access", () => {
+  test("two sessions racing the same file: one wins, the other gets LOCKED", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "oo-race-"));
+    const realFile = join(dir, "report.docx");
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(realFile, "original");
+
+    const tool = createOfficeCliTool({
+      checkInstalled: async () => true,
+      execCli: async () => JSON.stringify({ success: true }),
+      draftManager: new DraftManager({
+        dataDir: dir,
+        history: new HistoryStore(dir),
+        execOfficeCli: async () => ({ stdout: "", exitCode: 0 }),
+      }),
+    });
+
+    const [r1, r2] = await Promise.all([
+      tool.execute(
+        { command: "set", file: realFile, path: "/p", props: { text: "A" } },
+        { sessionID: "sess-1" }
+      ),
+      tool.execute(
+        { command: "set", file: realFile, path: "/p", props: { text: "B" } },
+        { sessionID: "sess-2" }
+      ),
+    ]);
+
+    const winners = [r1, r2].filter((r) => r.success);
+    const locked = [r1, r2].filter(
+      (r): r is typeof r & { success: false } =>
+        !r.success && r.code === "LOCKED"
+    );
+    expect(winners).toHaveLength(1);
+    expect(locked).toHaveLength(1);
+    if (locked[0]) expect(locked[0].error).toContain("another session");
+  });
+});
+
+describe("locale handling", () => {
+  test("error code survives the LC_ALL=C path", async () => {
+    const original = process.env.LC_ALL;
+    process.env.LC_ALL = "C";
+
+    try {
+      const tool = createOfficeCliTool({
+        checkInstalled: async () => true,
+        execCli: async () => {
+          const err = new Error("officecli exited with code 1");
+          (err as any).stdout = JSON.stringify({
+            success: false,
+            error: { error: "File not found", code: "file_not_found" },
+          });
+          throw err;
+        },
+      });
+
+      const result = await tool.execute(
+        { command: "get", file: "nonexistent.docx" },
+        { sessionID: "test" }
+      );
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.code).toBe("file_not_found");
+      }
+    } finally {
+      if (original === undefined) delete process.env.LC_ALL;
+      else process.env.LC_ALL = original;
+    }
+  });
+});
+
+describe("large files", () => {
+  test("500-op batch serializes into --commands with the 60s timeout", async () => {
+    const file = join(tmpdir(), "large-500-pages.docx");
+
+    const ops = Array.from({ length: 500 }, (_, i) => ({
+      command: "add" as const,
+      parent: "/body",
+      type: "paragraph",
+      props: {
+        text: `Page ${i + 1}: Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.`,
+      },
+    }));
+
+    let args: string[] = [];
+    let timeout = 0;
+    const tool = createOfficeCliTool({
+      checkInstalled: async () => true,
+      execCli: async (a, opts) => {
+        args = a;
+        timeout = opts?.timeout ?? 0;
+        return JSON.stringify({ success: true });
+      },
+    });
+
+    const result = await tool.execute(
+      { command: "batch", file, operations: ops },
+      { sessionID: "test" }
+    );
+
+    expect(result.success).toBe(true);
+    expect(timeout).toBe(60000);
+
+    const idx = args.indexOf("--commands");
+    expect(idx).toBeGreaterThan(-1);
+    const serialized = JSON.parse(args[idx + 1]);
+    expect(serialized).toHaveLength(500);
   });
 });
