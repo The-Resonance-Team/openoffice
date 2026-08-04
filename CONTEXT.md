@@ -8,6 +8,10 @@ A CLI that runs LLM agents equipped with tools to automate office document work.
 
 **Dogfooding**: A configured MCP server whose name matches a native tool is never connected — the native integration (typed verbs, install check, chaining) is strictly better than the MCP `command`-string surface. Native wins.
 
+**Event safety**: Events emitted within the daemon (`tool:start`, `tool:done`, etc.) may be streamed to external clients via SSE. Sensitive values are redacted in the event bus `emit()` — every event type is safe, no caller needs to remember. The bus is the single choke point.
+
+**Error messages**: Error messages returned to clients may reference env var _names_ (e.g. "set `GITHUB_TOKEN`") but never their _resolved values_. Applies to config resolution errors, provider auth errors, and any caught exception whose message might include config data.
+
 ## Language
 
 **Agent**:
@@ -74,11 +78,19 @@ _Avoid_: settings, options
 A provider's stored authentication material — OAuth access/refresh tokens or a plain API key — obtained via `openoffice auth login` and persisted locally. Resolution order: an explicit config `env:` reference always wins; a stored Credential is used only when config supplies no value; with neither, the user gets a clear error naming the provider. Never logged and never printed by `auth list`.
 _Avoid_: key, token, secret
 
+**Sensitive value**:
+Any data that must not appear in events streamed to external consumers — resolved `env:` config values, stored Credentials, OAuth tokens, and anything matching common API-key patterns. Redacted by the event bus `emit()`: walks every string leaf in the event payload, and if any known sensitive value (length >= 8) appears as a substring, the entire containing string is replaced with `[redacted]`. The set of known sensitive values is captured at config-load time from all resolved `env:` values and stored Credentials.
+_Avoid_: secret, confidential data
+
 ### Daemon & clients
 
 **Daemon**:
 The long-running background process (`openoffice serve`) that hosts the session loop, tools, and the HTTP/SSE API. Auto-spawned detached by the CLI if none is running for the current user. All agent work happens in the daemon, never in a client.
 _Avoid_: server (ambiguous with the HTTP framework), backend
+
+**Daemon token**:
+A per-instance bearer token generated on daemon startup, written to a separate `0600` file in the data dir (`daemon.token`), and required on every HTTP request as a Bearer header. Regenerated each time the daemon starts. Gates daemon access — distinct from Credentials, which gate provider access, and from Share tokens, which grant read-only session access via URL.
+_Avoid_: auth token, access token, session token
 
 **Client**:
 A thin process that connects to the daemon over HTTP/SSE instead of running the agent loop itself — the TUI and, later, the desktop app. Sends commands via HTTP routes, receives token/event streams via SSE.

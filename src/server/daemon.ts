@@ -1,8 +1,15 @@
 import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { execFileSync } from "node:child_process";
-import { resolveConfig } from "../config";
+import { resolveConfig, collectEnvValues } from "../config";
+import {
+  applyEnvOverrides,
+  findProjectConfig,
+  loadConfigFiles,
+  mergeLayers,
+} from "../config/loader";
 import {
   SessionStore,
   runTurn,
@@ -30,6 +37,13 @@ import { createSdkMcpClient, planMcpConnections } from "../mcp/sdk-client";
 import { checkForUpdate } from "../update";
 import { VERSION } from "../version";
 import { randomUUID } from "node:crypto";
+import { setSensitiveValues } from "../events";
+import {
+  generateDaemonToken,
+  writeDaemonToken,
+  readDaemonToken,
+  createAuthMiddleware,
+} from "./auth";
 
 import { getDataDir } from "../data-dir";
 export { getDataDir } from "../data-dir";
@@ -89,6 +103,37 @@ export async function startDaemon(): Promise<DaemonHandle> {
   mkdirSync(dataDir, { recursive: true });
 
   const config = resolveConfig();
+
+  // Daemon token: generate on every start, write with 0600 permissions.
+  const daemonToken = generateDaemonToken();
+  writeDaemonToken(dataDir, daemonToken);
+
+  // Collect sensitive values: env:-resolved config values + stored credentials.
+  const env = process.env;
+  const globalPath = join(homedir(), ".config", "openoffice", "config.json");
+  const projectPath = findProjectConfig(process.cwd());
+  const layers = loadConfigFiles(globalPath, projectPath);
+  const rawConfig = mergeLayers([{}, ...layers]);
+  const sensitiveSet = collectEnvValues(applyEnvOverrides(rawConfig, env), env);
+  // Also collect stored credentials (OAuth tokens, API keys from auth.json).
+  try {
+    const { CredentialStore } = await import("../auth/store");
+    const store = new CredentialStore();
+    for (const provider of store.list()) {
+      const cred = store.get(provider);
+      if (!cred) continue;
+      if (cred.type === "api" && cred.key.length >= 8)
+        sensitiveSet.add(cred.key);
+      if (cred.type === "oauth") {
+        if (cred.access.length >= 8) sensitiveSet.add(cred.access);
+        if (cred.refresh && cred.refresh.length >= 8)
+          sensitiveSet.add(cred.refresh);
+      }
+    }
+  } catch {
+    // auth.json may not exist yet — that's fine
+  }
+  setSensitiveValues(sensitiveSet);
   const store = new SessionStore(join(dataDir, "openoffice.db"));
   const history = new HistoryStore(dataDir);
   const askChannel = new AskChannel();
@@ -254,6 +299,9 @@ export async function startDaemon(): Promise<DaemonHandle> {
       return checkForUpdate(VERSION, dataDir);
     },
   });
+
+  // Auth middleware: reject requests without a valid daemon token.
+  app.use("*", createAuthMiddleware(daemonToken));
 
   const server = Bun.serve({
     hostname: "127.0.0.1",

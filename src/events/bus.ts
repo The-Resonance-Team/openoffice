@@ -1,3 +1,5 @@
+import { redact } from "./redact";
+
 export type EventMap = {
   "llm:token": { sessionID: string; token: string };
   "llm:done": { sessionID: string; response: string };
@@ -24,6 +26,12 @@ const listeners: Listeners = {
   "session:end": new Set(),
 };
 
+let sensitiveValues = new Set<string>();
+
+export function setSensitiveValues(values: Set<string>): void {
+  sensitiveValues = values;
+}
+
 export function on<K extends keyof EventMap>(
   event: K,
   handler: (data: EventMap[K]) => void
@@ -38,5 +46,6 @@ export function emit<K extends keyof EventMap>(
   event: K,
   data: EventMap[K]
 ): void {
-  for (const handler of listeners[event]) handler(data);
+  const safe = sensitiveValues.size > 0 ? redact(data, sensitiveValues) : data;
+  for (const handler of listeners[event]) handler(safe);
 }
