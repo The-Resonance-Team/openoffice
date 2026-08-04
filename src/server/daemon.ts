@@ -17,7 +17,6 @@ import {
   createConvertTool,
   createGlobTool,
   createGrepTool,
-  createHandoffTool,
   createQuestionTool,
   createReadTool,
   createWriteTool,
@@ -138,7 +137,6 @@ export async function startDaemon(): Promise<DaemonHandle> {
     createGlobTool(),
     createGrepTool(),
     createSkillTool(skillsDir),
-    createHandoffTool({ store, config }),
   ];
 
   const convertDeps = {
@@ -244,6 +242,7 @@ export async function startDaemon(): Promise<DaemonHandle> {
         session,
         userMessage: message,
         store: s,
+        agents: agentRegistry,
         tools: runtime.tools,
         system: runtime.system,
         config,

@@ -15,6 +15,7 @@ import { DraftManager, filePathHash } from "../../src/draft";
 import { AskChannel, createApp } from "../../src/server";
 import { runTurn } from "../../src/session/loop";
 import { ToolRegistry } from "../../src/tool";
+import { AgentRegistry } from "../../src/agent/registry";
 import { createDefaultOfficeCliTool } from "../../src/office";
 import { on } from "../../src/events";
 import {
@@ -136,6 +137,7 @@ beforeAll(async () => {
         session,
         userMessage: message,
         store: s,
+        agents: new AgentRegistry(),
         tools: runtime.tools,
         system: runtime.system,
         config: config!,

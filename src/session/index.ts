@@ -2,32 +2,35 @@ export type { Session } from "./types";
 export { SessionStore } from "./store";
 export { runTurn } from "./loop";
 export type { RunTurnOptions } from "./loop";
-export {
-  generateHandoff,
-  summarizeHandoff,
-  redactHandoff,
-  writeHandoffDoc,
-  withFocus,
-  HANDOFF_PROMPT,
-} from "./handoff";
-export type { HandoffSummarizeFn } from "./handoff";
-export {
-  compactHistory,
-  maybeCompact,
-  tailCutoff,
-  preserveRecentTokens,
-  truncateToolOutputs,
-  DEFAULT_TAIL_TURNS,
-  TOOL_OUTPUT_MAX_CHARS,
-} from "./compact";
-export {
-  pruneSession,
-  selectPruneTargets,
-  applyPrune,
-  estimateTokens,
-  DEFAULT_PRUNE_PROTECT,
-  DEFAULT_PRUNE_MINIMUM,
-  PRUNE_PLACEHOLDER,
-  PRUNE_PROTECTED_TOOLS,
-} from "./prune";
 export { buildSystemPrompt } from "./system";
+export {
+  create,
+  process,
+  prune,
+  applyPrune,
+  select,
+  buildPrompt,
+  PRUNE_MINIMUM,
+  PRUNE_PROTECT,
+  SUMMARY_OUTPUT_TOKENS,
+} from "./compaction";
+export type { CompactionDeps, ProcessInput, ProcessResult } from "./compaction";
+export { isOverflow, usable } from "./overflow";
+export type { OverflowConfig } from "./overflow";
+export {
+  toModelMessages,
+  filterCompacted,
+  truncateToolOutput,
+} from "./message-v2";
+export type {
+  Part,
+  TextPart,
+  ToolPart,
+  CompactionPart,
+  WithParts,
+  MessageInfo,
+  ModelRef,
+  TokenUsage,
+  ToolState,
+} from "./parts";
+export { estimateTokens, completedCompactions } from "./parts";

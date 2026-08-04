@@ -1,4 +1,4 @@
-import type { ModelMessage } from "ai";
+import type { WithParts } from "./parts";
 
 export interface Session {
   id: string;
@@ -6,7 +6,7 @@ export interface Session {
   model: string;
   title: string;
   cwd: string;
-  messages: ModelMessage[];
+  messages: WithParts[];
   createdAt: number;
   updatedAt: number;
 }

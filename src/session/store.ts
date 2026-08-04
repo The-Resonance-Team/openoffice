@@ -4,13 +4,134 @@ import { dirname } from "node:path";
 import { drizzle } from "drizzle-orm/bun-sqlite";
 import { eq, desc, sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
-import type { ModelMessage } from "ai";
 import type { Session } from "./types";
-import { sessions, messages } from "./schema";
+import { sessions, messages, parts } from "./schema";
+import type {
+  MessageInfo,
+  Part,
+  TextPart,
+  ToolPart,
+  CompactionPart,
+  WithParts,
+} from "./parts";
 
-export interface TokenUsage {
-  inputTokens: number;
-  outputTokens: number;
+const parse = <T>(value: string | null): T | undefined =>
+  value ? (JSON.parse(value) as T) : undefined;
+
+function infoToRow(info: MessageInfo, sessionId: string, seq: number) {
+  return {
+    id: info.id,
+    sessionId,
+    role: info.role,
+    parentId: info.parentID ?? null,
+    agent: info.agent ?? null,
+    model: info.model ? JSON.stringify(info.model) : null,
+    summary: info.summary ?? false,
+    finish: info.finish ?? null,
+    error: info.error ? JSON.stringify(info.error) : null,
+    tokens: info.tokens ? JSON.stringify(info.tokens) : null,
+    seq,
+    timestamp: new Date(info.time.created),
+  };
+}
+
+function rowToInfo(row: {
+  id: string;
+  role: string;
+  parentId: string | null;
+  agent: string | null;
+  model: string | null;
+  summary: boolean;
+  finish: string | null;
+  error: string | null;
+  tokens: string | null;
+  timestamp: Date;
+}): MessageInfo {
+  return {
+    id: row.id,
+    role: row.role as MessageInfo["role"],
+    parentID: row.parentId ?? undefined,
+    agent: row.agent ?? undefined,
+    model: parse<MessageInfo["model"]>(row.model),
+    summary: row.summary || undefined,
+    finish: (row.finish as MessageInfo["finish"]) ?? undefined,
+    error: parse<{ message: string }>(row.error),
+    tokens: parse<MessageInfo["tokens"]>(row.tokens),
+    time: { created: row.timestamp.getTime() },
+  };
+}
+
+function partToRow(part: Part, sessionId: string, timestamp: number) {
+  const row: {
+    id: string;
+    messageId: string;
+    sessionId: string;
+    type: string;
+    tool: string | null;
+    callId: string | null;
+    text: string | null;
+    state: string | null;
+    time: string | null;
+    timestamp: Date;
+  } = {
+    id: part.id ?? "",
+    messageId: part.messageID ?? "",
+    sessionId,
+    type: part.type,
+    tool: null,
+    callId: null,
+    text: null,
+    state: null,
+    time: part.time ? JSON.stringify(part.time) : null,
+    timestamp: new Date(timestamp),
+  };
+  if (part.type === "text") {
+    row.text = part.text;
+  }
+  if (part.type === "tool") {
+    row.tool = part.tool;
+    row.callId = part.callID ?? null;
+    row.state = JSON.stringify(part.state);
+  }
+  return row;
+}
+
+function rowToPart(row: {
+  id: string;
+  messageId: string;
+  type: string;
+  tool: string | null;
+  callId: string | null;
+  text: string | null;
+  state: string | null;
+  time: string | null;
+}): Part {
+  const base = { id: row.id, messageID: row.messageId };
+  const time = parse<Part["time"]>(row.time);
+  if (row.type === "text") {
+    const part: TextPart = { ...base, type: "text", text: row.text ?? "" };
+    if (time) part.time = time;
+    return part;
+  }
+  if (row.type === "compaction") {
+    const part: CompactionPart = {
+      ...base,
+      type: "compaction",
+      auto: false,
+      overflow: false,
+    };
+    if (time) part.time = time;
+    return part;
+  }
+  const part: ToolPart = {
+    ...base,
+    type: "tool",
+    tool: row.tool ?? "",
+    callID: row.callId ?? undefined,
+    state: parse<Record<string, unknown>>(row.state) as ToolPart["state"],
+  };
+  if (time) part.time = time;
+  return part;
 }
 
 export class SessionStore {
@@ -28,23 +149,13 @@ export class SessionStore {
   // doesn't match. Fine for pre-release; add proper migrations when the
   // schema stabilizes.
   private migrate(sqlite: Database): void {
-    const hasSeq = sqlite
+    const hasParent = sqlite
       .query(
-        "SELECT name FROM pragma_table_info('messages') WHERE name = 'seq'"
+        "SELECT name FROM pragma_table_info('messages') WHERE name = 'parent_id'"
       )
       .get();
-    const hasCwd = sqlite
-      .query(
-        "SELECT name FROM pragma_table_info('sessions') WHERE name = 'cwd'"
-      )
-      .get();
-    const hasTokens = sqlite
-      .query(
-        "SELECT name FROM pragma_table_info('messages') WHERE name = 'tokens'"
-      )
-      .get();
-    if (!hasSeq || !hasCwd || !hasTokens) {
-      // Schema changed: drop and recreate. Data loss is acceptable pre-release.
+    if (!hasParent) {
+      this.db.run("DROP TABLE IF EXISTS parts");
       this.db.run("DROP TABLE IF EXISTS messages");
       this.db.run("DROP TABLE IF EXISTS sessions");
     }
@@ -64,14 +175,39 @@ export class SessionStore {
         id TEXT PRIMARY KEY,
         session_id TEXT NOT NULL REFERENCES sessions(id),
         role TEXT NOT NULL,
-        content TEXT NOT NULL,
+        parent_id TEXT,
+        agent TEXT,
+        model TEXT,
+        summary INTEGER NOT NULL DEFAULT 0,
+        finish TEXT,
+        error TEXT,
         tokens TEXT,
         seq INTEGER NOT NULL,
         timestamp INTEGER NOT NULL
       )
     `);
+    this.db.run(/* sql */ `
+      CREATE TABLE IF NOT EXISTS parts (
+        id TEXT PRIMARY KEY,
+        message_id TEXT NOT NULL REFERENCES messages(id),
+        session_id TEXT NOT NULL REFERENCES sessions(id),
+        type TEXT NOT NULL,
+        tool TEXT,
+        call_id TEXT,
+        text TEXT,
+        state TEXT,
+        time TEXT,
+        timestamp INTEGER NOT NULL
+      )
+    `);
     this.db.run(
       /* sql */ "CREATE INDEX IF NOT EXISTS idx_messages_session ON messages(session_id, seq)"
+    );
+    this.db.run(
+      /* sql */ "CREATE INDEX IF NOT EXISTS idx_parts_message ON parts(message_id)"
+    );
+    this.db.run(
+      /* sql */ "CREATE INDEX IF NOT EXISTS idx_parts_session ON parts(session_id)"
     );
   }
 
@@ -108,25 +244,13 @@ export class SessionStore {
       .get();
     if (!row) return null;
 
-    const msgRows = this.db
-      .select()
-      .from(messages)
-      .where(eq(messages.sessionId, id))
-      .orderBy(messages.seq)
-      .all();
-
-    const sessionMessages: ModelMessage[] = msgRows.map((r) => {
-      const parsed = JSON.parse(r.content);
-      return { role: r.role, content: parsed } as ModelMessage;
-    });
-
     return {
       id: row.id,
       agent: row.agent,
       model: row.model,
       title: row.title,
       cwd: row.cwd,
-      messages: sessionMessages,
+      messages: this.messages(id),
       createdAt: row.createdAt.getTime(),
       updatedAt: row.updatedAt.getTime(),
     };
@@ -151,99 +275,75 @@ export class SessionStore {
   }
 
   delete(id: string): void {
+    this.db.delete(parts).where(eq(parts.sessionId, id)).run();
     this.db.delete(messages).where(eq(messages.sessionId, id)).run();
     this.db.delete(sessions).where(eq(sessions.id, id)).run();
   }
 
-  appendMessage(
-    sessionId: string,
-    id: string,
-    message: ModelMessage,
-    timestamp: number,
-    seq: number
-  ): void {
-    const content = JSON.stringify(message.content);
+  // Full message history of a session, chronological, parts in insertion order.
+  messages(sessionId: string): WithParts[] {
+    const msgRows = this.db
+      .select()
+      .from(messages)
+      .where(eq(messages.sessionId, sessionId))
+      .orderBy(messages.seq)
+      .all();
+    const partRows = this.db
+      .select()
+      .from(parts)
+      .where(eq(parts.sessionId, sessionId))
+      .orderBy(sql`rowid`)
+      .all();
+    const partsByMessage = new Map<string, Part[]>();
+    for (const row of partRows) {
+      const list = partsByMessage.get(row.messageId) ?? [];
+      list.push(rowToPart(row));
+      partsByMessage.set(row.messageId, list);
+    }
+    return msgRows.map((row) => ({
+      info: rowToInfo(row),
+      parts: partsByMessage.get(row.id) ?? [],
+    }));
+  }
 
+  // Upserts a message row; seq auto-increments within the session.
+  updateMessage(sessionId: string, info: MessageInfo): void {
+    const seq = info.id
+      ? this.db
+          .select({ seq: messages.seq })
+          .from(messages)
+          .where(sql`${messages.id} = ${info.id}`)
+          .get()
+      : undefined;
+    const next = seq?.seq ?? this.nextSeq(sessionId);
     this.db
       .insert(messages)
-      .values({
-        id,
-        sessionId,
-        role: message.role,
-        content,
-        seq,
-        timestamp: new Date(timestamp),
+      .values(infoToRow(info, sessionId, next))
+      .onConflictDoUpdate({
+        target: messages.id,
+        set: infoToRow(info, sessionId, next),
       })
       .run();
+    this.touch(sessionId, info.time.created);
+  }
 
+  // Upserts a part row. Returns the part id (assigned server-side on insert)
+  // so callers can target the row later, e.g. updating a pending tool-call
+  // part once its result arrives.
+  updatePart(sessionId: string, messageId: string, part: Part): string {
+    const id = part.id ?? randomUUID();
+    const row = partToRow(
+      { ...part, id, messageID: messageId },
+      sessionId,
+      Date.now()
+    );
     this.db
-      .update(sessions)
-      .set({ updatedAt: new Date(timestamp) })
-      .where(eq(sessions.id, sessionId))
+      .insert(parts)
+      .values(row)
+      .onConflictDoUpdate({ target: parts.id, set: row })
       .run();
-  }
-
-  // Persists token usage on a message row (the assistant message of a turn).
-  setTokens(sessionId: string, seq: number, tokens: TokenUsage): void {
-    this.db
-      .update(messages)
-      .set({ tokens: JSON.stringify(tokens) })
-      .where(
-        sql`${messages.sessionId} = ${sessionId} AND ${messages.seq} = ${seq}`
-      )
-      .run();
-  }
-
-  // Token usage of the most recent assistant message that has any, scanning
-  // back past a possible mid-turn crash.
-  lastUsage(sessionId: string): TokenUsage | null {
-    const row = this.db
-      .select({ tokens: messages.tokens })
-      .from(messages)
-      .where(
-        sql`${messages.sessionId} = ${sessionId} AND ${messages.tokens} IS NOT NULL`
-      )
-      .orderBy(desc(messages.seq))
-      .limit(1)
-      .get();
-    if (!row?.tokens) return null;
-    return JSON.parse(row.tokens) as TokenUsage;
-  }
-
-  // Rewrites the session's message history wholesale, seq = index + 1.
-  // Prune and compact mutate the in-memory message list and persist it here.
-  // Token usage survives the rewrite (keyed by seq) so the overflow check
-  // keeps working across compactions.
-  // ponytail: per-message timestamps are write-only today (nothing reads them),
-  // so rewritten rows get a fresh timestamp.
-  replaceMessages(sessionId: string, messageList: ModelMessage[]): void {
-    const now = Date.now();
-    this.db.transaction((tx) => {
-      const tokenRows = tx
-        .select({ seq: messages.seq, tokens: messages.tokens })
-        .from(messages)
-        .where(eq(messages.sessionId, sessionId))
-        .all();
-      const tokensBySeq = new Map(tokenRows.map((r) => [r.seq, r.tokens]));
-      tx.delete(messages).where(eq(messages.sessionId, sessionId)).run();
-      messageList.forEach((message, i) => {
-        tx.insert(messages)
-          .values({
-            id: randomUUID(),
-            sessionId,
-            role: message.role,
-            content: JSON.stringify(message.content),
-            tokens: tokensBySeq.get(i + 1) ?? null,
-            seq: i + 1,
-            timestamp: new Date(now),
-          })
-          .run();
-      });
-      tx.update(sessions)
-        .set({ updatedAt: new Date(now) })
-        .where(eq(sessions.id, sessionId))
-        .run();
-    });
+    this.touch(sessionId, Date.now());
+    return id;
   }
 
   nextSeq(sessionId: string): number {
@@ -253,5 +353,13 @@ export class SessionStore {
       .where(eq(messages.sessionId, sessionId))
       .get();
     return (row?.maxSeq ?? 0) + 1;
+  }
+
+  private touch(sessionId: string, at: number): void {
+    this.db
+      .update(sessions)
+      .set({ updatedAt: new Date(at) })
+      .where(eq(sessions.id, sessionId))
+      .run();
   }
 }

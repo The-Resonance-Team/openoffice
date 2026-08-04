@@ -27,6 +27,7 @@ export const OfficeConfigSchema = z.object({
 });
 
 export const CompactionConfigSchema = z.object({
+  auto: z.boolean().optional(),
   prune: z.boolean().optional(),
   pruneProtectTokens: z.number().optional(),
   pruneMinimumTokens: z.number().optional(),
