@@ -16,7 +16,7 @@ import {
   type CompactionDeps,
 } from "./compaction";
 import { isOverflow } from "./overflow";
-import { filterCompacted, toModelMessages } from "./message-v2";
+import { filterCompacted, toModelMessages } from "./ai-messages";
 import type { Part, ToolPart } from "./parts";
 
 export interface RunTurnOptions {

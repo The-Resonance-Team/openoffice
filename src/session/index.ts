@@ -21,7 +21,7 @@ export {
   toModelMessages,
   filterCompacted,
   truncateToolOutput,
-} from "./message-v2";
+} from "./ai-messages";
 export type {
   Part,
   TextPart,

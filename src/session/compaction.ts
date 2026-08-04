@@ -21,7 +21,7 @@ import {
   type ToolPart,
   type WithParts,
 } from "./parts";
-import { toModelMessages } from "./message-v2";
+import { toModelMessages } from "./ai-messages";
 import { usable } from "./overflow";
 
 export const PRUNE_MINIMUM = 20_000;
@@ -143,7 +143,7 @@ export async function select(input: {
 // Goes backwards through parts until there are PRUNE_PROTECT tokens worth of
 // tool calls, then erases the output of older tool calls to free context
 // space. The erase is a marker on the part (`time.compacted`) — the request
-// side substitutes a placeholder via message-v2.
+// side substitutes a placeholder via ai-messages.
 export function prune(messages: WithParts[], cfg: Config): ToolPart[] {
   if (!cfg.compaction?.prune) return [];
   const protect = cfg.compaction.pruneProtectTokens ?? PRUNE_PROTECT;
@@ -178,7 +178,7 @@ export function prune(messages: WithParts[], cfg: Config): ToolPart[] {
 }
 
 // Marks the parts returned by `prune` as compacted and persists the marker
-// (`state.time.compacted`) that message-v2 substitutes a placeholder for.
+// (`state.time.compacted`) that ai-messages substitutes a placeholder for.
 export function applyPrune(
   store: SessionStore,
   sessionID: string,

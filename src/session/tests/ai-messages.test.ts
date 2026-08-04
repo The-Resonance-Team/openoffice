@@ -3,7 +3,7 @@ import {
   filterCompacted,
   toModelMessages,
   truncateToolOutput,
-} from "../message-v2";
+} from "../ai-messages";
 import type { WithParts } from "../parts";
 
 const USER: WithParts = {

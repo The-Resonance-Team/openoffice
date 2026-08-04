@@ -1,7 +1,7 @@
 // Ported from opencode's SessionV1 part model (`@opencode-ai/core/v1/session`,
 // reduced to the parts the compaction service touches) and `util/token`.
 // Sessions persist as WithParts rows; the AI SDK boundary conversion lives in
-// ./message-v2 (ADR 0023).
+// ./ai-messages (ADR 0023).
 
 export type Role = "user" | "assistant" | "tool" | "system";
 
