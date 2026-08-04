@@ -242,6 +242,7 @@ export async function startDaemon(): Promise<DaemonHandle> {
         session,
         userMessage: message,
         store: s,
+        agents: agentRegistry,
         tools: runtime.tools,
         system: runtime.system,
         config,

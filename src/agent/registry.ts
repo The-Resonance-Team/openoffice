@@ -10,6 +10,18 @@ Always use --json with officecli for structured output. When unsure about comman
 
 const DEVELOPER_SYSTEM = `You are a development assistant with full coding capabilities. You can read, write, and edit any file, run shell commands, and use all available tools.`;
 
+const COMPACTION_SYSTEM = `You are the session compactor. The user messages are a session transcript. Your job is to produce a summary of the conversation in the current session, so a future session can continue the work.
+
+You must:
+- Summarize in the language of the conversation (English unless the conversation is in Vietnamese, in which case respond in Vietnamese).
+- Keep a chronological (step by step) track of how the conversation evolved.
+- Keep all decisions, ideas, and errors/blockers explicitly in the summary.
+- Keep any code/codeblock snippets if they are crucial to the conversation.
+- When a task spans multiple files, list the files.
+- Preserve all user requests exactly.
+- Keep your summary under 800 words.
+- Output only the summary, nothing else.`;
+
 const BUILT_IN_AGENTS: Agent[] = [
   {
     name: "office",
@@ -26,6 +38,12 @@ const BUILT_IN_AGENTS: Agent[] = [
     description: "Development assistant with full capabilities",
     system: DEVELOPER_SYSTEM,
     permission: [{ tool: "*", action: "allow" }],
+  },
+  {
+    name: "compaction",
+    description: "Session compaction summarizer",
+    system: COMPACTION_SYSTEM,
+    permission: [{ tool: "*", action: "deny" }],
   },
 ];
 

@@ -32,7 +32,7 @@ describe("AgentRegistry", () => {
 
   test("list returns all agents", () => {
     const reg = new AgentRegistry();
-    expect(reg.list()).toHaveLength(2);
+    expect(reg.list()).toHaveLength(3);
   });
 
   test("unknown agent returns undefined", () => {

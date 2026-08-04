@@ -26,12 +26,32 @@ export const OfficeConfigSchema = z.object({
   managedDocumentsFolder: z.string().optional(),
 });
 
+export const CompactionConfigSchema = z.object({
+  auto: z.boolean().optional(),
+  prune: z.boolean().optional(),
+  pruneProtectTokens: z.number().optional(),
+  pruneMinimumTokens: z.number().optional(),
+  tailTurns: z.number().optional(),
+  preserveRecentTokens: z.number().optional(),
+  reservedTokens: z.number().optional(),
+  windows: z
+    .record(
+      z.string(),
+      z.object({
+        context: z.number(),
+        output: z.number(),
+      })
+    )
+    .optional(),
+});
+
 export const ConfigSchema = z.object({
   model: z.string().optional(),
   provider: z.record(z.string(), ProviderConfigSchema).optional(),
   agent: z.record(z.string(), AgentConfigSchema).optional(),
   mcp: z.record(z.string(), McpConfigSchema).optional(),
   office: OfficeConfigSchema.optional(),
+  compaction: CompactionConfigSchema.optional(),
   update: UpdateConfigSchema.optional(),
 });
 
