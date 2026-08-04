@@ -3,6 +3,7 @@ import { mkdtempSync, writeFileSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { loadSkill, listSkills, type Skill } from "../src/skills";
+import { createSkillTool } from "../src/skills/tool";
 
 function tempDir(): string {
   return mkdtempSync(join(tmpdir(), "openoffice-test-"));
@@ -131,5 +132,45 @@ describe("formatSkillList", () => {
     expect(xml).toContain("<name>officecli</name>");
     expect(xml).toContain("<description>Office document tool</description>");
     expect(xml).toContain("</available_skills>");
+  });
+});
+
+describe("skill tool", () => {
+  function makeSkillsDir(): string {
+    const dir = tempDir();
+    const skillDir = join(dir, "skills", "demo");
+    mkdirSync(skillDir, { recursive: true });
+    writeFileSync(
+      join(skillDir, "SKILL.md"),
+      `---
+name: demo
+description: Demo skill
+---
+# Demo content`
+    );
+    return join(dir, "skills");
+  }
+
+  test("loads a skill and wraps content", async () => {
+    const tool = createSkillTool(makeSkillsDir());
+    const result = await tool.execute({ name: "demo" }, { sessionID: "test" });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.output).toContain('<skill_content name="demo">');
+      expect(result.output).toContain("# Demo content");
+    }
+  });
+
+  test("returns SKILL_NOT_FOUND for unknown skill", async () => {
+    const tool = createSkillTool(makeSkillsDir());
+    const result = await tool.execute(
+      { name: "missing" },
+      { sessionID: "test" }
+    );
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.code).toBe("SKILL_NOT_FOUND");
+      expect(result.error).toContain('"missing"');
+    }
   });
 });

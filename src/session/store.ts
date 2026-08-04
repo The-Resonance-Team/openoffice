@@ -136,13 +136,19 @@ function rowToPart(row: {
 
 export class SessionStore {
   private db: ReturnType<typeof drizzle>;
+  private sqlite: Database;
 
   constructor(dbPath: string) {
     mkdirSync(dirname(dbPath), { recursive: true });
     const sqlite = new Database(dbPath);
     sqlite.run("PRAGMA journal_mode = WAL");
     this.db = drizzle(sqlite);
+    this.sqlite = sqlite;
     this.migrate(sqlite);
+  }
+
+  close(): void {
+    this.sqlite.close();
   }
 
   // ponytail: schema migration for v0.1.0 — drops old tables if schema

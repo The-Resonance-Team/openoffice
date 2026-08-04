@@ -1,8 +1,14 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtempSync, writeFileSync, readFileSync } from "node:fs";
+import { mkdtempSync, writeFileSync, readFileSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createReadTool, createWriteTool } from "../src/tool";
+import {
+  createReadTool,
+  createWriteTool,
+  createGlobTool,
+  createGrepTool,
+  createQuestionTool,
+} from "../src/tool";
 
 function tempDir(): string {
   return mkdtempSync(join(tmpdir(), "openoffice-test-"));
@@ -201,6 +207,101 @@ describe("write tool", () => {
       if (!result.success) {
         expect(result.error).toContain("officecli");
       }
+    }
+  });
+});
+
+describe("glob tool", () => {
+  test("finds files by pattern", async () => {
+    const dir = tempDir();
+    mkdirSync(join(dir, "sub"), { recursive: true });
+    writeFileSync(join(dir, "a.ts"), "x");
+    writeFileSync(join(dir, "sub", "b.ts"), "y");
+    writeFileSync(join(dir, "c.txt"), "z");
+
+    const tool = createGlobTool();
+    const result = await tool.execute(
+      { pattern: "**/*.ts", path: dir },
+      { sessionID: "test" }
+    );
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.output).toContain("a.ts");
+      expect(result.output).toContain("b.ts");
+      expect(result.output).not.toContain("c.txt");
+    }
+  });
+
+  test("returns no files found when nothing matches", async () => {
+    const dir = tempDir();
+    const tool = createGlobTool();
+    const result = await tool.execute(
+      { pattern: "*.nonexistent", path: dir },
+      { sessionID: "test" }
+    );
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.output).toBe("No files found");
+  });
+});
+
+describe("grep tool", () => {
+  test("returns matching lines", async () => {
+    const dir = tempDir();
+    const file = join(dir, "search.txt");
+    writeFileSync(file, "alpha\nbeta\nalpha gamma\n");
+
+    const tool = createGrepTool();
+    const result = await tool.execute(
+      { query: "alpha", path: file },
+      { sessionID: "test" }
+    );
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.output).toContain("alpha");
+      expect(result.output).not.toContain("beta");
+    }
+  });
+
+  test("reports no matches without failing", async () => {
+    const dir = tempDir();
+    const file = join(dir, "search.txt");
+    writeFileSync(file, "alpha");
+
+    const tool = createGrepTool();
+    const result = await tool.execute(
+      { query: "zzz", path: file },
+      { sessionID: "test" }
+    );
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.output).toBe("No matches found");
+  });
+});
+
+describe("question tool", () => {
+  test("returns user answer", async () => {
+    const tool = createQuestionTool({ askUser: async () => "the answer" });
+    const result = await tool.execute(
+      { question: "What is 2+2?" },
+      { sessionID: "test" }
+    );
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.output).toBe("the answer");
+  });
+
+  test("returns error when ask fails", async () => {
+    const tool = createQuestionTool({
+      askUser: async () => {
+        throw new Error("user closed the prompt");
+      },
+    });
+    const result = await tool.execute(
+      { question: "Still there?" },
+      { sessionID: "test" }
+    );
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.code).toBe("QUESTION_ERROR");
+      expect(result.error).toContain("user closed the prompt");
     }
   });
 });

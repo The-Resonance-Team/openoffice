@@ -15,6 +15,7 @@ describe("SessionStore", () => {
   });
 
   afterEach(() => {
+    store.close();
     if (existsSync(dbPath)) unlinkSync(dbPath);
   });
 
