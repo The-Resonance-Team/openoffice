@@ -16,7 +16,14 @@ describe("SessionStore", () => {
 
   afterEach(() => {
     store.close();
-    rmSync(dbPath, { force: true, maxRetries: 10, retryDelay: 50 });
+    // Windows keeps the WAL handle locked briefly after close() even with
+    // retries (bun:sqlite). Best-effort cleanup — the OS temp dir is purged
+    // by the OS, so a leaked file here is harmless.
+    try {
+      rmSync(dbPath, { force: true });
+    } catch {
+      // ignore: see above
+    }
   });
 
   const makeSession = (id: string): Session => ({
