@@ -53,6 +53,16 @@ export const ConfigSchema = z.object({
   office: OfficeConfigSchema.optional(),
   compaction: CompactionConfigSchema.optional(),
   update: UpdateConfigSchema.optional(),
+  share: z.enum(["disabled", "auto"]).optional(),
+  // Legacy alias: opencode's autoshare maps to share: "auto" when share is unset.
+  autoshare: z.boolean().optional(),
 });
 
 export type Config = z.infer<typeof ConfigSchema>;
+
+export type ShareMode = "disabled" | "auto";
+
+export function shareMode(config: Config): ShareMode {
+  if (config.share !== undefined) return config.share;
+  return config.autoshare ? "auto" : "disabled";
+}

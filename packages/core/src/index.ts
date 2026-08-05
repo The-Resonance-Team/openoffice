@@ -10,8 +10,13 @@ export { CredentialStore } from "./auth/store";
 export type { ApiCredential } from "./auth/store";
 export { login } from "./auth/login";
 
-export { ConfigSchema, resolveConfig, collectEnvValues } from "./config";
-export type { Config, ResolveOptions } from "./config";
+export {
+  ConfigSchema,
+  resolveConfig,
+  collectEnvValues,
+  shareMode,
+} from "./config";
+export type { Config, ShareMode, ResolveOptions } from "./config";
 export {
   stripJsonc,
   applyEnvOverrides,
@@ -35,6 +40,7 @@ export type { EventMap } from "./events";
 
 export { HistoryStore } from "./history";
 export type { AcceptPoint } from "./history";
+export { sessions } from "./session/schema";
 
 export {
   resolveModel,

@@ -1,10 +1,16 @@
 import { Hono } from "hono";
+import type { Context, MiddlewareHandler } from "hono";
 import { streamSSE } from "hono/streaming";
 import { randomUUID } from "node:crypto";
 import { extname } from "node:path";
 import { on, emit } from "@openoffice/core";
 import type { EventMap } from "@openoffice/protocol";
-import type { SessionStore, Session } from "@openoffice/core";
+import type {
+  SessionStore,
+  Session,
+  WithParts,
+  TextPart,
+} from "@openoffice/core";
 import type { ToolRegistry } from "@openoffice/core";
 import { filePathHash, type DraftManager } from "@openoffice/core";
 import type { HistoryStore } from "@openoffice/core";
@@ -12,6 +18,9 @@ import type { UpdateStatus } from "../update";
 import { AuthRequiredError } from "@openoffice/core";
 import { createAuthMiddleware, type ServerAuthConfig } from "./auth";
 import { createCorsMiddleware } from "./cors";
+import type { ShareStore } from "../share";
+import { shareViewerPage } from "../share";
+import type { ShareMode } from "@openoffice/core";
 
 export class AskChannel {
   private pending = new Map<string, (answer: string) => void>();
@@ -50,6 +59,8 @@ export interface ServerDeps {
   draftManager: DraftManager;
   history: HistoryStore;
   askChannel: AskChannel;
+  shareStore: ShareStore;
+  shareMode: ShareMode;
   createSession: (cwd: string) => Session;
   buildRuntime: (session: Session) => SessionRuntime;
   runTurn: (
@@ -63,6 +74,38 @@ export interface ServerDeps {
   auth?: ServerAuthConfig;
   /** Allowed browser origins. Empty (the default) sends no CORS headers. */
   corsOrigins?: string[];
+  // Daemon auth (Basic). MUST be passed in, not mounted after createApp
+  // returns: Hono only applies middleware registered before the routes it
+  // guards. Scoped to /api/* so /share/* stays token-gated.
+  authMiddleware?: MiddlewareHandler;
+}
+
+// Share URLs are scoped to the daemon's own address (the request's Host), so
+// they stay correct the day Sync widens the bind beyond loopback.
+function shareUrl(c: Context, token: string): string {
+  const host = c.req.header("host") ?? new URL(c.req.url).host;
+  return `http://${host}/share/${token}`;
+}
+
+// Transcript text of a message for share replay: its text parts, joined.
+function textOf(message: WithParts): string {
+  return message.parts
+    .filter((p): p is TextPart => p.type === "text")
+    .map((p) => p.text)
+    .join("");
+}
+
+// The single session-end operation: every side effect of a session ending
+// lives here, so future end paths (heartbeat sweep, #39) call this instead
+// of re-implementing pieces and leaking a share or an orphaned draft.
+export async function endSession(
+  deps: ServerDeps,
+  sessionID: string
+): Promise<void> {
+  await deps.draftManager.orphanAll(sessionID);
+  deps.store.markEnded(sessionID, Date.now());
+  deps.shareStore.revoke(sessionID);
+  emit("session:end", { sessionID });
 }
 
 export function createApp(deps: ServerDeps) {
@@ -77,6 +120,7 @@ export function createApp(deps: ServerDeps) {
   if (deps.auth) {
     app.use("*", createAuthMiddleware(deps.auth));
   }
+  if (deps.authMiddleware) app.use("/api/*", deps.authMiddleware);
 
   // Per-session turn mutex: one turn at a time, queued.
   const turnQueues = new Map<string, Promise<unknown>>();
@@ -97,13 +141,26 @@ export function createApp(deps: ServerDeps) {
     );
     deps.store.save(session);
     emit("session:create", { sessionID: session.id });
+    // ponytail: best-effort auto-share, opencode parity — a failed share must
+    // never fail session creation
+    if (deps.shareMode === "auto") {
+      try {
+        deps.shareStore.create(session.id);
+      } catch {
+        // ignore
+      }
+    }
     return c.json(session, 201);
   });
 
   app.get("/api/sessions/:id", (c) => {
     const session = deps.store.load(c.req.param("id"));
     if (!session) return c.json({ error: "Session not found" }, 404);
-    return c.json(session);
+    const token = deps.shareStore.get(session.id);
+    return c.json({
+      ...session,
+      share: token ? { url: shareUrl(c, token) } : null,
+    });
   });
 
   app.post("/api/sessions/:id/turn", async (c) => {
@@ -239,10 +296,112 @@ export function createApp(deps: ServerDeps) {
   });
 
   app.post("/api/sessions/:id/end", async (c) => {
-    const sessionID = c.req.param("id");
-    await deps.draftManager.orphanAll(sessionID);
-    emit("session:end", { sessionID });
+    await endSession(deps, c.req.param("id"));
     return c.json({ ok: true });
+  });
+
+  // Share/unshare — authenticated (Basic auth mounted in the daemon). A share
+  // token never reaches these routes: /share/:token is the only pair that
+  // accepts one, and it is read-only.
+  app.post("/api/sessions/:id/share", (c) => {
+    if (deps.shareMode === "disabled") {
+      return c.json({ error: "Sharing is disabled in configuration" }, 403);
+    }
+    const session = deps.store.load(c.req.param("id"));
+    if (!session) return c.json({ error: "Session not found" }, 404);
+    if (session.endedAt) {
+      return c.json({ error: "Session has ended" }, 409);
+    }
+    const token = deps.shareStore.create(session.id);
+    return c.json({ url: shareUrl(c, token) });
+  });
+
+  app.post("/api/sessions/:id/unshare", (c) => {
+    const sessionID = c.req.param("id");
+    if (!deps.store.load(sessionID)) {
+      return c.json({ error: "Session not found" }, 404);
+    }
+    deps.shareStore.revoke(sessionID);
+    return c.json({ ok: true });
+  });
+
+  app.get("/share/:token", (c) => {
+    if (!deps.shareStore.findByToken(c.req.param("token"))) {
+      // 410, not 404: unknown and revoked tokens are indistinguishable — a
+      // revoked share's URL is "gone", not "never existed"
+      return c.json({ error: "Share not found or revoked" }, 410);
+    }
+    return c.html(shareViewerPage);
+  });
+
+  app.get("/share/:token/stream", (c) => {
+    const token = c.req.param("token");
+    if (!deps.shareStore.findByToken(token)) {
+      return c.json({ error: "Share not found or revoked" }, 410);
+    }
+    return streamSSE(c, async (stream) => {
+      const sessionID = deps.shareStore.findByToken(token)!;
+      const offs: (() => void)[] = [];
+      // Lazy per-event revoke check: a revoked share stops streaming within
+      // one event's latency — no connection registry needed.
+      const alive = () => deps.shareStore.findByToken(token) === sessionID;
+      const write = async (data: unknown) => {
+        if (!alive()) return;
+        try {
+          await stream.writeSSE({ data: JSON.stringify(data) });
+        } catch {
+          // client gone
+        }
+      };
+      // Subscribe before replaying: a live event emitted between the replay
+      // read and the subscribe would otherwise double-render (persisted in
+      // the replay AND delivered live). While the replay is in flight, live
+      // events are dropped — anything persisted before the replay read is
+      // already in it; anything persisted after it is still delivered live.
+      let replaying = true;
+      const subscribe = <K extends keyof EventMap>(
+        event: K,
+        fn: (d: EventMap[K]) => void
+      ) => {
+        offs.push(
+          on(event, (d) => {
+            if (d.sessionID !== sessionID || replaying) return;
+            void fn(d);
+          })
+        );
+      };
+      subscribe(
+        "session:message",
+        (d) => void write({ type: "message", role: d.role, content: d.content })
+      );
+      subscribe(
+        "llm:done",
+        (d) =>
+          void write({
+            type: "message",
+            role: "assistant",
+            content: d.response,
+          })
+      );
+      for (const m of deps.store.messages(sessionID)) {
+        if (m.info.role === "user" || m.info.role === "assistant") {
+          await write({
+            type: "message",
+            role: m.info.role,
+            content: textOf(m),
+          });
+        }
+      }
+      replaying = false;
+      subscribe(
+        "session:ask",
+        (d) => void write({ type: "ask", question: d.question })
+      );
+      stream.onAbort(() => {
+        for (const off of offs) off();
+      });
+      await new Promise(() => undefined);
+    });
   });
 
   if (deps.updateStatus) {

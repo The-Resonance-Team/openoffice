@@ -18,6 +18,7 @@ import { ToolRegistry } from "@openoffice/core";
 import { AgentRegistry } from "@openoffice/core";
 import { createDefaultOfficeCliTool } from "@openoffice/core";
 import { on } from "@openoffice/core";
+import { ShareStore } from "../../../../packages/server/src/share";
 import {
   startFakeLLM,
   fakeConfig,
@@ -114,6 +115,8 @@ beforeAll(async () => {
     draftManager,
     history,
     askChannel,
+    shareStore: new ShareStore(store.db),
+    shareMode: "auto",
     createSession: (cwd) => {
       const now = Date.now();
       return {
@@ -411,6 +414,63 @@ describe("draft lifecycle E2E (full stack, scripted LLM)", () => {
 
       expect(await post(sessionB, "accept", { filePath: file })).toBe(200);
       expect(docContains(file, "B's edits")).toBe(true);
+    }
+  );
+
+  test.skipIf(skip)(
+    "share round-trip: URL, viewer, replay, revoke",
+    async () => {
+      const file = freshFile();
+      fake = await startFakeLLM(standardScript(file));
+      config = fakeConfig(`http://127.0.0.1:${fake.port}/v1`);
+
+      const id = await newSession();
+      await turn(id, "Create report.docx with paragraph 'Hello E2E'");
+      await post(id, "accept", { filePath: file });
+      expect(docContains(file, "Hello E2E")).toBe(true);
+
+      const shareRes = await api.request(`/api/sessions/${id}/share`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+      });
+      expect(shareRes.status).toBe(200);
+      const { url } = (await shareRes.json()) as { url: string };
+      expect(url).toMatch(/\/share\/[0-9a-f]{64}$/);
+      const token = url.split("/share/")[1];
+
+      const view = await api.request(`/share/${token}`);
+      expect(view.status).toBe(200);
+      expect(await view.text()).toContain("Read-only");
+
+      const stream = await api.request(`/share/${token}/stream`);
+      expect(stream.status).toBe(200);
+      const reader = stream.body!.getReader();
+      const decoder = new TextDecoder();
+      let data = "";
+      for (;;) {
+        const chunk = (await Promise.race([
+          reader.read(),
+          new Promise((_, rej) =>
+            setTimeout(() => rej(new Error("timeout")), 2000)
+          ),
+        ]).catch(() => null)) as { value?: Uint8Array } | null;
+        if (!chunk) break;
+        data += decoder.decode(chunk.value);
+      }
+      reader.cancel();
+      expect(data).toContain("Create report.docx");
+      expect(data).not.toContain("toolStart");
+
+      expect(await post(id, "unshare", {})).toBe(200);
+      const gone = await api.request(`/share/${token}`);
+      expect(gone.status).toBe(410);
+
+      expect(await post(id, "end", {})).toBe(200);
+      const again = await api.request(`/api/sessions/${id}/share`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+      });
+      expect(again.status).toBe(409);
     }
   );
 });

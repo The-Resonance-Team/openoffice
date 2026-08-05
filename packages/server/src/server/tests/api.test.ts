@@ -8,6 +8,7 @@ import { SessionStore, type Session } from "@openoffice/core";
 import { DraftManager, filePathHash } from "@openoffice/core";
 import { HistoryStore } from "@openoffice/core";
 import { AuthRequiredError } from "@openoffice/core";
+import { ShareStore } from "../../share";
 import type { SessionRuntime } from "../index";
 
 let dir: string;
@@ -60,6 +61,8 @@ function makeApp() {
     draftManager,
     history,
     askChannel,
+    shareStore: new ShareStore(store.db),
+    shareMode: "disabled",
     createSession: makeSession,
     buildRuntime: () => fakeRuntime,
     runTurn: fakeRunTurn,
@@ -146,6 +149,8 @@ describe("server API", () => {
       draftManager,
       history,
       askChannel,
+      shareStore: new ShareStore(store.db),
+      shareMode: "disabled",
       createSession: makeSession,
       buildRuntime: () => fakeRuntime,
       runTurn: async () => {

@@ -5,6 +5,7 @@ import { basename, dirname, join } from "node:path";
 import { execFileSync } from "node:child_process";
 import {
   resolveConfig,
+  shareMode,
   SessionStore,
   runTurn,
   buildSystemPrompt,
@@ -33,6 +34,7 @@ import {
   mergeLayers,
 } from "@openoffice/core";
 import { AskChannel, createApp, type SessionRuntime } from "./index";
+import { ShareStore } from "../share";
 import { checkForUpdate } from "../update";
 import { VERSION } from "../version";
 import { randomUUID } from "node:crypto";
@@ -100,6 +102,7 @@ export async function startDaemon(): Promise<DaemonHandle> {
   const store = new SessionStore(join(dataDir, "openoffice.db"));
   const history = new HistoryStore(dataDir);
   const askChannel = new AskChannel();
+  const shareStore = new ShareStore(store.db);
 
   const draftManager = new DraftManager({
     dataDir,
@@ -241,6 +244,8 @@ export async function startDaemon(): Promise<DaemonHandle> {
     draftManager,
     history,
     askChannel,
+    shareStore,
+    shareMode: shareMode(config),
     createSession: (cwd) => {
       const now = Date.now();
       return {
@@ -271,6 +276,10 @@ export async function startDaemon(): Promise<DaemonHandle> {
       }
       return checkForUpdate(VERSION, dataDir);
     },
+    // Auth middleware: enforce OPENOFFICE_SERVER_PASSWORD if set. Mounted
+    // inside createApp — registering it here after createApp() would be a
+    // no-op: Hono only applies middleware registered before its routes.
+    authMiddleware: createAuthMiddleware(loadAuthConfig()),
   });
 
   // Collect sensitive values from env:-resolved config for event redaction.
