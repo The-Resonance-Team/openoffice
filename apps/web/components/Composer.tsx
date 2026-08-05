@@ -8,6 +8,7 @@ import { Icon } from "@/lib/icons";
 export function Composer({ onSend }: { onSend: (text: string) => void }) {
   const [value, setValue] = useState("");
   const taRef = useRef<HTMLTextAreaElement>(null);
+  const composingRef = useRef(false);
   const modelMenuOpen = useUiStore((s) => s.modelMenuOpen);
   const toggleModelMenu = useUiStore((s) => s.toggleModelMenu);
   const closeModelMenu = useUiStore((s) => s.closeModelMenu);
@@ -103,8 +104,19 @@ export function Composer({ onSend }: { onSend: (text: string) => void }) {
               setValue(e.target.value);
               autoGrow();
             }}
+            onCompositionStart={() => {
+              composingRef.current = true;
+            }}
+            onCompositionEnd={() => {
+              composingRef.current = false;
+            }}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
+              if (
+                e.key === "Enter" &&
+                !e.shiftKey &&
+                !composingRef.current &&
+                !e.nativeEvent.isComposing
+              ) {
                 e.preventDefault();
                 submit();
               }
