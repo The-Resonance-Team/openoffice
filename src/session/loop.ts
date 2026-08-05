@@ -99,19 +99,25 @@ export async function runTurn(options: RunTurnOptions) {
   // Build AI tools with event emission
   const aiTools = tools?.toAIToolsWithEvents(session.id, session.cwd);
 
-  // Call LLM
+  // Call LLM. Retryable failures re-run the whole stream (see llm/retry.ts);
+  // tokens from an interrupted attempt are discarded by resetting the
+  // accumulator here, and clients learn about the retry via llm:retry.
+  let fullText = "";
   const result = chatFn(
     {
       model: session.model,
       messages: toModelMessages(filterCompacted(store.messages(session.id))),
       tools: aiTools,
       system,
+      onRetry: (info) => {
+        fullText = "";
+        emit("llm:retry", { sessionID: session.id, ...info });
+      },
     },
     config
   );
 
   // Stream tokens
-  let fullText = "";
   for await (const chunk of result.textStream) {
     fullText += chunk;
     emit("llm:token", { sessionID: session.id, token: chunk });

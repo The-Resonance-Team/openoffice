@@ -149,3 +149,98 @@ describe("resolveModel", () => {
     ).toThrow(/provider\/model-id/);
   });
 });
+
+describe("resolveModel — expanded providers", () => {
+  test("ollama needs no credential even when declared in config", () => {
+    const model = resolveModel(
+      "ollama/llama3.1",
+      { model: "ollama/llama3.1", provider: { ollama: {} } },
+      store
+    );
+    expect(model.modelId).toBe("llama3.1");
+  });
+
+  test("openrouter resolves through the OpenAI-compatible endpoint", () => {
+    const model = resolveModel(
+      "openrouter/anthropic/claude-sonnet-4",
+      { provider: { openrouter: { apiKey: "sk-or" } } },
+      store
+    );
+    expect(model.modelId).toBe("anthropic/claude-sonnet-4");
+  });
+
+  test("azure maps the deployment name as the model id", () => {
+    const model = resolveModel(
+      "azure/my-deployment",
+      {
+        provider: {
+          azure: {
+            apiKey: "sk-az",
+            baseURL: "https://res.openai.azure.com/openai/v1",
+          },
+        },
+      },
+      store
+    );
+    expect(model.modelId).toBe("my-deployment");
+  });
+
+  test("bedrock needs no apiKey — the AWS credential chain applies", () => {
+    const model = resolveModel(
+      "bedrock/anthropic.claude-sonnet-4",
+      { provider: { bedrock: {} } },
+      store
+    );
+    expect(model.modelId).toBe("anthropic.claude-sonnet-4");
+  });
+
+  test("custom openai-compatible endpoint resolves by config name", () => {
+    const model = resolveModel(
+      "myproxy/qwen-32b",
+      {
+        provider: {
+          myproxy: {
+            baseURL: "http://localhost:8000/v1",
+            apiKey: "k",
+            compatibility: "openai",
+          },
+        },
+      },
+      store
+    );
+    expect(model.modelId).toBe("qwen-32b");
+  });
+
+  test("custom anthropic-compatible endpoint resolves by config name", () => {
+    const model = resolveModel(
+      "mygate/claude-sonnet-4",
+      {
+        provider: {
+          mygate: {
+            baseURL: "http://localhost:8080",
+            apiKey: "k",
+            compatibility: "anthropic",
+          },
+        },
+      },
+      store
+    );
+    expect(model.modelId).toBe("claude-sonnet-4");
+  });
+
+  test("custom provider without a baseURL errors clearly", () => {
+    expect(() =>
+      resolveModel(
+        "myproxy/qwen-32b",
+        { provider: { myproxy: { apiKey: "k", compatibility: "openai" } } },
+        store
+      )
+    ).toThrow(/myproxy.*baseURL/);
+  });
+
+  test("unknown provider without compatibility is still rejected", () => {
+    expect(() =>
+      resolveModel("nope/gpt-0", { provider: { nope: { apiKey: "k" } } }, store)
+    ).toThrow(/Unknown provider "nope"/);
+  });
+});

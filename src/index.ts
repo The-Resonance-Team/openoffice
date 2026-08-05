@@ -7,7 +7,7 @@ import { VERSION } from "./version";
 import { CredentialStore } from "./auth/store";
 import { login } from "./auth/login";
 import { resolveConfig } from "./config";
-import { BUILTIN_PROVIDERS } from "./llm";
+import { BUILTIN_PROVIDERS, discoverLocalModels } from "./llm";
 
 const HELP = `openoffice ${VERSION} — an LLM agent CLI for office document work.
 
@@ -18,6 +18,7 @@ Usage:
   openoffice auth login <provider>    Store an API key for a provider
   openoffice auth logout <provider>   Remove a stored credential
   openoffice auth list                Show providers with stored credentials
+  openoffice models                   List models from running local servers (Ollama, llama.cpp, vLLM)
   openoffice --version      Print the version
   openoffice --help         Show this help
 
@@ -174,6 +175,20 @@ async function runAuth(sub?: string, provider?: string) {
   process.exit(1);
 }
 
+async function runModels() {
+  const found = await discoverLocalModels();
+  if (found.length === 0) {
+    console.log(
+      "No local model servers detected (Ollama :11434, llama.cpp :8080, vLLM :8000)."
+    );
+    return;
+  }
+  for (const server of found) {
+    console.log(`${server.server}:`);
+    for (const model of server.models) console.log(`  ${model}`);
+  }
+}
+
 async function main() {
   cleanupPendingUpdate();
 
@@ -200,6 +215,9 @@ async function main() {
       return;
     case "auth":
       await runAuth(args[1], args[2]);
+      return;
+    case "models":
+      await runModels();
       return;
     default:
       console.error(

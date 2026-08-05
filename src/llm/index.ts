@@ -10,3 +10,7 @@ export { complete } from "./complete";
 export type { CompleteOptions } from "./complete";
 export { getModel, splitModel, maxOutputTokens } from "./model-limits";
 export type { Model, ModelLimits } from "./model-limits";
+export { discoverLocalModels } from "./discover";
+export type { DiscoveredModel } from "./discover";
+export { retryDelay, classifyRetryable, streamWithRetry } from "./retry";
+export type { RetryInfo, RetryOptions } from "./retry";

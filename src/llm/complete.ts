@@ -1,5 +1,6 @@
 import { streamText, isStepCount, type ModelMessage } from "ai";
 import { resolveModel } from "./providers";
+import { streamWithRetry } from "./retry";
 import type { Config } from "../config";
 
 export interface CompleteOptions {
@@ -16,10 +17,16 @@ export async function complete({
   config,
   prompt,
 }: CompleteOptions): Promise<string> {
-  const result = streamText({
-    model: resolveModel(model, config),
-    messages: [{ role: "system", content: prompt }, ...messages],
-    stopWhen: isStepCount(1),
-  });
-  return await result.text;
+  const stream = streamWithRetry(
+    () =>
+      streamText({
+        model: resolveModel(model, config),
+        messages: [{ role: "system", content: prompt }, ...messages],
+        stopWhen: isStepCount(1),
+      }),
+    { maxAttempts: config.llm?.retry?.max }
+  );
+  let text = "";
+  for await (const chunk of stream.textStream) text += chunk;
+  return text;
 }

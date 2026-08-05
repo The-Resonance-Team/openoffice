@@ -3,6 +3,8 @@ import { z } from "zod";
 export const ProviderConfigSchema = z.object({
   apiKey: z.string().optional(),
   baseURL: z.string().optional(),
+  region: z.string().optional(),
+  compatibility: z.enum(["openai", "anthropic"]).optional(),
 });
 
 export const UpdateConfigSchema = z.object({
@@ -47,6 +49,15 @@ export const CompactionConfigSchema = z.object({
 
 export const ConfigSchema = z.object({
   model: z.string().optional(),
+  llm: z
+    .object({
+      retry: z
+        .object({
+          max: z.number().int().positive().optional(),
+        })
+        .optional(),
+    })
+    .optional(),
   provider: z.record(z.string(), ProviderConfigSchema).optional(),
   agent: z.record(z.string(), AgentConfigSchema).optional(),
   mcp: z.record(z.string(), McpConfigSchema).optional(),
