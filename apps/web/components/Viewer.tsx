@@ -16,10 +16,13 @@ import { XlsxBody } from "./viewer/Xlsx";
 import { PptxBody } from "./viewer/Pptx";
 import { PdfBody } from "./viewer/Pdf";
 import { FallbackBody } from "./viewer/Fallback";
-import {
-  acceptFile as apiAcceptFile,
-  undoFile as apiUndoFile,
-} from "@/lib/api";
+
+// TODO: session is mocked (lib/use-session.ts) so there's no real daemon
+// session to accept/undo against yet — simulate the round trip locally. Takes
+// the file path only to match the shape callers expect once wired for real.
+function mockAcceptOrUndo(): Promise<{ ok: boolean }> {
+  return new Promise((resolve) => setTimeout(() => resolve({ ok: true }), 300));
+}
 
 const hoverBtn =
   "grid h-[34px] w-[34px] flex-none place-items-center rounded-lg text-muted hover:bg-panel2 hover:text-ink";
@@ -43,15 +46,17 @@ export function Viewer({ sessionId }: { sessionId: string | null }) {
 
   const acceptMutation = useMutation({
     mutationFn: (filePath: string) => {
+      void filePath;
       if (!sessionId) throw new Error("no session");
-      return apiAcceptFile(sessionId, filePath);
+      return mockAcceptOrUndo();
     },
     onSuccess: () => acceptFileLocal(),
   });
   const undoMutation = useMutation({
     mutationFn: (filePath: string) => {
+      void filePath;
       if (!sessionId) throw new Error("no session");
-      return apiUndoFile(sessionId, filePath);
+      return mockAcceptOrUndo();
     },
     onSuccess: () => undoFileLocal(),
   });
