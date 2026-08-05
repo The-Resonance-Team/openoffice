@@ -13,27 +13,27 @@ function basicAuth(user: string, pass: string): string {
 
 describe("loadAuthConfig", () => {
   test("returns default username and null password when env not set", () => {
-    delete process.env.OPENCODE_SERVER_PASSWORD;
-    delete process.env.OPENCODE_SERVER_USERNAME;
+    delete process.env.OPENOFFICE_SERVER_PASSWORD;
+    delete process.env.OPENOFFICE_SERVER_USERNAME;
     const config = loadAuthConfig();
     expect(config.username).toBe("openoffice");
     expect(config.password).toBeNull();
   });
 
-  test("reads OPENCODE_SERVER_PASSWORD from env", () => {
-    process.env.OPENCODE_SERVER_PASSWORD = "secret123";
+  test("reads OPENOFFICE_SERVER_PASSWORD from env", () => {
+    process.env.OPENOFFICE_SERVER_PASSWORD = "secret123";
     const config = loadAuthConfig();
     expect(config.password).toBe("secret123");
-    delete process.env.OPENCODE_SERVER_PASSWORD;
+    delete process.env.OPENOFFICE_SERVER_PASSWORD;
   });
 
-  test("reads OPENCODE_SERVER_USERNAME from env", () => {
-    process.env.OPENCODE_SERVER_USERNAME = "custom";
-    process.env.OPENCODE_SERVER_PASSWORD = "pass";
+  test("reads OPENOFFICE_SERVER_USERNAME from env", () => {
+    process.env.OPENOFFICE_SERVER_USERNAME = "custom";
+    process.env.OPENOFFICE_SERVER_PASSWORD = "pass";
     const config = loadAuthConfig();
     expect(config.username).toBe("custom");
-    delete process.env.OPENCODE_SERVER_USERNAME;
-    delete process.env.OPENCODE_SERVER_PASSWORD;
+    delete process.env.OPENOFFICE_SERVER_USERNAME;
+    delete process.env.OPENOFFICE_SERVER_PASSWORD;
   });
 });
 

@@ -265,7 +265,7 @@ export async function startDaemon(): Promise<DaemonHandle> {
     },
   });
 
-  // Auth middleware: enforce OPENCODE_SERVER_PASSWORD if set.
+  // Auth middleware: enforce OPENOFFICE_SERVER_PASSWORD if set.
   const authConfig = loadAuthConfig();
   app.use("*", createAuthMiddleware(authConfig));
 

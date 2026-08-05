@@ -6,8 +6,8 @@ export interface ServerAuthConfig {
 }
 
 export function loadAuthConfig(): ServerAuthConfig {
-  const password = process.env.OPENCODE_SERVER_PASSWORD ?? null;
-  const username = process.env.OPENCODE_SERVER_USERNAME ?? "openoffice";
+  const password = process.env.OPENOFFICE_SERVER_PASSWORD ?? null;
+  const username = process.env.OPENOFFICE_SERVER_USERNAME ?? "openoffice";
   return { username, password };
 }
 
