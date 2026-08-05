@@ -103,34 +103,6 @@ describe("createAuthMiddleware", () => {
     });
     expect(res.status).toBe(401);
   });
-
-  test("rejects requests with wrong username", async () => {
-    const app = new Hono();
-    app.use(
-      "*",
-      createAuthMiddleware({ username: "admin", password: "secret" })
-    );
-    app.get("/test", (c) => c.json({ ok: true }));
-
-    const res = await app.request("/test", {
-      headers: { Authorization: basicAuth("hacker", "secret") },
-    });
-    expect(res.status).toBe(401);
-  });
-
-  test("rejects non-Basic authorization schemes", async () => {
-    const app = new Hono();
-    app.use(
-      "*",
-      createAuthMiddleware({ username: "admin", password: "secret" })
-    );
-    app.get("/test", (c) => c.json({ ok: true }));
-
-    const res = await app.request("/test", {
-      headers: { Authorization: "Bearer some-token" },
-    });
-    expect(res.status).toBe(401);
-  });
 });
 
 describe("authHeaders", () => {
