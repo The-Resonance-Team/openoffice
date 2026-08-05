@@ -4,6 +4,10 @@ export type RightRegion = "sidebar" | "empty";
 
 interface UiState {
   rightRegion: RightRegion;
+  leftRailOpen: boolean;
+  leftRailWidth: number;
+  sidebarWidth: number;
+  viewerWidth: number;
   viewerOpen: boolean;
   viewerExpanded: boolean;
   activeId: string;
@@ -20,6 +24,10 @@ interface UiState {
   providersConnected: Record<string, boolean>;
 
   toggleSidebar: () => void;
+  toggleLeftRail: () => void;
+  setLeftRailWidth: (w: number) => void;
+  setSidebarWidth: (w: number) => void;
+  setViewerWidth: (w: number) => void;
   toggleProgress: () => void;
   openViewer: (id: string, name?: string) => void;
   closeViewer: () => void;
@@ -40,6 +48,10 @@ interface UiState {
 
 export const useUiStore = create<UiState>((set) => ({
   rightRegion: "sidebar",
+  leftRailOpen: true,
+  leftRailWidth: 284,
+  sidebarWidth: 376,
+  viewerWidth: 648,
   viewerOpen: false,
   viewerExpanded: false,
   activeId: "docx",
@@ -59,6 +71,10 @@ export const useUiStore = create<UiState>((set) => ({
     set((s) => ({
       rightRegion: s.rightRegion === "sidebar" ? "empty" : "sidebar",
     })),
+  toggleLeftRail: () => set((s) => ({ leftRailOpen: !s.leftRailOpen })),
+  setLeftRailWidth: (w) => set({ leftRailWidth: w }),
+  setSidebarWidth: (w) => set({ sidebarWidth: w }),
+  setViewerWidth: (w) => set({ viewerWidth: w }),
   toggleProgress: () => set((s) => ({ progressOpen: !s.progressOpen })),
   openViewer: (id, name) =>
     set({
