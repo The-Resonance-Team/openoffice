@@ -133,6 +133,17 @@ export async function runTurn(options: RunTurnOptions) {
   for (const msg of generatedMessages) {
     if (msg.role === "assistant") {
       assistantId = randomUUID();
+      // Parent row first: parts reference the message (FK), and updatePart
+      // for tool-call parts runs below while streaming tool state.
+      store.updateMessage(session.id, {
+        id: assistantId,
+        role: "assistant",
+        parentID: userMsgId,
+        agent: session.agent,
+        model: splitModelRef(session.model),
+        finish: "done",
+        time: { created: Date.now() },
+      });
       const parts: Part[] = [];
       // AssistantContent can be string | Array<...>
       if (typeof msg.content === "string") {
@@ -159,15 +170,6 @@ export async function runTurn(options: RunTurnOptions) {
       for (const part of parts) {
         store.updatePart(session.id, assistantId, part);
       }
-      store.updateMessage(session.id, {
-        id: assistantId,
-        role: "assistant",
-        parentID: userMsgId,
-        agent: session.agent,
-        model: splitModelRef(session.model),
-        finish: "done",
-        time: { created: Date.now() },
-      });
     } else if (msg.role === "tool") {
       for (const content of msg.content) {
         if (content.type !== "tool-result") continue;
