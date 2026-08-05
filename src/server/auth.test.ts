@@ -104,18 +104,20 @@ describe("createAuthMiddleware", () => {
     expect(res.status).toBe(401);
   });
 
-  test("normalizes a malformed (non-Basic) Authorization header to 401", async () => {
+  test("preserves a genuine route 400 under valid auth", async () => {
     const app = new Hono();
     app.use(
       "*",
       createAuthMiddleware({ username: "admin", password: "secret" })
     );
-    app.get("/test", (c) => c.json({ ok: true }));
+    app.post("/test", (c) => c.json({ error: "bad request" }, 400));
 
     const res = await app.request("/test", {
-      headers: { Authorization: "Bearer some-token" },
+      method: "POST",
+      headers: { Authorization: basicAuth("admin", "secret") },
     });
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: "bad request" });
   });
 });
 

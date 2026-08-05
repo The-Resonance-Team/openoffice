@@ -328,9 +328,8 @@ describe("session share routes", () => {
         headers: { authorization: `Bearer ${token}` },
       }
     );
-    // A share token can never be a valid Basic credential — rejected with
-    // 401 (malformed auth normalized by createAuthMiddleware) before the
-    // route logic is ever reached.
+    // A share token can never be a valid Basic credential — basicAuth rejects
+    // non-Basic Authorization headers natively, before the route logic runs.
     expect(withShareToken.status).toBe(401);
 
     const bare = await app.request(`/api/sessions/${session.id}/accept`, {

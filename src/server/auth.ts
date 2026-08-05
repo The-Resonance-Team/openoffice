@@ -20,22 +20,10 @@ export function createAuthMiddleware(config: ServerAuthConfig) {
   if (!authRequired(config)) {
     return async (_c: Context, next: Next) => next();
   }
-  const middleware = basicAuth({
-    username: config.username,
-    password: config.password!,
-  });
-  // basicAuth answers 400 to a malformed Authorization header (e.g. a Bearer
-  // share token guessed against an API route). Normalize to 401 so every
-  // invalid credential — absent, wrong, or malformed — reads the same way.
-  return async (c: Context, next: Next) => {
-    await middleware(c, next);
-    if (c.res.status === 400) {
-      c.res = new Response("Unauthorized", {
-        status: 401,
-        headers: c.res.headers,
-      });
-    }
-  };
+  // hono's basicAuth rejects missing, malformed, and wrong credentials with
+  // 401 natively; pass it through untouched so genuine route 400s (e.g. a
+  // turn with no message) survive valid auth.
+  return basicAuth({ username: config.username, password: config.password! });
 }
 
 export function authHeaders(
