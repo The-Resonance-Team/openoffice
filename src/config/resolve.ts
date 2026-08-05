@@ -67,3 +67,26 @@ export function resolveConfig(options: ResolveOptions = {}): Config {
   const merged = mergeLayers([{}, ...layers]);
   return resolveRefs(applyEnvOverrides(merged, env), env);
 }
+
+/** Collect all resolved `env:` values from a raw config (before resolution). */
+export function collectEnvValues(
+  config: unknown,
+  env: Record<string, string | undefined>
+): Set<string> {
+  const values = new Set<string>();
+  const walk = (value: unknown): void => {
+    if (typeof value === "string" && value.startsWith("env:")) {
+      const name = value.slice("env:".length);
+      const resolved = env[name];
+      if (resolved !== undefined && resolved.length >= 8) {
+        values.add(resolved);
+      }
+    } else if (Array.isArray(value)) {
+      value.forEach(walk);
+    } else if (value !== null && typeof value === "object") {
+      Object.values(value).forEach(walk);
+    }
+  };
+  walk(config);
+  return values;
+}

@@ -1,4 +1,5 @@
 import { getDataDir, readDaemonInfo, isAlive, spawnDaemon } from "./daemon";
+import { loadAuthConfig, authHeaders } from "./auth";
 import type { Session } from "../session";
 
 export interface StreamHandlers {
@@ -16,11 +17,19 @@ export async function connectClient(): Promise<OpenOfficeClient> {
   if (!info || !isAlive(info.pid)) {
     info = await spawnDaemon(dataDir);
   }
-  return new OpenOfficeClient(`http://127.0.0.1:${info.port}`);
+  const auth = loadAuthConfig();
+  return new OpenOfficeClient(`http://127.0.0.1:${info.port}`, auth);
 }
 
 export class OpenOfficeClient {
-  constructor(private baseUrl: string) {}
+  private auth: ReturnType<typeof loadAuthConfig>;
+
+  constructor(
+    private baseUrl: string,
+    auth?: ReturnType<typeof loadAuthConfig>
+  ) {
+    this.auth = auth ?? loadAuthConfig();
+  }
 
   private async request<T>(
     path: string,
@@ -28,7 +37,11 @@ export class OpenOfficeClient {
   ): Promise<{ status: number; data: T }> {
     const res = await fetch(`${this.baseUrl}${path}`, {
       ...init,
-      headers: { "content-type": "application/json", ...init?.headers },
+      headers: {
+        "content-type": "application/json",
+        ...authHeaders(this.auth),
+        ...((init?.headers as Record<string, string>) ?? {}),
+      },
     });
     return {
       status: res.status,
@@ -120,6 +133,7 @@ export class OpenOfficeClient {
         try {
           const res = await fetch(`${this.baseUrl}/api/sessions/${id}/stream`, {
             signal: controller.signal,
+            headers: authHeaders(this.auth),
           });
           if (!res.ok) throw new Error(`stream failed: ${res.status}`);
           const reader = res.body!.getReader();
