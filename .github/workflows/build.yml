@@ -13,6 +13,11 @@ jobs:
     # macOS runner needed only for codesign/notarytool; all targets are
     # cross-compiled, so the newest image works fine and cannot go stale.
     runs-on: macos-latest
+    defaults:
+      run:
+        # Every path below (src, dist, entitlements, package.json) belongs to
+        # the CLI workspace; only action inputs still need the apps/cli prefix.
+        working-directory: apps/cli
     env:
       # Signing/publishing activate when the secrets exist; the shakedown
       # release ships unsigned until they do.
@@ -25,6 +30,7 @@ jobs:
         with:
           cache: true
       - run: bun install --frozen-lockfile
+        working-directory: .
 
       - name: Build CLI binaries (all platforms)
         run: |
@@ -93,7 +99,7 @@ jobs:
           endpoint: ${{ vars.TRUSTED_SIGNING_ENDPOINT }}
           trusted-signing-account-name: ${{ vars.TRUSTED_SIGNING_ACCOUNT }}
           certificate-profile-name: ${{ vars.TRUSTED_SIGNING_CERT_PROFILE }}
-          files: dist/openoffice-windows-x64.exe
+          files: apps/cli/dist/openoffice-windows-x64.exe
 
       # ---- Release + npm ----
       - name: Generate SHA256SUMS
@@ -111,6 +117,12 @@ jobs:
         with:
           node-version: 22
           registry-url: https://registry.npmjs.org
+
+      # README.md and LICENSE stay at the repo root; the published tarball
+      # lists them in "files", so copy them in right before packing.
+      - name: Stage package docs
+        if: env.HAS_NPM == 'true'
+        run: cp ../../README.md ../../LICENSE .
 
       - name: Publish npm package
         if: env.HAS_NPM == 'true'

@@ -45,6 +45,7 @@ jobs:
           cache: true
       - run: bun install --frozen-lockfile
       - run: bun test --timeout=30000 --path-ignore-patterns=test/e2e
+        working-directory: apps/cli
 
   coverage:
     runs-on: ubuntu-latest
@@ -55,7 +56,9 @@ jobs:
           cache: true
       - run: bun install --frozen-lockfile
       - run: bun test --timeout=30000 --coverage --coverage-reporter=lcov --path-ignore-patterns=test/e2e
+        working-directory: apps/cli
       - run: bun run scripts/check-coverage.ts
+        working-directory: apps/cli
 
   e2e:
     runs-on: ubuntu-latest
@@ -70,3 +73,4 @@ jobs:
           curl -fsSL https://d.officecli.ai/install.sh | bash
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - run: bun test --timeout=60000 test/e2e/
+        working-directory: apps/cli

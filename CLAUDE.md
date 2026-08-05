@@ -14,4 +14,8 @@ Single-context: one root `CONTEXT.md` + `docs/adr/` (ADR 0001). See `docs/agents
 
 ### Deep modules
 
-Domains under `src/` are deep modules — import only through a domain's root entry points, never subfolder internals. See `src/README.md` before adding or importing one.
+Domains under `apps/cli/src/` are deep modules — import only through a domain's root entry points, never subfolder internals. See `apps/cli/src/README.md` before adding or importing one.
+
+### Monorepo
+
+Bun workspaces + Turborepo. `apps/cli` is the published `openoffice` package; `apps/web` is the Next.js frontend. Root is private and versionless — the published version lives in `apps/cli/package.json`. Run tasks with `turbo run <task>` from the root; `bun test` and friends must run with `apps/cli` as cwd. See ADR 0024.
