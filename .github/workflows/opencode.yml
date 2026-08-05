@@ -1,8 +1,11 @@
 name: opencode-review
 
 on:
+  # Run once per PR / issue at open time; on-demand via the /oc comment.
   pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
+    types: [opened]
+  issues:
+    types: [opened]
   issue_comment:
     types: [created]
 
@@ -30,7 +33,7 @@ jobs:
           model: opencode/deepseek-v4-flash-free
           use_github_token: true
           prompt: |
-            Review this pull request:
+            Review this pull request or issue:
             - Check for bugs and code quality issues
             - Verify the code follows the repository conventions: CONTEXT.md vocabulary, docs/adr/ decisions, and src/README.md deep-module boundaries
             - Check that tests cover the changed behavior
