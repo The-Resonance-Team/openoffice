@@ -80,7 +80,7 @@ export default function Home() {
               onDragEnd={() => setDraggingRight(false)}
             />
             <div
-              className={`flex flex-col overflow-hidden ${
+              className={`relative flex flex-col overflow-hidden ${
                 draggingRight
                   ? ""
                   : "transition-[width,opacity] duration-300 ease-in-out"
@@ -97,7 +97,17 @@ export default function Home() {
                   : undefined
               }
             >
-              <div className="flex flex-1 flex-col overflow-hidden rounded-[18px] border border-line2 bg-panel shadow-2xl transition-colors duration-200 group-hover/right:border-accent2">
+              <div
+                className="pointer-events-none absolute inset-0 z-10 rounded-[18px] opacity-0 transition-opacity duration-200 group-hover/right:opacity-100"
+                style={{
+                  background:
+                    "linear-gradient(to right, var(--color-accent2) 0%, transparent 60%)",
+                  mask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
+                  maskComposite: "exclude",
+                  padding: "1px",
+                }}
+              />
+              <div className="flex flex-1 flex-col overflow-hidden rounded-[18px] border border-line2 bg-panel shadow-2xl">
                 {showSidebar && <Sidebar />}
                 {showViewer && <Viewer sessionId={sessionId} />}
               </div>
