@@ -1,7 +1,11 @@
 // Static prototype data ported from the design source (OpenOffice.dc.html / app.js).
 // TODO: no endpoint yet for any of this — the daemon has no APIs for nav, tasks,
 // working-folder listing, connectors, skills, model/provider catalogs, or viewer
-// content. Only chat/turn/SSE/accept/undo/update are wired to the real daemon.
+// content. Chat/session (lib/use-session.ts) is also mocked for standalone UI
+// use; lib/api.ts's real createSession/postTurn/streamSession are unused for
+// now but kept for when the daemon is wired back in. accept/undo/update are
+// mocked alongside chat/session (see components/Viewer.tsx); getUpdateStatus
+// is the one real daemon call still wired (components/LeftRail.tsx).
 
 export interface NavItem {
   icon: IconName;
@@ -403,6 +407,7 @@ export const slides: Slide[] = [
 
 export type IconName =
   | "panelRight"
+  | "panelLeft"
   | "search"
   | "home"
   | "codeXml"

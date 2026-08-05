@@ -1,79 +1,59 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import {
-  createSession,
-  postTurn,
-  streamSession,
-  type StreamEvent,
-} from "./api";
+import { mockGreeting, mockSessionId, pickMockReply } from "./mock-chat";
 
 export interface ChatMessage {
   role: string;
   content: string;
 }
 
+const TOKEN_DELAY_MS = 18;
+const THINKING_DELAY_MS = 500;
+
 export function useSession() {
-  const [sessionId, setSessionId] = useState<string | null>(null);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [sessionId] = useState(() => mockSessionId());
+  const [messages, setMessages] = useState<ChatMessage[]>(() => [
+    { role: "assistant", content: mockGreeting },
+  ]);
   const [streaming, setStreaming] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const abortRef = useRef<AbortController | null>(null);
+  const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   useEffect(() => {
-    let cancelled = false;
-    createSession()
-      .then((s) => {
-        if (!cancelled) setSessionId(s.id);
-      })
-      .catch((e) => setError(e instanceof Error ? e.message : String(e)));
+    const pending = timers.current;
     return () => {
-      cancelled = true;
+      pending.forEach(clearTimeout);
     };
   }, []);
 
-  useEffect(() => {
-    if (!sessionId) return;
-    const controller = new AbortController();
-    abortRef.current = controller;
-
-    function handle(ev: StreamEvent) {
-      if (ev.type === "token") {
-        setStreaming((s) => s + ev.token);
-      } else if (ev.type === "message") {
-        setMessages((m) => [
-          ...m,
-          { role: ev.role, content: String(ev.content) },
-        ]);
-      } else if (ev.type === "done") {
+  function streamReply(reply: string) {
+    const words = reply.split(" ");
+    let i = 0;
+    function step() {
+      i += 1;
+      setStreaming(words.slice(0, i).join(" "));
+      if (i < words.length) {
+        timers.current.push(setTimeout(step, TOKEN_DELAY_MS));
+      } else {
+        setMessages((m) => [...m, { role: "assistant", content: reply }]);
         setStreaming("");
+        setBusy(false);
       }
     }
-
-    streamSession(sessionId, handle, controller.signal).catch((e) => {
-      if (!controller.signal.aborted) {
-        setError(e instanceof Error ? e.message : String(e));
-      }
-    });
-
-    return () => controller.abort();
-  }, [sessionId]);
+    step();
+  }
 
   async function send(message: string) {
     if (!sessionId || !message.trim()) return;
     setMessages((m) => [...m, { role: "user", content: message }]);
     setBusy(true);
     setError(null);
-    try {
-      const { text } = await postTurn(sessionId, message);
-      setMessages((m) => [...m, { role: "assistant", content: text }]);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setBusy(false);
-      setStreaming("");
-    }
+    const reply = pickMockReply(message);
+    timers.current.push(
+      setTimeout(() => streamReply(reply), THINKING_DELAY_MS)
+    );
   }
 
   return { sessionId, messages, streaming, busy, error, send };
