@@ -69,39 +69,41 @@ export default function Home() {
           <ChatPanel />
         </div>
         {rightResizable && (
-          <ResizeHandle
-            side="right"
-            width={rightWidth}
-            min={RIGHT_MIN}
-            max={RIGHT_MAX}
-            onResize={setRightWidth}
-            onDragStart={() => setDraggingRight(true)}
-            onDragEnd={() => setDraggingRight(false)}
-          />
-        )}
-        <div
-          className={`flex flex-col overflow-hidden ${
-            draggingRight
-              ? ""
-              : "transition-[width,opacity] duration-300 ease-in-out"
-          } ${
-            rightVisible
-              ? showViewer && viewerExpanded
-                ? "min-w-0 flex-1 opacity-100"
-                : "flex-none opacity-100"
-              : "w-0 flex-none opacity-0"
-          }`}
-          style={
-            rightVisible && !(showViewer && viewerExpanded)
-              ? { width: rightWidth }
-              : undefined
-          }
-        >
-          <div className="flex flex-1 flex-col overflow-hidden rounded-[18px] border border-line2 bg-panel shadow-2xl transition-colors duration-200 group-hover:border-accent2">
-            {showSidebar && <Sidebar />}
-            {showViewer && <Viewer sessionId={sessionId} />}
+          <div className="group/right flex">
+            <ResizeHandle
+              side="right"
+              width={rightWidth}
+              min={RIGHT_MIN}
+              max={RIGHT_MAX}
+              onResize={setRightWidth}
+              onDragStart={() => setDraggingRight(true)}
+              onDragEnd={() => setDraggingRight(false)}
+            />
+            <div
+              className={`flex flex-col overflow-hidden ${
+                draggingRight
+                  ? ""
+                  : "transition-[width,opacity] duration-300 ease-in-out"
+              } ${
+                rightVisible
+                  ? showViewer && viewerExpanded
+                    ? "min-w-0 flex-1 opacity-100"
+                    : "flex-none opacity-100"
+                  : "w-0 flex-none opacity-0"
+              }`}
+              style={
+                rightVisible && !(showViewer && viewerExpanded)
+                  ? { width: rightWidth }
+                  : undefined
+              }
+            >
+              <div className="flex flex-1 flex-col overflow-hidden rounded-[18px] border border-line2 bg-panel shadow-2xl transition-colors duration-200 group-hover/right:border-accent2">
+                {showSidebar && <Sidebar />}
+                {showViewer && <Viewer sessionId={sessionId} />}
+              </div>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       <button
