@@ -1,52 +1,29 @@
 {
-  "name": "openoffice",
-  "version": "0.1.0",
-  "description": "An LLM agent CLI that automates office document work (Word, Excel, PowerPoint).",
+  "name": "openoffice-monorepo",
+  "private": true,
   "type": "module",
   "packageManager": "bun@1.3.14",
   "license": "MIT",
-  "bin": {
-    "openoffice": "bin/openoffice.mjs"
-  },
-  "files": [
-    "bin",
-    "scripts",
-    "README.md",
-    "LICENSE"
+  "workspaces": [
+    "apps/*"
   ],
-  "publishConfig": {
-    "access": "public"
-  },
   "scripts": {
-    "dev": "bun run src/index.ts",
-    "build": "bun build --compile src/index.ts --outfile dist/openoffice --define:OOO_VERSION=\"$(node -p 'require(\"./package.json\").version')\"",
-    "typecheck": "tsgo --noEmit",
-    "lint": "oxlint",
-    "lint:boundaries": "bun --bun depcruise src",
-    "test": "bun test --timeout=30000 --path-ignore-patterns=test/e2e",
-    "test:e2e": "bun test --timeout=60000 test/e2e/",
-    "test:coverage": "bun test --timeout=30000 --coverage --coverage-reporter=lcov --path-ignore-patterns=test/e2e && bun run scripts/check-coverage.ts",
-    "postinstall": "node scripts/install.mjs",
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "lint": "turbo run lint",
+    "lint:boundaries": "turbo run lint:boundaries",
+    "test": "turbo run test",
+    "test:e2e": "turbo run test:e2e",
+    "test:coverage": "turbo run test:coverage",
+    "format": "prettier --ignore-unknown --write .",
     "prepare": "husky"
   },
-  "dependencies": {
-    "@ai-sdk/anthropic": "^4.0.25",
-    "@ai-sdk/google": "^4.0.29",
-    "@ai-sdk/openai": "^4.0.25",
-    "@modelcontextprotocol/sdk": "^1.30.0",
-    "ai": "^7.0.44",
-    "drizzle-orm": "^0.45.2",
-    "hono": "^4.12.33",
-    "zod": "^4.4.3"
-  },
   "devDependencies": {
-    "@types/bun": "^1.3.14",
-    "@typescript/native-preview": "^7.0.0-dev.20260707.2",
-    "dependency-cruiser": "^18.1.0",
     "husky": "^9.1.7",
     "lint-staged": "^17.3.0",
-    "oxlint": "^1.76.0",
     "prettier": "^3.9.6",
+    "turbo": "^2.10.8",
     "typescript": "^6"
   },
   "repository": {

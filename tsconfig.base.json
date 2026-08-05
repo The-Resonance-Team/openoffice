@@ -5,12 +5,10 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
-    "types": ["bun"],
     "strict": true,
     "noEmit": true,
     "isolatedModules": true,
     "verbatimModuleSyntax": true,
     "skipLibCheck": true
-  },
-  "include": ["src", "test"]
+  }
 }
