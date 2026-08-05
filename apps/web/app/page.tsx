@@ -12,14 +12,11 @@ import { LoginDialog } from "@/components/LoginDialog";
 import { ResizeHandle } from "@/components/ResizeHandle";
 import { Icon } from "@/lib/icons";
 
-const LEFT_MIN = 220;
-const LEFT_MAX = 460;
 const RIGHT_MIN = 300;
 const RIGHT_MAX = 900;
 
 export default function Home() {
   const [loginOpen, setLoginOpen] = useState(false);
-  const [draggingLeft, setDraggingLeft] = useState(false);
   const [draggingRight, setDraggingRight] = useState(false);
   const viewerOpen = useUiStore((s) => s.viewerOpen);
   const viewerExpanded = useUiStore((s) => s.viewerExpanded);
@@ -27,7 +24,6 @@ export default function Home() {
   const leftRailOpen = useUiStore((s) => s.leftRailOpen);
   const toggleLeftRail = useUiStore((s) => s.toggleLeftRail);
   const leftRailWidth = useUiStore((s) => s.leftRailWidth);
-  const setLeftRailWidth = useUiStore((s) => s.setLeftRailWidth);
   const sidebarWidth = useUiStore((s) => s.sidebarWidth);
   const setSidebarWidth = useUiStore((s) => s.setSidebarWidth);
   const viewerWidth = useUiStore((s) => s.viewerWidth);
@@ -45,11 +41,7 @@ export default function Home() {
   return (
     <div className="flex h-screen w-full overflow-hidden text-ink">
       <div
-        className={`flex flex-none overflow-hidden ${
-          draggingLeft
-            ? ""
-            : "transition-[width,opacity,padding] duration-300 ease-in-out"
-        }`}
+        className={`flex flex-none overflow-hidden transition-[width,opacity,padding] duration-300 ease-in-out`}
         style={
           leftRailOpen
             ? { width: leftRailWidth + 8, padding: "8px 0 8px 8px", opacity: 1 }
@@ -58,17 +50,6 @@ export default function Home() {
       >
         <LeftRail onToggleLeftRail={toggleLeftRail} width={leftRailWidth} />
       </div>
-      {leftRailOpen && (
-        <ResizeHandle
-          side="left"
-          width={leftRailWidth}
-          min={LEFT_MIN}
-          max={LEFT_MAX}
-          onResize={setLeftRailWidth}
-          onDragStart={() => setDraggingLeft(true)}
-          onDragEnd={() => setDraggingLeft(false)}
-        />
-      )}
       <button
         type="button"
         title="Toggle panel"
@@ -82,9 +63,7 @@ export default function Home() {
       <div className="flex min-w-0 flex-1 p-[8px_8px_8px_0]">
         <div
           className={`flex min-w-0 overflow-hidden ${
-            draggingLeft || draggingRight
-              ? ""
-              : "transition-all duration-300 ease-in-out"
+            draggingRight ? "" : "transition-all duration-300 ease-in-out"
           } ${chatVisible ? "flex-1 opacity-100" : "w-0 flex-none opacity-0"}`}
         >
           <ChatPanel />
@@ -118,7 +97,7 @@ export default function Home() {
               : undefined
           }
         >
-          <div className="flex flex-1 flex-col overflow-hidden rounded-[18px] border border-line2 bg-panel shadow-2xl">
+          <div className="flex flex-1 flex-col overflow-hidden rounded-[18px] border border-line2 bg-panel shadow-2xl transition-colors duration-200 group-hover:border-accent2">
             {showSidebar && <Sidebar />}
             {showViewer && <Viewer sessionId={sessionId} />}
           </div>

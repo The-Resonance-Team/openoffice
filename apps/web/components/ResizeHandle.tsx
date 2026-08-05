@@ -53,7 +53,11 @@ export function ResizeHandle({
       className="group relative z-30 w-[3px] flex-none cursor-col-resize select-none"
     >
       <div className="absolute inset-y-0 -left-[3px] w-[9px]" />
-      <div className="absolute inset-y-2 left-0 w-[3px] rounded-full bg-transparent group-hover:bg-accent2" />
+      <div
+        className={`absolute left-0 w-[3px] rounded-full bg-transparent group-hover:bg-accent2 ${
+          side === "right" ? "inset-y-1 rounded-r-[18px]" : "inset-y-2"
+        }`}
+      />
     </div>
   );
 }
