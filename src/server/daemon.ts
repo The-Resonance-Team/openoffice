@@ -103,7 +103,7 @@ export async function startDaemon(): Promise<DaemonHandle> {
   const store = new SessionStore(join(dataDir, "openoffice.db"));
   const history = new HistoryStore(dataDir);
   const askChannel = new AskChannel();
-  const shareStore = new ShareStore(join(dataDir, "openoffice.db"));
+  const shareStore = new ShareStore(store.db);
 
   const draftManager = new DraftManager({
     dataDir,

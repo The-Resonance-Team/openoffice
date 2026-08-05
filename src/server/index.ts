@@ -83,6 +83,19 @@ function textOf(message: WithParts): string {
     .join("");
 }
 
+// The single session-end operation: every side effect of a session ending
+// lives here, so future end paths (heartbeat sweep, #39) call this instead
+// of re-implementing pieces and leaking a share or an orphaned draft.
+export async function endSession(
+  deps: ServerDeps,
+  sessionID: string
+): Promise<void> {
+  await deps.draftManager.orphanAll(sessionID);
+  deps.store.markEnded(sessionID, Date.now());
+  deps.shareStore.revoke(sessionID);
+  emit("session:end", { sessionID });
+}
+
 export function createApp(deps: ServerDeps) {
   const app = new Hono();
 
@@ -262,11 +275,7 @@ export function createApp(deps: ServerDeps) {
   });
 
   app.post("/api/sessions/:id/end", async (c) => {
-    const sessionID = c.req.param("id");
-    await deps.draftManager.orphanAll(sessionID);
-    deps.store.markEnded(sessionID, Date.now());
-    deps.shareStore.revoke(sessionID);
-    emit("session:end", { sessionID });
+    await endSession(deps, c.req.param("id"));
     return c.json({ ok: true });
   });
 

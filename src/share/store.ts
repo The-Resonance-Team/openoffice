@@ -1,37 +1,27 @@
-import { Database } from "bun:sqlite";
-import { mkdirSync } from "node:fs";
-import { dirname } from "node:path";
 import { drizzle } from "drizzle-orm/bun-sqlite";
 import { eq } from "drizzle-orm";
 import { randomBytes } from "node:crypto";
 import { shares } from "./schema";
 
+// Co-resident with SessionStore over the same SQLite file: it takes
+// SessionStore's drizzle handle (one connection, one writer) instead of
+// opening its own — there is nothing here to close.
 export class ShareStore {
   private db: ReturnType<typeof drizzle>;
-  private sqlite: Database;
 
-  constructor(dbPath: string) {
-    mkdirSync(dirname(dbPath), { recursive: true });
-    const sqlite = new Database(dbPath);
-    sqlite.run("PRAGMA journal_mode = WAL");
-    sqlite.run("PRAGMA foreign_keys = ON");
-    this.db = drizzle(sqlite);
-    this.sqlite = sqlite;
-    this.migrate(sqlite);
+  constructor(db: ReturnType<typeof drizzle>) {
+    this.db = db;
+    this.migrate();
   }
 
-  close(): void {
-    this.sqlite.close();
-  }
-
-  private migrate(sqlite: Database): void {
-    sqlite.run(/* sql */ `
+  private migrate(): void {
+    this.db.run(/* sql */ `
       CREATE TABLE IF NOT EXISTS shares (
-        session_id TEXT PRIMARY KEY REFERENCES sessions(id),
+        session_id TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
         token TEXT NOT NULL
       )
     `);
-    sqlite.run(/* sql */ `
+    this.db.run(/* sql */ `
       CREATE INDEX IF NOT EXISTS idx_shares_token ON shares(token)
     `);
   }

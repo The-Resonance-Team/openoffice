@@ -74,7 +74,7 @@ beforeEach(() => {
   dir = mkdtempSync(join(tmpdir(), "oo-share-"));
   mkdirSync(dir, { recursive: true });
   store = new SessionStore(join(dir, "test.db"));
-  shareStore = new ShareStore(join(dir, "test.db"));
+  shareStore = new ShareStore(store.db);
   history = new HistoryStore(dir);
   draftManager = new DraftManager({
     dataDir: dir,

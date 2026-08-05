@@ -23,7 +23,7 @@ beforeEach(() => {
     createdAt: Date.now(),
     updatedAt: Date.now(),
   });
-  store = new ShareStore(join(dir, "test.db"));
+  store = new ShareStore(sessionStore.db);
 });
 
 describe("ShareStore", () => {

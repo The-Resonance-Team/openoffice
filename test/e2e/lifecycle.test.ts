@@ -115,7 +115,7 @@ beforeAll(async () => {
     draftManager,
     history,
     askChannel,
-    shareStore: new ShareStore(join(dataDir, "openoffice.db")),
+    shareStore: new ShareStore(store.db),
     shareMode: "auto",
     createSession: (cwd) => {
       const now = Date.now();
