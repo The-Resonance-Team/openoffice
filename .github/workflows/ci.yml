@@ -32,6 +32,18 @@ jobs:
       - run: bun run lint
       - run: bun run lint:boundaries
 
+  build-web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          cache: true
+      - run: bun install --frozen-lockfile
+      - run: bun run turbo run build --filter=web
+        env:
+          NEXT_PUBLIC_OPENOFFICE_SERVER_PORT: "9999"
+
   unit:
     strategy:
       fail-fast: false
