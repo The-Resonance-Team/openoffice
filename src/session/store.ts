@@ -142,6 +142,7 @@ export class SessionStore {
     mkdirSync(dirname(dbPath), { recursive: true });
     const sqlite = new Database(dbPath);
     sqlite.run("PRAGMA journal_mode = WAL");
+    sqlite.run("PRAGMA foreign_keys = ON");
     this.db = drizzle(sqlite);
     this.sqlite = sqlite;
     this.migrate(sqlite);
@@ -160,7 +161,12 @@ export class SessionStore {
         "SELECT name FROM pragma_table_info('messages') WHERE name = 'parent_id'"
       )
       .get();
-    if (!hasParent) {
+    const hasEndedAt = sqlite
+      .query(
+        "SELECT name FROM pragma_table_info('sessions') WHERE name = 'ended_at'"
+      )
+      .get();
+    if (!hasParent || !hasEndedAt) {
       this.db.run("DROP TABLE IF EXISTS parts");
       this.db.run("DROP TABLE IF EXISTS messages");
       this.db.run("DROP TABLE IF EXISTS sessions");
@@ -173,7 +179,8 @@ export class SessionStore {
         title TEXT NOT NULL DEFAULT '',
         cwd TEXT NOT NULL DEFAULT '',
         created_at INTEGER NOT NULL,
-        updated_at INTEGER NOT NULL
+        updated_at INTEGER NOT NULL,
+        ended_at INTEGER
       )
     `);
     this.db.run(/* sql */ `
@@ -228,6 +235,7 @@ export class SessionStore {
         cwd: session.cwd,
         createdAt: new Date(session.createdAt),
         updatedAt: new Date(session.updatedAt),
+        endedAt: session.endedAt ? new Date(session.endedAt) : null,
       })
       .onConflictDoUpdate({
         target: sessions.id,
@@ -239,6 +247,14 @@ export class SessionStore {
           updatedAt: new Date(session.updatedAt),
         },
       })
+      .run();
+  }
+
+  markEnded(id: string, endedAt: number): void {
+    this.db
+      .update(sessions)
+      .set({ endedAt: new Date(endedAt) })
+      .where(eq(sessions.id, id))
       .run();
   }
 
@@ -259,6 +275,7 @@ export class SessionStore {
       messages: this.messages(id),
       createdAt: row.createdAt.getTime(),
       updatedAt: row.updatedAt.getTime(),
+      endedAt: row.endedAt ? row.endedAt.getTime() : undefined,
     };
   }
 
@@ -277,6 +294,7 @@ export class SessionStore {
       messages: [],
       createdAt: r.createdAt.getTime(),
       updatedAt: r.updatedAt.getTime(),
+      endedAt: r.endedAt ? r.endedAt.getTime() : undefined,
     }));
   }
 

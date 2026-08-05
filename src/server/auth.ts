@@ -20,7 +20,22 @@ export function createAuthMiddleware(config: ServerAuthConfig) {
   if (!authRequired(config)) {
     return async (_c: Context, next: Next) => next();
   }
-  return basicAuth({ username: config.username, password: config.password! });
+  const middleware = basicAuth({
+    username: config.username,
+    password: config.password!,
+  });
+  // basicAuth answers 400 to a malformed Authorization header (e.g. a Bearer
+  // share token guessed against an API route). Normalize to 401 so every
+  // invalid credential — absent, wrong, or malformed — reads the same way.
+  return async (c: Context, next: Next) => {
+    await middleware(c, next);
+    if (c.res.status === 400) {
+      c.res = new Response("Unauthorized", {
+        status: 401,
+        headers: c.res.headers,
+      });
+    }
+  };
 }
 
 export function authHeaders(

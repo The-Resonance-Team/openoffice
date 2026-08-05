@@ -9,4 +9,5 @@ export interface Session {
   messages: WithParts[];
   createdAt: number;
   updatedAt: number;
+  endedAt?: number;
 }

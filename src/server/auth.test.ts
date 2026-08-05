@@ -103,6 +103,20 @@ describe("createAuthMiddleware", () => {
     });
     expect(res.status).toBe(401);
   });
+
+  test("normalizes a malformed (non-Basic) Authorization header to 401", async () => {
+    const app = new Hono();
+    app.use(
+      "*",
+      createAuthMiddleware({ username: "admin", password: "secret" })
+    );
+    app.get("/test", (c) => c.json({ ok: true }));
+
+    const res = await app.request("/test", {
+      headers: { Authorization: "Bearer some-token" },
+    });
+    expect(res.status).toBe(401);
+  });
 });
 
 describe("authHeaders", () => {
