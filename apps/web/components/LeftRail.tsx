@@ -8,7 +8,13 @@ import { getUpdateStatus } from "@/lib/api";
 const navBase =
   "flex items-center gap-3 rounded-[9px] px-[11px] py-2 text-left text-[14px] font-medium text-muted hover:bg-panel2 hover:text-ink w-full";
 
-export function LeftRail({ onToggleSidebar }: { onToggleSidebar: () => void }) {
+export function LeftRail({
+  onToggleLeftRail,
+  width,
+}: {
+  onToggleLeftRail: () => void;
+  width: number;
+}) {
   const { data: updateStatus } = useQuery({
     queryKey: ["update-status"],
     queryFn: getUpdateStatus,
@@ -17,19 +23,19 @@ export function LeftRail({ onToggleSidebar }: { onToggleSidebar: () => void }) {
   });
 
   return (
-    <aside className="flex w-[284px] flex-none flex-col overflow-hidden bg-bg">
+    <aside
+      style={{ width }}
+      className="flex flex-none flex-col overflow-hidden rounded-[18px] border border-line2 bg-panel shadow-2xl"
+    >
       <div className="flex items-center gap-[9px] px-[18px] pb-[10px] pt-4">
-        <span className="h-3 w-3 rounded-full bg-[#ff5f57]" />
-        <span className="h-3 w-3 rounded-full bg-[#febc2e]" />
-        <span className="h-3 w-3 rounded-full bg-[#28c840]" />
         <div className="flex-1" />
         <button
           type="button"
           title="Toggle panel"
-          onClick={onToggleSidebar}
+          onClick={onToggleLeftRail}
           className="grid h-[30px] w-[30px] flex-none place-items-center rounded-lg text-muted hover:bg-panel2 hover:text-ink"
         >
-          <Icon name="panelRight" size={18} />
+          <Icon name="panelLeft" size={18} />
         </button>
         <button
           type="button"
