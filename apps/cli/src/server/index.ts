@@ -9,6 +9,8 @@ import { filePathHash, type DraftManager } from "../draft";
 import type { HistoryStore } from "../history";
 import type { UpdateStatus } from "../update";
 import { AuthRequiredError } from "../llm";
+import { createAuthMiddleware, type ServerAuthConfig } from "./auth";
+import { createCorsMiddleware } from "./cors";
 
 export class AskChannel {
   private pending = new Map<string, (answer: string) => void>();
@@ -56,10 +58,24 @@ export interface ServerDeps {
     store: SessionStore
   ) => Promise<{ text: string }>;
   updateStatus?: () => Promise<UpdateStatus>;
+  /** Basic auth. Omit (or pass a null password) to run the daemon unguarded. */
+  auth?: ServerAuthConfig;
+  /** Allowed browser origins. Empty (the default) sends no CORS headers. */
+  corsOrigins?: string[];
 }
 
 export function createApp(deps: ServerDeps) {
   const app = new Hono();
+
+  // Cross-cutting middleware must be registered before any route: a Hono
+  // route handler is terminal, so middleware added afterwards never runs.
+  // CORS goes first so that preflight OPTIONS is answered without auth.
+  if (deps.corsOrigins && deps.corsOrigins.length > 0) {
+    app.use("*", createCorsMiddleware(deps.corsOrigins));
+  }
+  if (deps.auth) {
+    app.use("*", createAuthMiddleware(deps.auth));
+  }
 
   // Per-session turn mutex: one turn at a time, queued.
   const turnQueues = new Map<string, Promise<unknown>>();
