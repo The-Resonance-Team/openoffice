@@ -102,6 +102,27 @@ export class OpenOfficeClient {
     await this.request(`/api/sessions/${id}/end`, { method: "POST" });
   }
 
+  async share(id: string): Promise<{ url: string }> {
+    const { status, data } = await this.request<{
+      url?: string;
+      error?: string;
+    }>(`/api/sessions/${id}/share`, { method: "POST" });
+    if (status !== 200 || !data.url) {
+      throw new Error(data.error ?? `share failed (${status})`);
+    }
+    return { url: data.url };
+  }
+
+  async unshare(id: string): Promise<void> {
+    const { status, data } = await this.request<{ error?: string }>(
+      `/api/sessions/${id}/unshare`,
+      { method: "POST" }
+    );
+    if (status !== 200) {
+      throw new Error(data.error ?? `unshare failed (${status})`);
+    }
+  }
+
   async updateStatus(): Promise<{
     check: boolean;
     available: boolean;

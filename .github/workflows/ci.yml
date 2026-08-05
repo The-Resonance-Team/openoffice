@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   typecheck:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
@@ -27,7 +27,7 @@ jobs:
       - run: bun run typecheck
 
   lint:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
@@ -43,7 +43,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [self-hosted, windows-latest]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     steps:
@@ -56,7 +56,7 @@ jobs:
       - run: bun test --timeout=30000 --path-ignore-patterns=test/e2e
 
   coverage:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
@@ -69,7 +69,7 @@ jobs:
       - run: bun run scripts/check-coverage.ts
 
   e2e:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
