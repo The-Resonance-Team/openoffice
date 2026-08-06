@@ -19,7 +19,7 @@ jobs:
     timeout-minutes: 60
     # macOS runner needed only for codesign/notarytool; all targets are
     # cross-compiled, so the newest image works fine and cannot go stale.
-    runs-on: macos-latest
+    runs-on: self-hosted
     defaults:
       run:
         # Every path below (src, dist, entitlements, package.json) belongs to
