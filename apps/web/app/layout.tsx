@@ -20,7 +20,11 @@ export const metadata: Metadata = {
   description: "OpenOffice daemon web client",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html
       lang="en"
