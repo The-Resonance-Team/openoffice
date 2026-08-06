@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { execFile } from "node:child_process";
 import { extname } from "node:path";
 import { z } from "zod";
 import type { ToolContext, ToolDefinition } from "../types";
@@ -10,32 +10,64 @@ export interface GrepDeps {
   officeExtractLimit?: number;
 }
 
-const DEFAULT_OFFICE_EXTRACT_LIMIT = 20;
+const MAX_OFFICE_EXTRACT_LIMIT = 20;
+const DEFAULT_OFFICE_EXTRACT_LIMIT = MAX_OFFICE_EXTRACT_LIMIT;
 
-function listFiles(path: string, include?: string): string[] {
+function isNoMatch(error: any): boolean {
+  return error.status === 1 || error.code === 1 || error.code === "1";
+}
+
+function runRg(args: string[], input?: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const child = execFile(
+      "rg",
+      args,
+      {
+        encoding: "utf-8",
+        timeout: 10000,
+        maxBuffer: 1024 * 1024,
+      },
+      (error, stdout) => {
+        if (error) reject(error);
+        else resolve(stdout);
+      }
+    );
+    if (input !== undefined) child.stdin?.end(input);
+  });
+}
+
+async function listFiles(path: string, include?: string): Promise<string[]> {
   const args = ["--files", path];
   if (include) args.push("--glob", include);
 
   try {
-    const output = execFileSync("rg", args, {
-      encoding: "utf-8",
-      stdio: ["pipe", "pipe", "pipe"],
-      timeout: 10000,
-      maxBuffer: 1024 * 1024,
-    });
+    const output = await runRg(args);
     return output.trim() ? output.trim().split(/\r?\n/) : [];
   } catch (e: any) {
-    if (e.status === 1) return [];
+    if (isNoMatch(e)) return [];
     throw e;
   }
 }
 
-function matchExtractedText(file: string, content: string, regex: RegExp) {
-  return content
-    .split(/\r?\n/)
-    .flatMap((line, index) =>
-      regex.test(line) ? [`${file}:${index + 1}:${line}`] : []
+async function matchExtractedText(
+  file: string,
+  content: string,
+  query: string
+) {
+  try {
+    const output = await runRg(
+      ["--no-heading", "--line-number", query],
+      content
     );
+    return output
+      .trim()
+      .split(/\r?\n/)
+      .filter(Boolean)
+      .map((line) => `${file}:${line}`);
+  } catch (e: any) {
+    if (isNoMatch(e)) return [];
+    throw e;
+  }
 }
 
 export function createGrepTool(deps?: GrepDeps): ToolDefinition {
@@ -60,18 +92,13 @@ export function createGrepTool(deps?: GrepDeps): ToolDefinition {
 
         let plainMatches: string[] = [];
         try {
-          const output = execFileSync("rg", args, {
-            encoding: "utf-8",
-            stdio: ["pipe", "pipe", "pipe"],
-            timeout: 10000,
-            maxBuffer: 1024 * 1024,
-          });
+          const output = await runRg(args);
           plainMatches = output.trim() ? [output.trim()] : [];
         } catch (e: any) {
-          if (e.status !== 1) throw e;
+          if (!isNoMatch(e)) throw e;
         }
         const target = params.path ?? ctx.cwd ?? process.cwd();
-        const files = deps ? listFiles(target, params.include) : [];
+        const files = deps ? await listFiles(target, params.include) : [];
         const officeFiles = files.filter((file) =>
           OFFICE_EXTENSIONS.has(extname(file).toLowerCase())
         );
@@ -84,11 +111,13 @@ export function createGrepTool(deps?: GrepDeps): ToolDefinition {
         const extractable = [...officeFiles, ...pdfFiles];
         const limit = Math.max(
           0,
-          deps?.officeExtractLimit ?? DEFAULT_OFFICE_EXTRACT_LIMIT
+          Math.min(
+            MAX_OFFICE_EXTRACT_LIMIT,
+            deps?.officeExtractLimit ?? DEFAULT_OFFICE_EXTRACT_LIMIT
+          )
         );
         const filesToExtract = extractable.slice(0, limit);
         const extractionSkipped = extractable.length - filesToExtract.length;
-        const regex = new RegExp(params.query);
         const extractedMatches: string[] = [];
         let extractionFailed = 0;
 
@@ -103,7 +132,7 @@ export function createGrepTool(deps?: GrepDeps): ToolDefinition {
                 : await deps?.readOffice(file, ctx);
             if (content !== null && content !== undefined) {
               extractedMatches.push(
-                ...matchExtractedText(file, content, regex)
+                ...(await matchExtractedText(file, content, params.query))
               );
             } else {
               extractionFailed++;
@@ -139,7 +168,7 @@ export function createGrepTool(deps?: GrepDeps): ToolDefinition {
           ].join("\n"),
         };
       } catch (e: any) {
-        if (e.status === 1) {
+        if (isNoMatch(e)) {
           return { success: true, output: "No matches found" };
         }
         return {

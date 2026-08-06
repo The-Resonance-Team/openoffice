@@ -29,7 +29,7 @@ export const OfficeConfigSchema = z.object({
 });
 
 export const GrepConfigSchema = z.object({
-  officeExtractLimit: z.number().int().nonnegative().optional(),
+  officeExtractLimit: z.number().int().min(0).max(20).optional(),
 });
 
 export const CompactionConfigSchema = z.object({

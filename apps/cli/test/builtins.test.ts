@@ -391,6 +391,23 @@ describe("grep tool", () => {
       expect(result.output).toContain("1 legacy");
     }
   });
+
+  test("handles complex regex safely for extracted documents", async () => {
+    if (!hasRg()) return;
+    const dir = tempDir();
+    writeFileSync(join(dir, "report.docx"), "placeholder");
+
+    const tool = createGrepTool({
+      readOffice: async () => `${"a".repeat(5000)}!`,
+    });
+    const result = await tool.execute(
+      { query: "(a+)+$", path: dir },
+      { sessionID: "test" }
+    );
+
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.output).toBe("No matches found");
+  });
 });
 
 describe("question tool", () => {

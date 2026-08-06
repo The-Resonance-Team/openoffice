@@ -79,6 +79,19 @@ describe("config loading", () => {
     ).toThrow(/invalid config .*openoffice\.json/);
   });
 
+  test("rejects an unsafe grep extraction limit", () => {
+    const dir = tempDir();
+    const path = join(dir, "openoffice.json");
+    writeFileSync(path, JSON.stringify({ grep: { officeExtractLimit: 21 } }));
+    expect(() =>
+      resolveConfig({
+        globalPath: join(dir, "missing.json"),
+        projectPath: path,
+        env: emptyEnv,
+      })
+    ).toThrow(/invalid config .*openoffice\.json/);
+  });
+
   test("project layer overrides global, nested provider records merge", () => {
     const dir = tempDir();
     const global = join(dir, "config.json");

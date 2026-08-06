@@ -1,8 +1,8 @@
-import { spawn } from "node:child_process";
+import { execFile, execFileSync, spawn } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, dirname, join } from "node:path";
-import { execFileSync } from "node:child_process";
+import { promisify } from "node:util";
 import { randomUUID } from "node:crypto";
 import {
   resolveConfig,
@@ -42,6 +42,8 @@ import { loadAuthConfig, authRequired } from "./auth";
 import { loadCorsOrigins } from "./cors";
 
 import { getDataDir } from "../data-dir";
+
+const execFileAsync = promisify(execFile);
 export { getDataDir } from "../data-dir";
 
 interface DaemonInfo {
@@ -125,16 +127,30 @@ export async function startDaemon(): Promise<DaemonHandle> {
   const agentRegistry = new AgentRegistry();
   const skillsDir = join(process.cwd(), "skills");
   const mcp = new McpManager({ connect: createSdkMcpClient });
-  const readOffice = async (file: string) =>
-    execFileSync("officecli", ["view", file, "text", "--json"], {
-      encoding: "utf-8",
-      timeout: 30000,
-    });
-  const readPdf = async (file: string) =>
-    execFileSync("pdftotext", ["-layout", file, "-"], {
-      encoding: "utf-8",
-      timeout: 30000,
-    });
+  const readOffice = async (file: string) => {
+    const { stdout } = await execFileAsync(
+      "officecli",
+      ["view", file, "text", "--json"],
+      {
+        encoding: "utf-8",
+        timeout: 30000,
+        maxBuffer: 10 * 1024 * 1024,
+      }
+    );
+    return stdout;
+  };
+  const readPdf = async (file: string) => {
+    const { stdout } = await execFileAsync(
+      "pdftotext",
+      ["-layout", file, "-"],
+      {
+        encoding: "utf-8",
+        timeout: 30000,
+        maxBuffer: 10 * 1024 * 1024,
+      }
+    );
+    return stdout;
+  };
 
   const baseTools: ToolDefinition[] = [
     createDefaultOfficeCliTool({ draftManager }),
