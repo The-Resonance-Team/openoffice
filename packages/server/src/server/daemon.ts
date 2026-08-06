@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { execFileSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import {
   resolveConfig,
   SessionStore,
@@ -11,6 +12,7 @@ import {
   type Session,
   HistoryStore,
   DraftManager,
+  ShareStore,
   ToolRegistry,
   createConvertTool,
   createGlobTool,
@@ -27,6 +29,7 @@ import {
   planMcpConnections,
   setSensitiveValues,
   collectEnvValues,
+  shareMode,
   applyEnvOverrides,
   findProjectConfig,
   loadConfigFiles,
@@ -35,7 +38,6 @@ import {
 import { AskChannel, createApp, type SessionRuntime } from "./index";
 import { checkForUpdate } from "../update";
 import { VERSION } from "../version";
-import { randomUUID } from "node:crypto";
 import { loadAuthConfig, authRequired } from "./auth";
 import { loadCorsOrigins } from "./cors";
 
@@ -100,6 +102,7 @@ export async function startDaemon(): Promise<DaemonHandle> {
   const store = new SessionStore(join(dataDir, "openoffice.db"));
   const history = new HistoryStore(dataDir);
   const askChannel = new AskChannel();
+  const shareStore = new ShareStore(store.db);
 
   const draftManager = new DraftManager({
     dataDir,
@@ -241,6 +244,8 @@ export async function startDaemon(): Promise<DaemonHandle> {
     draftManager,
     history,
     askChannel,
+    shareStore,
+    shareMode: shareMode(config),
     createSession: (cwd) => {
       const now = Date.now();
       return {

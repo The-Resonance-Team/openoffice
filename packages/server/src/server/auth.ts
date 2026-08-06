@@ -20,6 +20,9 @@ export function createAuthMiddleware(config: ServerAuthConfig) {
   if (!authRequired(config)) {
     return async (_c: Context, next: Next) => next();
   }
+  // hono's basicAuth rejects missing, malformed, and wrong credentials with
+  // 401 natively; pass it through untouched so genuine route 400s (e.g. a
+  // turn with no message) survive valid auth.
   return basicAuth({ username: config.username, password: config.password! });
 }
 

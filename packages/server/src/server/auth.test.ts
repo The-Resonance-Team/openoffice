@@ -103,6 +103,22 @@ describe("createAuthMiddleware", () => {
     });
     expect(res.status).toBe(401);
   });
+
+  test("preserves a genuine route 400 under valid auth", async () => {
+    const app = new Hono();
+    app.use(
+      "*",
+      createAuthMiddleware({ username: "admin", password: "secret" })
+    );
+    app.post("/test", (c) => c.json({ error: "bad request" }, 400));
+
+    const res = await app.request("/test", {
+      method: "POST",
+      headers: { Authorization: basicAuth("admin", "secret") },
+    });
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: "bad request" });
+  });
 });
 
 describe("authHeaders", () => {

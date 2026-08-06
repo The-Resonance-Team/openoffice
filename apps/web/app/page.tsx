@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useUiStore } from "@/lib/store";
 import { useSession } from "@/lib/use-session";
 import { LeftRail } from "@/components/LeftRail";
@@ -28,7 +29,22 @@ export default function Home() {
   const setSidebarWidth = useUiStore((s) => s.setSidebarWidth);
   const viewerWidth = useUiStore((s) => s.viewerWidth);
   const setViewerWidth = useUiStore((s) => s.setViewerWidth);
-  const { sessionId } = useSession();
+  const {
+    sessionId,
+    messages,
+    streaming,
+    busy,
+    error,
+    send,
+    switchSession,
+    startSession,
+  } = useSession();
+  const queryClient = useQueryClient();
+
+  async function handleNewSession() {
+    await startSession();
+    queryClient.invalidateQueries({ queryKey: ["sessions"] });
+  }
 
   const showViewer = viewerOpen;
   const showSidebar = !viewerOpen && rightRegion === "sidebar";
@@ -48,7 +64,13 @@ export default function Home() {
             : { width: 0, padding: 0, opacity: 0 }
         }
       >
-        <LeftRail onToggleLeftRail={toggleLeftRail} width={leftRailWidth} />
+        <LeftRail
+          onToggleLeftRail={toggleLeftRail}
+          width={leftRailWidth}
+          activeSessionId={sessionId}
+          onSwitchSession={switchSession}
+          onNewSession={handleNewSession}
+        />
       </div>
       <button
         type="button"
@@ -66,7 +88,13 @@ export default function Home() {
             draggingRight ? "" : "transition-all duration-300 ease-in-out"
           } ${chatVisible ? "flex-1 opacity-100" : "w-0 flex-none opacity-0"}`}
         >
-          <ChatPanel />
+          <ChatPanel
+            messages={messages}
+            streaming={streaming}
+            busy={busy}
+            error={error}
+            send={send}
+          />
         </div>
         {rightResizable && (
           <div className="group/right flex">

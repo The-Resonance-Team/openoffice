@@ -1,15 +1,26 @@
 "use client";
 
 import { useUiStore } from "@/lib/store";
-import { useSession } from "@/lib/use-session";
+import type { ChatMessage } from "@/lib/use-session";
 import { Composer } from "./Composer";
 import { Icon, IconFill } from "@/lib/icons";
 
-export function ChatPanel() {
+export function ChatPanel({
+  messages,
+  streaming,
+  busy,
+  error,
+  send,
+}: {
+  messages: ChatMessage[];
+  streaming: string;
+  busy: boolean;
+  error: string | null;
+  send: (message: string) => void | Promise<void>;
+}) {
   const viewerOpen = useUiStore((s) => s.viewerOpen);
   const rightRegion = useUiStore((s) => s.rightRegion);
   const toggleSidebar = useUiStore((s) => s.toggleSidebar);
-  const { messages, streaming, busy, error, send } = useSession();
 
   const sidebarBtnColor =
     !viewerOpen && rightRegion === "sidebar" ? "text-ink" : "text-muted";

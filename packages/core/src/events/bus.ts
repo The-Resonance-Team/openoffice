@@ -8,6 +8,7 @@ type Listeners = { [K in keyof EventMap]: Set<(data: EventMap[K]) => void> };
 const listeners: Listeners = {
   "llm:token": new Set(),
   "llm:done": new Set(),
+  "llm:retry": new Set(),
   "tool:start": new Set(),
   "tool:done": new Set(),
   "session:create": new Set(),

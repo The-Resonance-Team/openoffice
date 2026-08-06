@@ -135,20 +135,27 @@ function rowToPart(row: {
 }
 
 export class SessionStore {
-  private db: ReturnType<typeof drizzle>;
+  private drizzle: ReturnType<typeof drizzle>;
   private sqlite: Database;
 
   constructor(dbPath: string) {
     mkdirSync(dirname(dbPath), { recursive: true });
     const sqlite = new Database(dbPath);
     sqlite.run("PRAGMA journal_mode = WAL");
-    this.db = drizzle(sqlite);
+    sqlite.run("PRAGMA foreign_keys = ON");
+    this.drizzle = drizzle(sqlite);
     this.sqlite = sqlite;
     this.migrate(sqlite);
   }
 
   close(): void {
     this.sqlite.close();
+  }
+
+  // The drizzle handle, shared with co-resident stores over the same SQLite
+  // file (ShareStore) — one connection, one writer.
+  get db(): ReturnType<typeof drizzle> {
+    return this.drizzle;
   }
 
   // ponytail: schema migration for v0.1.0 — drops old tables if schema
@@ -160,12 +167,17 @@ export class SessionStore {
         "SELECT name FROM pragma_table_info('messages') WHERE name = 'parent_id'"
       )
       .get();
-    if (!hasParent) {
-      this.db.run("DROP TABLE IF EXISTS parts");
-      this.db.run("DROP TABLE IF EXISTS messages");
-      this.db.run("DROP TABLE IF EXISTS sessions");
+    const hasEndedAt = sqlite
+      .query(
+        "SELECT name FROM pragma_table_info('sessions') WHERE name = 'ended_at'"
+      )
+      .get();
+    if (!hasParent || !hasEndedAt) {
+      this.drizzle.run("DROP TABLE IF EXISTS parts");
+      this.drizzle.run("DROP TABLE IF EXISTS messages");
+      this.drizzle.run("DROP TABLE IF EXISTS sessions");
     }
-    this.db.run(/* sql */ `
+    this.drizzle.run(/* sql */ `
       CREATE TABLE IF NOT EXISTS sessions (
         id TEXT PRIMARY KEY,
         agent TEXT NOT NULL,
@@ -173,10 +185,11 @@ export class SessionStore {
         title TEXT NOT NULL DEFAULT '',
         cwd TEXT NOT NULL DEFAULT '',
         created_at INTEGER NOT NULL,
-        updated_at INTEGER NOT NULL
+        updated_at INTEGER NOT NULL,
+        ended_at INTEGER
       )
     `);
-    this.db.run(/* sql */ `
+    this.drizzle.run(/* sql */ `
       CREATE TABLE IF NOT EXISTS messages (
         id TEXT PRIMARY KEY,
         session_id TEXT NOT NULL REFERENCES sessions(id),
@@ -192,7 +205,7 @@ export class SessionStore {
         timestamp INTEGER NOT NULL
       )
     `);
-    this.db.run(/* sql */ `
+    this.drizzle.run(/* sql */ `
       CREATE TABLE IF NOT EXISTS parts (
         id TEXT PRIMARY KEY,
         message_id TEXT NOT NULL REFERENCES messages(id),
@@ -206,19 +219,19 @@ export class SessionStore {
         timestamp INTEGER NOT NULL
       )
     `);
-    this.db.run(
+    this.drizzle.run(
       /* sql */ "CREATE INDEX IF NOT EXISTS idx_messages_session ON messages(session_id, seq)"
     );
-    this.db.run(
+    this.drizzle.run(
       /* sql */ "CREATE INDEX IF NOT EXISTS idx_parts_message ON parts(message_id)"
     );
-    this.db.run(
+    this.drizzle.run(
       /* sql */ "CREATE INDEX IF NOT EXISTS idx_parts_session ON parts(session_id)"
     );
   }
 
   save(session: Session): void {
-    this.db
+    this.drizzle
       .insert(sessions)
       .values({
         id: session.id,
@@ -228,6 +241,7 @@ export class SessionStore {
         cwd: session.cwd,
         createdAt: new Date(session.createdAt),
         updatedAt: new Date(session.updatedAt),
+        endedAt: session.endedAt ? new Date(session.endedAt) : null,
       })
       .onConflictDoUpdate({
         target: sessions.id,
@@ -242,8 +256,16 @@ export class SessionStore {
       .run();
   }
 
+  markEnded(id: string, endedAt: number): void {
+    this.drizzle
+      .update(sessions)
+      .set({ endedAt: new Date(endedAt) })
+      .where(eq(sessions.id, id))
+      .run();
+  }
+
   load(id: string): Session | null {
-    const row = this.db
+    const row = this.drizzle
       .select()
       .from(sessions)
       .where(eq(sessions.id, id))
@@ -259,11 +281,12 @@ export class SessionStore {
       messages: this.messages(id),
       createdAt: row.createdAt.getTime(),
       updatedAt: row.updatedAt.getTime(),
+      endedAt: row.endedAt ? row.endedAt.getTime() : undefined,
     };
   }
 
   list(): Session[] {
-    const rows = this.db
+    const rows = this.drizzle
       .select()
       .from(sessions)
       .orderBy(desc(sessions.updatedAt))
@@ -277,24 +300,25 @@ export class SessionStore {
       messages: [],
       createdAt: r.createdAt.getTime(),
       updatedAt: r.updatedAt.getTime(),
+      endedAt: r.endedAt ? r.endedAt.getTime() : undefined,
     }));
   }
 
   delete(id: string): void {
-    this.db.delete(parts).where(eq(parts.sessionId, id)).run();
-    this.db.delete(messages).where(eq(messages.sessionId, id)).run();
-    this.db.delete(sessions).where(eq(sessions.id, id)).run();
+    this.drizzle.delete(parts).where(eq(parts.sessionId, id)).run();
+    this.drizzle.delete(messages).where(eq(messages.sessionId, id)).run();
+    this.drizzle.delete(sessions).where(eq(sessions.id, id)).run();
   }
 
   // Full message history of a session, chronological, parts in insertion order.
   messages(sessionId: string): WithParts[] {
-    const msgRows = this.db
+    const msgRows = this.drizzle
       .select()
       .from(messages)
       .where(eq(messages.sessionId, sessionId))
       .orderBy(messages.seq)
       .all();
-    const partRows = this.db
+    const partRows = this.drizzle
       .select()
       .from(parts)
       .where(eq(parts.sessionId, sessionId))
@@ -315,14 +339,14 @@ export class SessionStore {
   // Upserts a message row; seq auto-increments within the session.
   updateMessage(sessionId: string, info: MessageInfo): void {
     const seq = info.id
-      ? this.db
+      ? this.drizzle
           .select({ seq: messages.seq })
           .from(messages)
           .where(sql`${messages.id} = ${info.id}`)
           .get()
       : undefined;
     const next = seq?.seq ?? this.nextSeq(sessionId);
-    this.db
+    this.drizzle
       .insert(messages)
       .values(infoToRow(info, sessionId, next))
       .onConflictDoUpdate({
@@ -343,7 +367,7 @@ export class SessionStore {
       sessionId,
       Date.now()
     );
-    this.db
+    this.drizzle
       .insert(parts)
       .values(row)
       .onConflictDoUpdate({ target: parts.id, set: row })
@@ -353,7 +377,7 @@ export class SessionStore {
   }
 
   nextSeq(sessionId: string): number {
-    const row = this.db
+    const row = this.drizzle
       .select({ maxSeq: sql<number>`coalesce(max(${messages.seq}), 0)` })
       .from(messages)
       .where(eq(messages.sessionId, sessionId))
@@ -362,7 +386,7 @@ export class SessionStore {
   }
 
   private touch(sessionId: string, at: number): void {
-    this.db
+    this.drizzle
       .update(sessions)
       .set({ updatedAt: new Date(at) })
       .where(eq(sessions.id, sessionId))

@@ -12,6 +12,7 @@ import {
   login,
   resolveConfig,
   BUILTIN_PROVIDERS,
+  discoverLocalModels,
 } from "@openoffice/core";
 
 const HELP = `openoffice ${VERSION} — an LLM agent CLI for office document work.
@@ -23,6 +24,9 @@ Usage:
   openoffice auth login <provider>    Store an API key for a provider
   openoffice auth logout <provider>   Remove a stored credential
   openoffice auth list                Show providers with stored credentials
+  openoffice models                   List models from running local servers (Ollama, llama.cpp, vLLM)
+  openoffice share <sessionID>        Generate a read-only share URL for a session
+  openoffice unshare <sessionID>      Revoke a session's share URL
   openoffice --version      Print the version
   openoffice --help         Show this help
 
@@ -179,6 +183,42 @@ async function runAuth(sub?: string, provider?: string) {
   process.exit(1);
 }
 
+async function runModels() {
+  const found = await discoverLocalModels();
+  if (found.length === 0) {
+    console.log(
+      "No local model servers detected (Ollama :11434, llama.cpp :8080, vLLM :8000)."
+    );
+    return;
+  }
+  for (const server of found) {
+    console.log(`${server.server}:`);
+    for (const model of server.models) console.log(`  ${model}`);
+  }
+}
+
+async function runShareCommand(kind: "share" | "unshare", sessionID?: string) {
+  if (!sessionID) {
+    console.error("Usage: openoffice share <sessionID> | unshare <sessionID>");
+    process.exit(1);
+  }
+  const client = await connectClient();
+  try {
+    if (kind === "share") {
+      const { url } = await client.share(sessionID);
+      console.log(url);
+    } else {
+      await client.unshare(sessionID);
+      console.log(`Share revoked for ${sessionID}.`);
+    }
+  } catch (e) {
+    console.error(
+      `${kind === "share" ? "Share" : "Unshare"} failed: ${e instanceof Error ? e.message : e}`
+    );
+    process.exit(1);
+  }
+}
+
 async function main() {
   cleanupPendingUpdate();
 
@@ -205,6 +245,15 @@ async function main() {
       return;
     case "auth":
       await runAuth(args[1], args[2]);
+      return;
+    case "models":
+      await runModels();
+      return;
+    case "share":
+      await runShareCommand("share", args[1]);
+      return;
+    case "unshare":
+      await runShareCommand("unshare", args[1]);
       return;
     default:
       console.error(

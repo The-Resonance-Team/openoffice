@@ -97,7 +97,7 @@ A thin process that connects to the daemon over HTTP/SSE instead of running the 
 _Avoid_: UI, frontend, app
 
 **Share**:
-A revocable, unguessable-token URL giving a non-participant read-only access to a session's transcript and edit previews over SSE. Cannot reach accept/undo/revert — those require an authenticated daemon client, not a share token. Not collaboration: single accepting user, others only watch.
+A revocable, unguessable-token URL giving a non-participant read-only access to a session's transcript and edit previews over SSE. Cannot reach accept/undo/revert — those require an authenticated daemon client, not a share token. Not collaboration: single accepting user, others only watch. Lives as long as its session — revoked by unshare or session end; unknown and revoked tokens are indistinguishable (`410`).
 _Avoid_: collaboration, multi-user, link
 
 **Sync**:

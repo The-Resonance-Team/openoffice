@@ -7,6 +7,7 @@ import { createApp, AskChannel } from "../index";
 import { SessionStore, type Session } from "@openoffice/core";
 import { DraftManager } from "@openoffice/core";
 import { HistoryStore } from "@openoffice/core";
+import { ShareStore } from "@openoffice/core";
 import type { SessionRuntime } from "../index";
 
 let store: SessionStore;
@@ -52,6 +53,8 @@ function makeApp(opts: {
     draftManager,
     history,
     askChannel,
+    shareStore: new ShareStore(store.db),
+    shareMode: "disabled",
     createSession: makeSession,
     buildRuntime: () => fakeRuntime,
     runTurn: async () => ({ text: "ok" }),

@@ -7,6 +7,7 @@ import { createApp, AskChannel } from "../index";
 import { SessionStore, type Session } from "@openoffice/core";
 import { DraftManager, filePathHash } from "@openoffice/core";
 import { HistoryStore } from "@openoffice/core";
+import { ShareStore } from "@openoffice/core";
 import { AuthRequiredError } from "@openoffice/core";
 import type { SessionRuntime } from "../index";
 
@@ -60,6 +61,8 @@ function makeApp() {
     draftManager,
     history,
     askChannel,
+    shareStore: new ShareStore(store.db),
+    shareMode: "disabled",
     createSession: makeSession,
     buildRuntime: () => fakeRuntime,
     runTurn: fakeRunTurn,
@@ -112,6 +115,62 @@ describe("server API", () => {
     expect(session.messages).toEqual([]);
   });
 
+  test("lists sessions newest-updated first", async () => {
+    const { app } = makeApp();
+    const a = await post(app, "/api/sessions", { cwd: "/tmp/a" });
+    await Bun.sleep(5);
+    const b = await post(app, "/api/sessions", { cwd: "/tmp/b" });
+
+    const list = await app.request("/api/sessions");
+    expect(list.status).toBe(200);
+    const sessions = (await list.json()) as any[];
+    expect(sessions.map((s) => s.id)).toEqual([b.json.id, a.json.id]);
+  });
+
+  test("patch renames a session", async () => {
+    const { app } = makeApp();
+    const created = await post(app, "/api/sessions", { cwd: "/tmp" });
+    const id = created.json.id;
+
+    const renamed = await app.request(`/api/sessions/${id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ title: "Quarterly report" }),
+    });
+    expect(renamed.status).toBe(200);
+    expect(((await renamed.json()) as any).title).toBe("Quarterly report");
+    expect(store.load(id)!.title).toBe("Quarterly report");
+  });
+
+  test("patch on unknown session returns 404", async () => {
+    const { app } = makeApp();
+    const res = await app.request(`/api/sessions/${randomUUID()}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ title: "x" }),
+    });
+    expect(res.status).toBe(404);
+  });
+
+  test("delete removes a session", async () => {
+    const { app } = makeApp();
+    const created = await post(app, "/api/sessions", { cwd: "/tmp" });
+    const id = created.json.id;
+
+    const res = await app.request(`/api/sessions/${id}`, { method: "DELETE" });
+    expect(res.status).toBe(200);
+    expect(((await res.json()) as any).ok).toBe(true);
+    expect(store.load(id)).toBeNull();
+  });
+
+  test("delete on unknown session returns 404", async () => {
+    const { app } = makeApp();
+    const res = await app.request(`/api/sessions/${randomUUID()}`, {
+      method: "DELETE",
+    });
+    expect(res.status).toBe(404);
+  });
+
   test("runs a turn and returns the text", async () => {
     const { app } = makeApp();
     const created = await post(app, "/api/sessions", { cwd: "/tmp" });
@@ -146,6 +205,8 @@ describe("server API", () => {
       draftManager,
       history,
       askChannel,
+      shareStore: new ShareStore(store.db),
+      shareMode: "disabled",
       createSession: makeSession,
       buildRuntime: () => fakeRuntime,
       runTurn: async () => {

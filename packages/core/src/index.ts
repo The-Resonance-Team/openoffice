@@ -10,8 +10,13 @@ export { CredentialStore } from "./auth/store";
 export type { ApiCredential } from "./auth/store";
 export { login } from "./auth/login";
 
-export { ConfigSchema, resolveConfig, collectEnvValues } from "./config";
-export type { Config, ResolveOptions } from "./config";
+export {
+  ConfigSchema,
+  resolveConfig,
+  collectEnvValues,
+  shareMode,
+} from "./config";
+export type { Config, ResolveOptions, ShareMode } from "./config";
 export {
   stripJsonc,
   applyEnvOverrides,
@@ -36,6 +41,9 @@ export type { EventMap } from "./events";
 export { HistoryStore } from "./history";
 export type { AcceptPoint } from "./history";
 
+export { ShareStore } from "./share";
+export { shareViewerPage } from "./share";
+
 export {
   resolveModel,
   resolveCredential,
@@ -46,8 +54,15 @@ export {
   getModel,
   splitModel,
   maxOutputTokens,
+  discoverLocalModels,
 } from "./llm";
-export type { ChatOptions, CompleteOptions, Model, ModelLimits } from "./llm";
+export type {
+  ChatOptions,
+  CompleteOptions,
+  Model,
+  ModelLimits,
+  DiscoveredModel,
+} from "./llm";
 
 export { McpManager } from "./mcp";
 export type { McpClient, McpConfig, McpToolInfo, McpManagerDeps } from "./mcp";
