@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import type { Context, MiddlewareHandler } from "hono";
+import { cors } from "hono/cors";
 import { streamSSE } from "hono/streaming";
 import { randomUUID } from "node:crypto";
 import { extname } from "node:path";
@@ -99,6 +100,25 @@ export async function endSession(
 export function createApp(deps: ServerDeps) {
   const app = new Hono();
 
+  // CORS for desktop GUI clients: the Tauri webview runs on a non-loopback
+  // origin (tauri://localhost on macOS/Linux, http://tauri.localhost on
+  // Windows) and dev-mode Vite serves from localhost:<port>. Everything else
+  // is rejected — the daemon stays loopback-only and token-free by default.
+  app.use(
+    "/api/*",
+    cors({
+      origin: (origin) =>
+        origin === "tauri://localhost" ||
+        origin === "http://tauri.localhost" ||
+        origin === "https://tauri.localhost" ||
+        /^http:\/\/localhost:\d+$/.test(origin)
+          ? origin
+          : null,
+      allowHeaders: ["content-type", "authorization"],
+      maxAge: 600,
+    })
+  );
+
   if (deps.authMiddleware) app.use("/api/*", deps.authMiddleware);
 
   // Per-session turn mutex: one turn at a time, queued.
@@ -130,6 +150,15 @@ export function createApp(deps: ServerDeps) {
       }
     }
     return c.json(session, 201);
+  });
+
+  app.get("/api/sessions", (c) => {
+    // List all sessions, newest first. The desktop GUI sidebar needs this;
+    // the CLI keeps it in-process.
+    const sessions = deps.store
+      .list()
+      .sort((a, b) => b.updatedAt - a.updatedAt);
+    return c.json(sessions);
   });
 
   app.get("/api/sessions/:id", (c) => {
