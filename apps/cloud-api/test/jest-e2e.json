@@ -8,5 +8,6 @@
   },
   "moduleNameMapper": {
     "^(\\.{1,2}/.*)\\.js$": "$1"
-  }
+  },
+  "setupFiles": ["<rootDir>/setup-env.ts"]
 }

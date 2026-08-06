@@ -12,11 +12,11 @@
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
     "lint": "eslint \"{src,test}/**/*.ts\"",
-    "test": "JWT_SECRET=test-secret-at-least-8 NODE_OPTIONS=--experimental-vm-modules jest",
-    "test:watch": "JWT_SECRET=test-secret-at-least-8 NODE_OPTIONS=--experimental-vm-modules jest --watch",
-    "test:cov": "JWT_SECRET=test-secret-at-least-8 NODE_OPTIONS=--experimental-vm-modules jest --coverage",
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest",
+    "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch",
+    "test:cov": "NODE_OPTIONS=--experimental-vm-modules jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "JWT_SECRET=test-secret-at-least-8 NODE_OPTIONS=--experimental-vm-modules jest --config ./test/jest-e2e.json",
+    "test:e2e": "NODE_OPTIONS=--experimental-vm-modules jest --config ./test/jest-e2e.json",
     "typecheck": "tsc --noEmit",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
@@ -103,6 +103,9 @@
     "testEnvironment": "node",
     "moduleNameMapper": {
       "^(\\.{1,2}/.*)\\.js$": "$1"
-    }
+    },
+    "setupFiles": [
+      "<rootDir>/../test/setup-env.ts"
+    ]
   }
 }
