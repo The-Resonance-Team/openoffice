@@ -125,28 +125,31 @@ export async function startDaemon(): Promise<DaemonHandle> {
   const agentRegistry = new AgentRegistry();
   const skillsDir = join(process.cwd(), "skills");
   const mcp = new McpManager({ connect: createSdkMcpClient });
+  const readOffice = async (file: string) =>
+    execFileSync("officecli", ["view", file, "text", "--json"], {
+      encoding: "utf-8",
+      timeout: 30000,
+    });
+  const readPdf = async (file: string) =>
+    execFileSync("pdftotext", ["-layout", file, "-"], {
+      encoding: "utf-8",
+      timeout: 30000,
+    });
 
   const baseTools: ToolDefinition[] = [
     createDefaultOfficeCliTool({ draftManager }),
     createReadTool({
       draftManager,
-      readOffice: async (file) => {
-        const output = execFileSync("officecli", ["get", file, "--json"], {
-          encoding: "utf-8",
-          timeout: 30000,
-        });
-        return output;
-      },
-      readPdf: async (file) => {
-        return execFileSync("pdftotext", ["-layout", file, "-"], {
-          encoding: "utf-8",
-          timeout: 30000,
-        });
-      },
+      readOffice,
+      readPdf,
     }),
     createWriteTool(),
     createGlobTool(),
-    createGrepTool(),
+    createGrepTool({
+      readOffice,
+      readPdf,
+      officeExtractLimit: config.grep?.officeExtractLimit,
+    }),
     createSkillTool(skillsDir),
   ];
 

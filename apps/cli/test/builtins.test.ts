@@ -287,6 +287,110 @@ describe("grep tool", () => {
     expect(result.success).toBe(true);
     if (result.success) expect(result.output).toBe("No matches found");
   });
+
+  test("searches extracted office and PDF text alongside plain text", async () => {
+    if (!hasRg()) return;
+    const dir = tempDir();
+    writeFileSync(join(dir, "notes.txt"), "plain target\n");
+    writeFileSync(join(dir, "report.docx"), "placeholder");
+    writeFileSync(join(dir, "slides.pptx"), "placeholder");
+    writeFileSync(join(dir, "manual.pdf"), "placeholder");
+    writeFileSync(join(dir, "old.doc"), "placeholder");
+
+    const tool = createGrepTool({
+      readOffice: async (file) =>
+        file.endsWith("report.docx") ? "office target\n" : "no match\n",
+      readPdf: async () => "pdf target\n",
+    });
+    const result = await tool.execute(
+      { query: "target", path: dir },
+      { sessionID: "test" }
+    );
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.output).toContain("plain target");
+      expect(result.output).toContain("report.docx");
+      expect(result.output).toContain("manual.pdf");
+      expect(result.output).toContain("1 legacy");
+      expect(result.output).not.toContain("slides.pptx");
+    }
+  });
+
+  test("reports office extraction files skipped past the limit", async () => {
+    if (!hasRg()) return;
+    const dir = tempDir();
+    writeFileSync(join(dir, "one.docx"), "placeholder");
+    writeFileSync(join(dir, "two.docx"), "placeholder");
+    const extracted: string[] = [];
+    const readOffice = async (file: string) => {
+      extracted.push(file);
+      return "target\n";
+    };
+
+    const tool = createGrepTool({ readOffice, officeExtractLimit: 1 });
+    const result = await tool.execute(
+      { query: "target", path: dir },
+      { sessionID: "test" }
+    );
+
+    expect(result.success).toBe(true);
+    expect(extracted).toHaveLength(1);
+    if (result.success) {
+      expect(result.output).toContain(".docx");
+      expect(result.output).toContain("1 office/PDF files skipped");
+    }
+  });
+
+  test("applies include glob when selecting extracted files", async () => {
+    if (!hasRg()) return;
+    const dir = tempDir();
+    writeFileSync(join(dir, "report.docx"), "placeholder");
+    writeFileSync(join(dir, "manual.pdf"), "placeholder");
+
+    const extracted: string[] = [];
+    const tool = createGrepTool({
+      readOffice: async (file) => {
+        extracted.push(file);
+        return "target\n";
+      },
+      readPdf: async () => "target\n",
+    });
+    const result = await tool.execute(
+      { query: "target", path: dir, include: "*.docx" },
+      { sessionID: "test" }
+    );
+
+    expect(result.success).toBe(true);
+    expect(extracted).toHaveLength(1);
+    if (result.success) {
+      expect(result.output).toContain("report.docx");
+      expect(result.output).not.toContain("manual.pdf");
+    }
+  });
+
+  test("returns no matches cleanly for extracted documents", async () => {
+    if (!hasRg()) return;
+    const dir = tempDir();
+    writeFileSync(join(dir, "report.docx"), "placeholder");
+    writeFileSync(join(dir, "manual.pdf"), "placeholder");
+    writeFileSync(join(dir, "old.doc"), "placeholder");
+
+    const tool = createGrepTool({
+      readOffice: async () => "office text\n",
+      readPdf: async () => "pdf text\n",
+    });
+    const result = await tool.execute(
+      { query: "missing", path: dir },
+      { sessionID: "test" }
+    );
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.output).toContain("No matches found");
+      expect(result.output).toContain("1 legacy");
+    }
+  });
 });
 
 describe("question tool", () => {

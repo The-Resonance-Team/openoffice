@@ -28,6 +28,10 @@ export const OfficeConfigSchema = z.object({
   managedDocumentsFolder: z.string().optional(),
 });
 
+export const GrepConfigSchema = z.object({
+  officeExtractLimit: z.number().int().nonnegative().optional(),
+});
+
 export const CompactionConfigSchema = z.object({
   auto: z.boolean().optional(),
   prune: z.boolean().optional(),
@@ -62,6 +66,7 @@ export const ConfigSchema = z.object({
   agent: z.record(z.string(), AgentConfigSchema).optional(),
   mcp: z.record(z.string(), McpConfigSchema).optional(),
   office: OfficeConfigSchema.optional(),
+  grep: GrepConfigSchema.optional(),
   compaction: CompactionConfigSchema.optional(),
   update: UpdateConfigSchema.optional(),
   share: z.enum(["disabled", "auto"]).optional(),

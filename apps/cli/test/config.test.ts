@@ -24,6 +24,7 @@ describe("config loading", () => {
         },
         mcp: { fs: { type: "local", command: ["npx", "server"] } },
         office: { managedDocumentsFolder: "~/docs" },
+        grep: { officeExtractLimit: 7 },
       })
     );
     const config = resolveConfig({
@@ -36,6 +37,7 @@ describe("config loading", () => {
     expect(config.agent?.main?.tools).toEqual(["office"]);
     expect(config.mcp?.fs?.type).toBe("local");
     expect(config.mcp?.fs?.command).toEqual(["npx", "server"]);
+    expect(config.grep?.officeExtractLimit).toBe(7);
   });
 
   test("missing config falls back to defaults", () => {
