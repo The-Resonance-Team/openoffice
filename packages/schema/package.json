@@ -8,10 +8,12 @@
     ".": "./src/index.ts"
   },
   "scripts": {
+    "lint": "oxlint",
     "typecheck": "tsgo --noEmit"
   },
   "devDependencies": {
     "@types/bun": "^1.3.14",
+    "oxlint": "^1.76.0",
     "typescript": "^6",
     "@typescript/native-preview": "^7.0.0-dev.20260707.2"
   }
