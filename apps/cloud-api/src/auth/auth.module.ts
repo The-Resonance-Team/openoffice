@@ -13,7 +13,7 @@ import { JwtStrategy } from "./jwt.strategy";
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        secret: config.get<string>("jwt.secret"),
+        secret: config.getOrThrow<string>("jwt.secret"),
         // zod-validated string; cast at the config trust boundary
         signOptions: {
           expiresIn: config.get<string>(

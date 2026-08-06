@@ -16,7 +16,7 @@ const envSchema = z.object({
       "postgresql://openoffice:openoffice@127.0.0.1:5435/openoffice_cloud"
     ),
   CORS_ORIGINS: z.string().default(""),
-  JWT_SECRET: z.string().min(8).default("dev-only-secret-change-me"),
+  JWT_SECRET: z.string().min(8),
   JWT_EXPIRES_IN: z.string().default("15m"),
   SWAGGER_ENABLED: z.string().default("false"),
 });
@@ -48,7 +48,7 @@ export default function configuration() {
       .map((origin) => origin.trim())
       .filter(Boolean),
     jwt: {
-      secret: process.env.JWT_SECRET ?? "dev-only-secret-change-me",
+      secret: process.env.JWT_SECRET,
       expiresIn: process.env.JWT_EXPIRES_IN ?? "15m",
     },
     swaggerEnabled: (process.env.SWAGGER_ENABLED ?? "false") === "true",
