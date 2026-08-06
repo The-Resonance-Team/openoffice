@@ -29,6 +29,7 @@
         "dependency-cruiser": "^18.1.0",
         "oxlint": "^1.76.0",
         "typescript": "^6",
+        "yaml": "^2.7.1",
       },
     },
     "apps/cloud-api": {
