@@ -7,12 +7,14 @@ import { createApp, AskChannel } from "../index";
 import { SessionStore, type Session } from "@openoffice/core";
 import { DraftManager } from "@openoffice/core";
 import { HistoryStore } from "@openoffice/core";
+import { ShareStore } from "../../share";
 import type { SessionRuntime } from "../index";
 
 let store: SessionStore;
 let draftManager: DraftManager;
 let history: HistoryStore;
 let askChannel: AskChannel;
+let shareStore: ShareStore;
 
 const fakeRuntime: SessionRuntime = { tools: {} as any, system: "" };
 
@@ -35,6 +37,7 @@ beforeEach(() => {
   mkdirSync(dir, { recursive: true });
   store = new SessionStore(join(dir, "test.db"));
   history = new HistoryStore(dir);
+  shareStore = new ShareStore(store.db);
   draftManager = new DraftManager({
     dataDir: dir,
     history,
@@ -52,6 +55,8 @@ function makeApp(opts: {
     draftManager,
     history,
     askChannel,
+    shareStore,
+    shareMode: "disabled",
     createSession: makeSession,
     buildRuntime: () => fakeRuntime,
     runTurn: async () => ({ text: "ok" }),
@@ -89,7 +94,7 @@ describe("auth wiring", () => {
 });
 
 describe("cors wiring", () => {
-  test("no CORS headers when corsOrigins is omitted", async () => {
+  test("desktop dev origin gets CORS headers by default", async () => {
     const app = makeApp({});
     const res = await app.request("/api/sessions", {
       method: "OPTIONS",
@@ -98,7 +103,9 @@ describe("cors wiring", () => {
         "Access-Control-Request-Method": "POST",
       },
     });
-    expect(res.headers.get("access-control-allow-origin")).toBeNull();
+    expect(res.headers.get("access-control-allow-origin")).toBe(
+      "http://localhost:3000"
+    );
   });
 
   test("allowed origin gets reflected", async () => {

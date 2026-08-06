@@ -38,7 +38,7 @@ import { ShareStore } from "../share";
 import { checkForUpdate } from "../update";
 import { VERSION } from "../version";
 import { randomUUID } from "node:crypto";
-import { loadAuthConfig, authRequired } from "./auth";
+import { loadAuthConfig, authRequired, createAuthMiddleware } from "./auth";
 import { loadCorsOrigins } from "./cors";
 
 import { getDataDir } from "../data-dir";
