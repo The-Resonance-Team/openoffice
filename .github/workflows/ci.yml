@@ -67,8 +67,7 @@ jobs:
           cache: true
           bun-version-file: package.json
       - run: bun install --frozen-lockfile
-      - run: bun test --timeout=30000 --path-ignore-patterns=test/e2e
-        working-directory: apps/cli
+      - run: bun test --timeout=30000 --path-ignore-patterns=apps/cli/test/e2e --path-ignore-patterns=apps/cloud-api --path-ignore-patterns=apps/cloud-web
 
   coverage:
     runs-on: self-hosted
@@ -80,10 +79,8 @@ jobs:
           cache: true
           bun-version-file: package.json
       - run: bun install --frozen-lockfile
-      - run: bun test --timeout=30000 --coverage --coverage-reporter=lcov --path-ignore-patterns=test/e2e
-        working-directory: apps/cli
-      - run: bun run scripts/check-coverage.ts
-        working-directory: apps/cli
+      - run: bun test --timeout=30000 --coverage --coverage-reporter=lcov --path-ignore-patterns=apps/cli/test/e2e --path-ignore-patterns=apps/cloud-api --path-ignore-patterns=apps/cloud-web
+      - run: bun run apps/cli/scripts/check-coverage.ts 45
 
   e2e:
     runs-on: self-hosted
