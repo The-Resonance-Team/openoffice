@@ -1,9 +1,16 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import { navPrimary, pinned, recents } from "@/lib/mock";
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { navPrimary, pinned } from "@/lib/mock";
 import { Icon } from "@/lib/icons";
-import { getUpdateStatus } from "@/lib/api";
+import {
+  getUpdateStatus,
+  listSessions,
+  deleteSession,
+  renameSession,
+  type SessionDto,
+} from "@/lib/api";
 
 const navBase =
   "flex items-center gap-3 rounded-[9px] px-[11px] py-2 text-left text-[14px] font-medium text-muted hover:bg-panel2 hover:text-ink w-full";
@@ -11,16 +18,55 @@ const navBase =
 export function LeftRail({
   onToggleLeftRail,
   width,
+  activeSessionId,
+  onSwitchSession,
+  onNewSession,
 }: {
   onToggleLeftRail: () => void;
   width: number;
+  activeSessionId: string | null;
+  onSwitchSession: (id: string) => void;
+  onNewSession: () => void;
 }) {
+  const queryClient = useQueryClient();
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+
   const { data: updateStatus } = useQuery({
     queryKey: ["update-status"],
     queryFn: getUpdateStatus,
     retry: false,
     refetchInterval: 60_000,
   });
+
+  const { data: sessions = [] } = useQuery({
+    queryKey: ["sessions"],
+    queryFn: listSessions,
+  });
+
+  const renameMutation = useMutation({
+    mutationFn: ({ id, title }: { id: string; title: string }) =>
+      renameSession(id, title),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["sessions"] }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => deleteSession(id),
+    onSuccess: (_result, id) => {
+      queryClient.invalidateQueries({ queryKey: ["sessions"] });
+      if (id === activeSessionId) onNewSession();
+    },
+  });
+
+  function commitRename(id: string, title: string) {
+    setRenamingId(null);
+    const trimmed = title.trim();
+    const current = sessions.find((s) => s.id === id)?.title ?? "";
+    if (trimmed !== current) renameMutation.mutate({ id, title: trimmed });
+  }
+
+  function sessionLabel(session: SessionDto): string {
+    return session.title || "New chat";
+  }
 
   return (
     <aside
@@ -59,12 +105,24 @@ export function LeftRail({
       </div>
 
       <nav className="flex flex-col gap-px px-3 pb-1">
-        {navPrimary.map((it) => (
-          <button key={it.label} type="button" className={navBase}>
-            <Icon name={it.icon} size={18} />
-            <span>{it.label}</span>
-          </button>
-        ))}
+        {navPrimary.map((it) =>
+          it.label === "New" ? (
+            <button
+              key={it.label}
+              type="button"
+              onClick={onNewSession}
+              className={navBase}
+            >
+              <Icon name={it.icon} size={18} />
+              <span>{it.label}</span>
+            </button>
+          ) : (
+            <button key={it.label} type="button" className={navBase}>
+              <Icon name={it.icon} size={18} />
+              <span>{it.label}</span>
+            </button>
+          )
+        )}
       </nav>
 
       <div className="oo-scroll flex-1 overflow-y-auto overflow-x-hidden px-3 py-2">
@@ -85,15 +143,50 @@ export function LeftRail({
             <Icon name="sliders" size={15} />
           </span>
         </div>
-        {recents.map((s) => (
-          <button
-            key={s.label}
-            type="button"
-            className={navBase + (s.active ? " font-semibold text-ink" : "")}
+        {sessions.map((session) => (
+          <div
+            key={session.id}
+            className="group/session flex items-center gap-1"
           >
-            <Icon name={s.icon} size={18} />
-            <span className="oo-el">{s.label}</span>
-          </button>
+            {renamingId === session.id ? (
+              <input
+                autoFocus
+                defaultValue={session.title}
+                onBlur={(e) => commitRename(session.id, e.currentTarget.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter")
+                    commitRename(session.id, e.currentTarget.value);
+                  if (e.key === "Escape") setRenamingId(null);
+                }}
+                className="w-full rounded-[9px] border border-line bg-panel px-[11px] py-2 text-[14px] text-ink outline-none"
+              />
+            ) : (
+              <button
+                type="button"
+                onClick={() => onSwitchSession(session.id)}
+                onDoubleClick={() => setRenamingId(session.id)}
+                className={
+                  navBase +
+                  (session.id === activeSessionId
+                    ? " font-semibold text-ink"
+                    : "")
+                }
+              >
+                <Icon name="msg" size={18} />
+                <span className="oo-el">{sessionLabel(session)}</span>
+              </button>
+            )}
+            {renamingId !== session.id && (
+              <button
+                type="button"
+                title="Delete session"
+                onClick={() => deleteMutation.mutate(session.id)}
+                className="grid h-6 w-6 flex-none place-items-center rounded-md text-faint opacity-0 hover:bg-panel2 hover:text-ink group-hover/session:opacity-100"
+              >
+                <Icon name="x" size={13} />
+              </button>
+            )}
+          </div>
         ))}
       </div>
 

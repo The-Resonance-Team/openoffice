@@ -103,6 +103,21 @@ export function getSession(id: string): Promise<SessionDto> {
   return request(`/api/sessions/${id}`);
 }
 
+export function listSessions(): Promise<SessionDto[]> {
+  return request("/api/sessions");
+}
+
+export function deleteSession(id: string): Promise<{ ok: boolean }> {
+  return request(`/api/sessions/${id}`, { method: "DELETE" });
+}
+
+export function renameSession(id: string, title: string): Promise<SessionDto> {
+  return request(`/api/sessions/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify({ title }),
+  });
+}
+
 export function postTurn(id: string, message: string): Promise<TurnResponse> {
   return request(`/api/sessions/${id}/turn`, {
     method: "POST",

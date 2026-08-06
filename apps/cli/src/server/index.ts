@@ -105,6 +105,34 @@ export function createApp(deps: ServerDeps) {
     return c.json(session);
   });
 
+  app.get("/api/sessions", (c) => {
+    return c.json(deps.store.list());
+  });
+
+  app.patch("/api/sessions/:id", async (c) => {
+    const sessionID = c.req.param("id");
+    const session = deps.store.load(sessionID);
+    if (!session) return c.json({ error: "Session not found" }, 404);
+    const body = await c.req.json().catch(() => ({}));
+    if (typeof body.title !== "string") {
+      return c.json({ error: "title is required" }, 400);
+    }
+    session.title = body.title;
+    session.updatedAt = Date.now();
+    deps.store.save(session);
+    return c.json(session);
+  });
+
+  app.delete("/api/sessions/:id", async (c) => {
+    const sessionID = c.req.param("id");
+    const session = deps.store.load(sessionID);
+    if (!session) return c.json({ error: "Session not found" }, 404);
+    await deps.draftManager.orphanAll(sessionID);
+    deps.store.delete(sessionID);
+    emit("session:end", { sessionID });
+    return c.json({ ok: true });
+  });
+
   app.post("/api/sessions/:id/turn", async (c) => {
     const sessionID = c.req.param("id");
     const session = deps.store.load(sessionID);

@@ -69,9 +69,28 @@ describe("resolveCredential — resolution order", () => {
     expect((thrown as AuthRequiredError).provider).toBe("anthropic");
   });
 
-  test("undeclared provider with no stored credential returns empty (SDK env fallback)", () => {
-    const result = resolveCredential(undefined, "anthropic", store);
-    expect(result).toEqual({});
+  test("undeclared provider with no stored credential and no env var throws AuthRequiredError", () => {
+    const prev = process.env.ANTHROPIC_API_KEY;
+    delete process.env.ANTHROPIC_API_KEY;
+    try {
+      expect(() => resolveCredential(undefined, "anthropic", store)).toThrow(
+        AuthRequiredError
+      );
+    } finally {
+      if (prev !== undefined) process.env.ANTHROPIC_API_KEY = prev;
+    }
+  });
+
+  test("undeclared provider with no stored credential but env var set returns empty (SDK env fallback)", () => {
+    const prev = process.env.ANTHROPIC_API_KEY;
+    process.env.ANTHROPIC_API_KEY = "sk-test";
+    try {
+      const result = resolveCredential(undefined, "anthropic", store);
+      expect(result).toEqual({});
+    } finally {
+      if (prev !== undefined) process.env.ANTHROPIC_API_KEY = prev;
+      else delete process.env.ANTHROPIC_API_KEY;
+    }
   });
 });
 

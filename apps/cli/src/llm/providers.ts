@@ -39,10 +39,18 @@ const providers: Record<string, ProviderFactory> = {
   google: (c) => createGoogle({ apiKey: c.apiKey }),
 };
 
+const PROVIDER_ENV_VAR: Record<string, string> = {
+  anthropic: "ANTHROPIC_API_KEY",
+  openai: "OPENAI_API_KEY",
+  google: "GOOGLE_GENERATIVE_AI_API_KEY",
+};
+
 // Resolution order: an explicit config apiKey (env:-resolved at load) always
 // wins; then a stored Credential from `openoffice auth login`; with neither,
-// a declared provider entry errors clearly, while an undeclared provider falls
-// back to the SDK's own env reading (e.g. ANTHROPIC_API_KEY), unchanged.
+// a declared provider entry errors clearly, and an undeclared provider falls
+// back to the SDK's own env var — but that env var's presence is checked
+// here too, so a missing key surfaces as a clean 401 instead of the AI SDK's
+// own uncaught error deep inside the first streamed request.
 export function resolveCredential(
   providerConfig: ParsedProviderConfig | undefined,
   providerName: string,
@@ -52,13 +60,20 @@ export function resolveCredential(
     return { apiKey: providerConfig.apiKey };
   const credential = store.get(providerName);
   if (credential === undefined) {
+    const envVar = PROVIDER_ENV_VAR[providerName];
+    if (envVar !== undefined && process.env[envVar] !== undefined) {
+      return {};
+    }
     if (providerConfig !== undefined) {
       throw new AuthRequiredError(
         providerName,
         `Provider "${providerName}": no credential. Set \`provider.${providerName}.apiKey\` in config (or export the env: variable it references), or run \`openoffice auth login ${providerName}\`.`
       );
     }
-    return {};
+    throw new AuthRequiredError(
+      providerName,
+      `Provider "${providerName}": no credential. Export ${envVar ?? "the provider's API key env var"}, or run \`openoffice auth login ${providerName}\`.`
+    );
   }
   if (credential.type === "api") return { apiKey: credential.key };
   if (credential.expires !== undefined && credential.expires <= Date.now()) {

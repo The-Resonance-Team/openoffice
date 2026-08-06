@@ -1,0 +1,9 @@
+{
+  "model": "openai/deepseek-v4-flash",
+  "provider": {
+    "openai": {
+      "baseURL": "env:LLM_BASE_URL",
+      "apiKey": "env:LLM_API_KEY"
+    }
+  }
+}
