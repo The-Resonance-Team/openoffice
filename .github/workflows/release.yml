@@ -11,19 +11,24 @@ on:
         options: [major, minor, patch]
         default: patch
 
+concurrency:
+  group: release
+
 permissions:
   contents: write
 
 jobs:
   release:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: oven-sh/setup-bun@v2
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           cache: true
+          bun-version-file: package.json
       - run: bun install --frozen-lockfile
 
       - name: Bump version
@@ -47,5 +52,13 @@ jobs:
           git push
           git push origin "v$NEW_VERSION"
 
-      # build.yml takes over from here: it runs on the tag push and is the
-      # only writer of the GitHub Release (binaries, SHA256SUMS, npm publish).
+      # Tag pushes made with GITHUB_TOKEN never trigger other workflows, so
+      # build.yml cannot rely on `push: tags` here. workflow_dispatch is the
+      # documented exception that always creates a run — invoke it explicitly.
+      - name: Dispatch build.yml
+        run: gh workflow run build.yml --ref "v$NEW_VERSION" -f version="v$NEW_VERSION"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      # build.yml takes over from here (dispatched above); it is the only
+      # writer of the GitHub Release (binaries, SHA256SUMS, npm publish).

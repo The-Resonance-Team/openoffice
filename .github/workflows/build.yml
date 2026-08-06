@@ -3,6 +3,12 @@ name: build
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to release (e.g. v0.2.0)
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -10,6 +16,7 @@ permissions:
 
 jobs:
   build-release:
+    timeout-minutes: 60
     # macOS runner needed only for codesign/notarytool; all targets are
     # cross-compiled, so the newest image works fine and cannot go stale.
     runs-on: macos-latest
@@ -25,16 +32,17 @@ jobs:
       HAS_AZURE: ${{ secrets.AZURE_CLIENT_ID != '' }}
       HAS_NPM: ${{ secrets.NPM_TOKEN != '' }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           cache: true
+          bun-version-file: package.json
       - run: bun install --frozen-lockfile
         working-directory: .
 
       - name: Build CLI binaries (all platforms)
         run: |
-          VERSION=$(echo "${{ github.ref_name }}" | sed 's/^v//')
+          VERSION=$(echo "${{ inputs.version || github.ref_name }}" | sed 's/^v//')
           for target in darwin-arm64 darwin-x64 linux-arm64 linux-x64 windows-x64; do
             bun build --compile src/index.ts \
               --target="bun-$target" \
