@@ -269,7 +269,7 @@ describe("server API", () => {
     const first = await post(app, "/api/sessions", { cwd: "/tmp" });
     const second = await post(app, "/api/sessions", { cwd: "/tmp" });
     let promptID = "";
-    const { on } = await import("../../events");
+    const { on } = await import("@openoffice/core");
     const off = on("session:ask", (d) => {
       if (d.sessionID === first.json.id) promptID = d.promptID;
     });
