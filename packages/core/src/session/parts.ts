@@ -3,85 +3,23 @@
 // Sessions persist as WithParts rows; the AI SDK boundary conversion lives in
 // ./ai-messages (ADR 0023).
 
-export type Role = "user" | "assistant" | "tool" | "system";
+// The part data model lives in @openoffice/schema; this module keeps the
+// behavior over it (estimates, summaries, turn boundaries).
+import type { TextPart, ToolPart, WithParts } from "@openoffice/schema";
 
-export interface ModelRef {
-  providerID: string;
-  modelID: string;
-  variant?: string;
-}
-
-export interface TokenUsage {
-  input: number;
-  output: number;
-}
-
-export interface MessageInfo {
-  id: string;
-  role: Role;
-  parentID?: string;
-  agent?: string;
-  model?: ModelRef;
-  summary?: boolean;
-  finish?: "done" | "error";
-  error?: { message: string };
-  time: { created: number };
-  tokens?: TokenUsage;
-}
-
-export interface PartBase {
-  id?: string;
-  type: string;
-  messageID?: string;
-  time?: { start?: number; end?: number };
-}
-
-export interface TextPart extends PartBase {
-  type: "text";
-  text: string;
-  synthetic?: boolean;
-  metadata?: Record<string, unknown>;
-}
-
-export type ToolState =
-  | {
-      status: "pending";
-      input: string | Record<string, unknown>;
-      time?: { compacted?: number };
-    }
-  | {
-      status: "completed";
-      input: string | Record<string, unknown>;
-      output: string;
-      time?: { compacted?: number };
-    }
-  | {
-      status: "error";
-      input: string | Record<string, unknown>;
-      error: { message: string };
-      time?: { compacted?: number };
-    };
-
-export interface ToolPart extends PartBase {
-  type: "tool";
-  tool: string;
-  callID?: string;
-  state: ToolState;
-}
-
-export interface CompactionPart extends PartBase {
-  type: "compaction";
-  auto: boolean;
-  overflow?: boolean;
-  tail_start_id?: string;
-}
-
-export type Part = TextPart | ToolPart | CompactionPart;
-
-export interface WithParts {
-  info: MessageInfo;
-  parts: Part[];
-}
+export type {
+  Role,
+  ModelRef,
+  TokenUsage,
+  MessageInfo,
+  PartBase,
+  TextPart,
+  ToolState,
+  ToolPart,
+  CompactionPart,
+  Part,
+  WithParts,
+} from "@openoffice/schema";
 
 // opencode's Token.estimate: ~4 chars per token, cheap, no tokenizer.
 export function estimateTokens(value: unknown): number {

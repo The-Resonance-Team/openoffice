@@ -3,17 +3,14 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { execFileSync } from "node:child_process";
-import { resolveConfig } from "../config";
 import {
+  resolveConfig,
   SessionStore,
   runTurn,
   buildSystemPrompt,
   type Session,
-} from "../session";
-import { HistoryStore } from "../history";
-import { DraftManager } from "../draft";
-import { AskChannel, createApp, type SessionRuntime } from "./index";
-import {
+  HistoryStore,
+  DraftManager,
   ToolRegistry,
   createConvertTool,
   createGlobTool,
@@ -22,25 +19,25 @@ import {
   createReadTool,
   createWriteTool,
   type ToolDefinition,
-} from "../tool";
-import { AgentRegistry } from "../agent";
-import { createDefaultOfficeCliTool } from "../office";
-import { createSkillTool } from "../skills";
-import { McpManager } from "../mcp";
-import { createSdkMcpClient, planMcpConnections } from "../mcp/sdk-client";
+  AgentRegistry,
+  createDefaultOfficeCliTool,
+  createSkillTool,
+  McpManager,
+  createSdkMcpClient,
+  planMcpConnections,
+  setSensitiveValues,
+  collectEnvValues,
+  applyEnvOverrides,
+  findProjectConfig,
+  loadConfigFiles,
+  mergeLayers,
+} from "@openoffice/core";
+import { AskChannel, createApp, type SessionRuntime } from "./index";
 import { checkForUpdate } from "../update";
 import { VERSION } from "../version";
 import { randomUUID } from "node:crypto";
 import { loadAuthConfig, authRequired } from "./auth";
 import { loadCorsOrigins } from "./cors";
-import { setSensitiveValues } from "../events";
-import { collectEnvValues } from "../config";
-import {
-  applyEnvOverrides,
-  findProjectConfig,
-  loadConfigFiles,
-  mergeLayers,
-} from "../config/loader";
 
 import { getDataDir } from "../data-dir";
 export { getDataDir } from "../data-dir";
@@ -285,7 +282,7 @@ export async function startDaemon(): Promise<DaemonHandle> {
   const sensitiveSet = collectEnvValues(applyEnvOverrides(rawConfig, env), env);
   // Also collect stored credentials from auth.json.
   try {
-    const { CredentialStore } = await import("../auth/store");
+    const { CredentialStore } = await import("@openoffice/core");
     const store = new CredentialStore();
     for (const provider of store.list()) {
       const cred = store.get(provider);

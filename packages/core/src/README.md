@@ -1,4 +1,4 @@
-# src/ — deep modules
+# packages/core/src — deep modules
 
 Each immediate child of `src/` (`agent/`, `config/`, `llm/`, `tool/`, `session/`, `mcp/`, `office/`, `events/`) is a **deep module**: a lot of behaviour behind a small interface. Its **entry points** are its root files — import those from outside. Everything in a subfolder (`lib/`, …) is private.
 
@@ -25,7 +25,7 @@ src/<domain>/
 bun run lint:boundaries
 ```
 
-Runs `depcruise src` (also in the pre-commit hook). Violations are reported with the rule name that bit.
+Runs `bun run lint:boundaries` at the repo root (also in the pre-commit hook). Violations are reported with the rule name that bit.
 
 ## No barrels
 

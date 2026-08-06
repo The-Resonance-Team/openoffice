@@ -2,8 +2,8 @@ import { describe, expect, test } from "bun:test";
 import { mkdtempSync, writeFileSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { loadSkill, listSkills, type Skill } from "../src/skills";
-import { createSkillTool } from "../src/skills/tool";
+import { loadSkill, listSkills, type Skill } from "@openoffice/core";
+import { createSkillTool } from "@openoffice/core";
 
 function tempDir(): string {
   return mkdtempSync(join(tmpdir(), "openoffice-test-"));
@@ -122,7 +122,7 @@ Content`
 
 describe("formatSkillList", () => {
   test("formats skills as XML", () => {
-    const { formatSkillList } = require("../src/skills/loader");
+    const { formatSkillList } = require("@openoffice/core");
     const skills: Skill[] = [
       { name: "officecli", description: "Office document tool", content: "" },
       { name: "firecrawl", description: "Web scraping", content: "" },

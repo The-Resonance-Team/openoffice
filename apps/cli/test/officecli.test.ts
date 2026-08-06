@@ -11,9 +11,9 @@ import {
 } from "node:fs";
 import { join, dirname } from "node:path";
 import { tmpdir } from "node:os";
-import { createOfficeCliTool, isMutating, parseError } from "../src/office";
-import { DraftManager } from "../src/draft";
-import { HistoryStore } from "../src/history";
+import { createOfficeCliTool, isMutating, parseError } from "@openoffice/core";
+import { DraftManager } from "@openoffice/core";
+import { HistoryStore } from "@openoffice/core";
 
 describe("isMutating", () => {
   test("set is mutating", () => expect(isMutating("set")).toBe(true));

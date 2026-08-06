@@ -1,16 +1,7 @@
 import { redact } from "./redact";
+import type { EventMap } from "@openoffice/protocol";
 
-export type EventMap = {
-  "llm:token": { sessionID: string; token: string };
-  "llm:done": { sessionID: string; response: string };
-  "tool:start": { sessionID: string; tool: string; params: unknown };
-  "tool:done": { sessionID: string; tool: string; result: unknown };
-  "session:create": { sessionID: string };
-  "session:message": { sessionID: string; role: string; content: string };
-  "session:compacted": { sessionID: string };
-  "session:ask": { sessionID: string; promptID: string; question: string };
-  "session:end": { sessionID: string };
-};
+export type { EventMap } from "@openoffice/protocol";
 
 type Listeners = { [K in keyof EventMap]: Set<(data: EventMap[K]) => void> };
 

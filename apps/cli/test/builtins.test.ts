@@ -9,7 +9,7 @@ import {
   createGlobTool,
   createGrepTool,
   createQuestionTool,
-} from "../src/tool";
+} from "@openoffice/core";
 
 function hasRg(): boolean {
   try {

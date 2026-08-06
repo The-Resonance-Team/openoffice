@@ -4,9 +4,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { createApp, AskChannel } from "../index";
-import { SessionStore, type Session } from "../../session";
-import { DraftManager } from "../../draft";
-import { HistoryStore } from "../../history";
+import { SessionStore, type Session } from "@openoffice/core";
+import { DraftManager } from "@openoffice/core";
+import { HistoryStore } from "@openoffice/core";
 import type { SessionRuntime } from "../index";
 
 let store: SessionStore;

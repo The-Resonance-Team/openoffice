@@ -4,10 +4,10 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { randomUUID } from "node:crypto";
 import { createApp, AskChannel } from "../index";
-import { SessionStore, type Session } from "../../session";
-import { DraftManager, filePathHash } from "../../draft";
-import { HistoryStore } from "../../history";
-import { AuthRequiredError } from "../../llm";
+import { SessionStore, type Session } from "@openoffice/core";
+import { DraftManager, filePathHash } from "@openoffice/core";
+import { HistoryStore } from "@openoffice/core";
+import { AuthRequiredError } from "@openoffice/core";
 import type { SessionRuntime } from "../index";
 
 let dir: string;
@@ -242,7 +242,7 @@ describe("server API", () => {
     const created = await post(app, "/api/sessions", { cwd: "/tmp" });
     const id = created.json.id;
 
-    const { on } = await import("../../events");
+    const { on } = await import("@openoffice/core");
     let promptID = "";
     const off = on("session:ask", (d) => {
       if (d.sessionID === id) promptID = d.promptID;
@@ -269,7 +269,7 @@ describe("server API", () => {
     const reader = res.body!.getReader();
     const decoder = new TextDecoder();
 
-    const { emit } = await import("../../events");
+    const { emit } = await import("@openoffice/core");
     emit("llm:token", { sessionID: id, token: "Hello" });
 
     const { value } = (await Promise.race([

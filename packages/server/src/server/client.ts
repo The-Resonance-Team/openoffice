@@ -1,15 +1,13 @@
 import { getDataDir, readDaemonInfo, isAlive, spawnDaemon } from "./daemon";
 import { loadAuthConfig, authHeaders } from "./auth";
-import type { Session } from "../session";
+import type { Session } from "@openoffice/schema";
+import type {
+  DaemonClient,
+  StreamHandlers,
+  UpdateStatus,
+} from "@openoffice/protocol";
 
-export interface StreamHandlers {
-  token?: (token: string) => void;
-  done?: (response: string) => void;
-  toolStart?: (tool: string, params: unknown) => void;
-  toolDone?: (tool: string, result: unknown) => void;
-  message?: (role: string, content: string) => void;
-  ask?: (promptID: string, question: string) => Promise<void> | void;
-}
+export type { StreamHandlers, UpdateStatus } from "@openoffice/protocol";
 
 export async function connectClient(): Promise<OpenOfficeClient> {
   const dataDir = getDataDir();
@@ -21,7 +19,7 @@ export async function connectClient(): Promise<OpenOfficeClient> {
   return new OpenOfficeClient(`http://127.0.0.1:${info.port}`, auth);
 }
 
-export class OpenOfficeClient {
+export class OpenOfficeClient implements DaemonClient {
   private auth: ReturnType<typeof loadAuthConfig>;
 
   constructor(

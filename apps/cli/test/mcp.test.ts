@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { McpManager, type McpClient } from "../src/mcp";
+import { McpManager, type McpClient } from "@openoffice/core";
 
 function createMockClient(
   tools: Array<{ name: string; description: string }> = []

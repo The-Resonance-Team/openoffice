@@ -1,13 +1,18 @@
 import { createInterface } from "node:readline";
 import { basename } from "node:path";
-import { connectClient } from "./server/client";
-import { startDaemon } from "./server/daemon";
-import { cleanupPendingUpdate, performUpdate } from "./update";
-import { VERSION } from "./version";
-import { CredentialStore } from "./auth/store";
-import { login } from "./auth/login";
-import { resolveConfig } from "./config";
-import { BUILTIN_PROVIDERS } from "./llm";
+import {
+  connectClient,
+  startDaemon,
+  cleanupPendingUpdate,
+  performUpdate,
+  VERSION,
+} from "@openoffice/server";
+import {
+  CredentialStore,
+  login,
+  resolveConfig,
+  BUILTIN_PROVIDERS,
+} from "@openoffice/core";
 
 const HELP = `openoffice ${VERSION} — an LLM agent CLI for office document work.
 

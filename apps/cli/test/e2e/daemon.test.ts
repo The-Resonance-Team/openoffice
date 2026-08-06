@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { spawn } from "node:child_process";
-import { OpenOfficeClient } from "../../src/server/client";
+import { OpenOfficeClient } from "@openoffice/server";
 import {
   startFakeLLM,
   fakeConfig,
