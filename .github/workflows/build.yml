@@ -126,12 +126,6 @@ jobs:
           node-version: 22
           registry-url: https://registry.npmjs.org
 
-      # README.md and LICENSE stay at the repo root; the published tarball
-      # lists them in "files", so copy them in right before packing.
-      - name: Stage package docs
-        if: env.HAS_NPM == 'true'
-        run: cp ../../README.md ../../LICENSE .
-
       - name: Publish npm package
         if: env.HAS_NPM == 'true'
         env:
