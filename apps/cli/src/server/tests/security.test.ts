@@ -52,6 +52,13 @@ function makeApp(opts: {
     draftManager,
     history,
     askChannel,
+    shareStore: {
+      get: () => null,
+      create: () => "tok",
+      revoke: () => {},
+      findByToken: () => null,
+    } as any,
+    shareMode: "disabled" as const,
     createSession: makeSession,
     buildRuntime: () => fakeRuntime,
     runTurn: async () => ({ text: "ok" }),

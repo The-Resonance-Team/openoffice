@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { execFileSync } from "node:child_process";
-import { resolveConfig } from "../config";
+import { resolveConfig, shareMode } from "../config";
 import {
   SessionStore,
   runTurn,
@@ -12,6 +12,7 @@ import {
 } from "../session";
 import { HistoryStore } from "../history";
 import { DraftManager } from "../draft";
+import { ShareStore } from "../share";
 import { AskChannel, createApp, type SessionRuntime } from "./index";
 import {
   ToolRegistry,
@@ -103,6 +104,7 @@ export async function startDaemon(): Promise<DaemonHandle> {
   const store = new SessionStore(join(dataDir, "openoffice.db"));
   const history = new HistoryStore(dataDir);
   const askChannel = new AskChannel();
+  const shareStore = new ShareStore(store.db);
 
   const draftManager = new DraftManager({
     dataDir,
@@ -244,6 +246,8 @@ export async function startDaemon(): Promise<DaemonHandle> {
     draftManager,
     history,
     askChannel,
+    shareStore,
+    shareMode: shareMode(config),
     createSession: (cwd) => {
       const now = Date.now();
       return {

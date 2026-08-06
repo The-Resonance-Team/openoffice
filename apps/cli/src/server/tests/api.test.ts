@@ -7,6 +7,7 @@ import { createApp, AskChannel } from "../index";
 import { SessionStore, type Session } from "../../session";
 import { DraftManager, filePathHash } from "../../draft";
 import { HistoryStore } from "../../history";
+import { ShareStore } from "../../share";
 import { AuthRequiredError } from "../../llm";
 import type { SessionRuntime } from "../index";
 
@@ -60,6 +61,8 @@ function makeApp() {
     draftManager,
     history,
     askChannel,
+    shareStore: new ShareStore(store.db),
+    shareMode: "disabled",
     createSession: makeSession,
     buildRuntime: () => fakeRuntime,
     runTurn: fakeRunTurn,
@@ -202,6 +205,8 @@ describe("server API", () => {
       draftManager,
       history,
       askChannel,
+      shareStore: new ShareStore(store.db),
+      shareMode: "disabled",
       createSession: makeSession,
       buildRuntime: () => fakeRuntime,
       runTurn: async () => {
