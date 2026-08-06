@@ -1,3 +1,9 @@
 node_modules/
 dist/
 coverage/
+.turbo/
+.next/
+out/
+next-env.d.ts
+.env
+.env.*

@@ -39,6 +39,20 @@ jobs:
       - run: bun run lint
       - run: bun run lint:boundaries
 
+  build-web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          cache: true
+          bun-version-file: package.json
+      - run: bun install --frozen-lockfile
+      - run: bun run turbo run build --filter=web
+        env:
+          NEXT_PUBLIC_OPENOFFICE_SERVER_PORT: "9999"
+
   unit:
     strategy:
       fail-fast: false
@@ -54,6 +68,7 @@ jobs:
           bun-version-file: package.json
       - run: bun install --frozen-lockfile
       - run: bun test --timeout=30000 --path-ignore-patterns=test/e2e
+        working-directory: apps/cli
 
   coverage:
     runs-on: self-hosted
@@ -66,7 +81,9 @@ jobs:
           bun-version-file: package.json
       - run: bun install --frozen-lockfile
       - run: bun test --timeout=30000 --coverage --coverage-reporter=lcov --path-ignore-patterns=test/e2e
+        working-directory: apps/cli
       - run: bun run scripts/check-coverage.ts
+        working-directory: apps/cli
 
   e2e:
     runs-on: self-hosted
@@ -83,3 +100,4 @@ jobs:
           curl -fsSL https://d.officecli.ai/install.sh | bash
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - run: bun test --timeout=60000 test/e2e/
+        working-directory: apps/cli

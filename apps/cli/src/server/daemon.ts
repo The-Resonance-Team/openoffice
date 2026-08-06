@@ -32,7 +32,8 @@ import { createSdkMcpClient, planMcpConnections } from "../mcp/sdk-client";
 import { checkForUpdate } from "../update";
 import { VERSION } from "../version";
 import { randomUUID } from "node:crypto";
-import { loadAuthConfig, createAuthMiddleware } from "./auth";
+import { loadAuthConfig, authRequired } from "./auth";
+import { loadCorsOrigins } from "./cors";
 import { setSensitiveValues } from "../events";
 import { collectEnvValues } from "../config";
 import {
@@ -230,7 +231,17 @@ export async function startDaemon(): Promise<DaemonHandle> {
     return runtime;
   };
 
+  const authConfig = loadAuthConfig();
+  const corsOrigins = loadCorsOrigins();
+  if (corsOrigins.length > 0 && !authRequired(authConfig)) {
+    console.warn(
+      `warning: CORS is enabled for ${corsOrigins.join(", ")} but no OPENOFFICE_SERVER_PASSWORD is set — those origins can drive this daemon unauthenticated.`
+    );
+  }
+
   const { app } = createApp({
+    auth: authConfig,
+    corsOrigins,
     store,
     draftManager,
     history,
@@ -267,10 +278,6 @@ export async function startDaemon(): Promise<DaemonHandle> {
       }
       return checkForUpdate(VERSION, dataDir);
     },
-    // Auth middleware: enforce OPENOFFICE_SERVER_PASSWORD if set. Mounted
-    // inside createApp — registering it here after createApp() would be a
-    // no-op: Hono only applies middleware registered before its routes.
-    authMiddleware: createAuthMiddleware(loadAuthConfig()),
   });
 
   // Collect sensitive values from env:-resolved config for event redaction.
@@ -300,10 +307,12 @@ export async function startDaemon(): Promise<DaemonHandle> {
   }
   setSensitiveValues(sensitiveSet);
 
+  // 0 lets the OS pick and the port file is the source of truth; a browser
+  // client cannot read that file, so it needs a fixed port it can be told.
   const server = Bun.serve({
     hostname: "127.0.0.1",
     fetch: app.fetch,
-    port: 0,
+    port: Number(process.env.OPENOFFICE_SERVER_PORT ?? 0) || 0,
   });
 
   writeFileSync(

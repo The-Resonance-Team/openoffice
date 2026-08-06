@@ -32,6 +32,12 @@ jobs:
         with:
           model: opencode/deepseek-v4-flash-free
           use_github_token: true
+          prompt: |
+            Review this pull request:
+            - Check for bugs and code quality issues
+            - Verify the code follows the repository conventions: CONTEXT.md vocabulary, docs/adr/ decisions, and apps/cli/src/README.md deep-module boundaries
+            - Check that tests cover the changed behavior
+            - Keep suggestions optional — the human decides
 
   comment:
     if: |

@@ -1,4 +1,2 @@
 bunx lint-staged
-bun run lint:boundaries
-bun run typecheck
-bun run test
+bun run turbo run lint:boundaries typecheck test

@@ -58,6 +58,6 @@ daemon (`pkill -f "openoffice serve"`).
 
 ## Coverage gate fails in CI
 
-`bun test --coverage` enforces ≥80% line coverage across `src/`. Add tests
+`bun test --coverage` (run from `apps/cli`) enforces ≥80% line coverage across `apps/cli/src/`. Add tests
 for the uncovered modules (the gate prints the worst offenders) rather than
 relaxing the threshold.

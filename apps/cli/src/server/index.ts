@@ -1,6 +1,5 @@
 import { Hono } from "hono";
-import type { Context, MiddlewareHandler } from "hono";
-import { cors } from "hono/cors";
+import type { Context } from "hono";
 import { streamSSE } from "hono/streaming";
 import { randomUUID } from "node:crypto";
 import { extname } from "node:path";
@@ -11,6 +10,8 @@ import { filePathHash, type DraftManager } from "../draft";
 import type { HistoryStore } from "../history";
 import type { UpdateStatus } from "../update";
 import { AuthRequiredError } from "../llm";
+import { createAuthMiddleware, type ServerAuthConfig } from "./auth";
+import { createCorsMiddleware } from "./cors";
 import type { ShareStore } from "../share";
 import { shareViewerPage } from "../share";
 import type { ShareMode } from "../config";
@@ -63,10 +64,10 @@ export interface ServerDeps {
     store: SessionStore
   ) => Promise<{ text: string }>;
   updateStatus?: () => Promise<UpdateStatus>;
-  // Daemon auth (Basic). MUST be passed in, not mounted after createApp
-  // returns: Hono only applies middleware registered before the routes it
-  // guards. Scoped to /api/* so /share/* stays token-gated.
-  authMiddleware?: MiddlewareHandler;
+  /** Basic auth. Omit (or pass a null password) to run the daemon unguarded. */
+  auth?: ServerAuthConfig;
+  /** Allowed browser origins. Empty (the default) sends no CORS headers. */
+  corsOrigins?: string[];
 }
 
 // Share URLs are scoped to the daemon's own address (the request's Host), so
@@ -100,26 +101,15 @@ export async function endSession(
 export function createApp(deps: ServerDeps) {
   const app = new Hono();
 
-  // CORS for desktop GUI clients: the Tauri webview runs on a non-loopback
-  // origin (tauri://localhost on macOS/Linux, http://tauri.localhost on
-  // Windows) and dev-mode Vite serves from localhost:<port>. Everything else
-  // is rejected — the daemon stays loopback-only and token-free by default.
-  app.use(
-    "/api/*",
-    cors({
-      origin: (origin) =>
-        origin === "tauri://localhost" ||
-        origin === "http://tauri.localhost" ||
-        origin === "https://tauri.localhost" ||
-        /^http:\/\/localhost:\d+$/.test(origin)
-          ? origin
-          : null,
-      allowHeaders: ["content-type", "authorization"],
-      maxAge: 600,
-    })
-  );
-
-  if (deps.authMiddleware) app.use("/api/*", deps.authMiddleware);
+  // Cross-cutting middleware must be registered before any route: a Hono
+  // route handler is terminal, so middleware added afterwards never runs.
+  // CORS goes first so that preflight OPTIONS is answered without auth.
+  if (deps.corsOrigins && deps.corsOrigins.length > 0) {
+    app.use("*", createCorsMiddleware(deps.corsOrigins));
+  }
+  if (deps.auth) {
+    app.use("/api/*", createAuthMiddleware(deps.auth));
+  }
 
   // Per-session turn mutex: one turn at a time, queued.
   const turnQueues = new Map<string, Promise<unknown>>();
@@ -169,6 +159,30 @@ export function createApp(deps: ServerDeps) {
       ...session,
       share: token ? { url: shareUrl(c, token) } : null,
     });
+  });
+
+  app.patch("/api/sessions/:id", async (c) => {
+    const sessionID = c.req.param("id");
+    const session = deps.store.load(sessionID);
+    if (!session) return c.json({ error: "Session not found" }, 404);
+    const body = await c.req.json().catch(() => ({}));
+    if (typeof body.title !== "string") {
+      return c.json({ error: "title is required" }, 400);
+    }
+    session.title = body.title;
+    session.updatedAt = Date.now();
+    deps.store.save(session);
+    return c.json(session);
+  });
+
+  app.delete("/api/sessions/:id", async (c) => {
+    const sessionID = c.req.param("id");
+    const session = deps.store.load(sessionID);
+    if (!session) return c.json({ error: "Session not found" }, 404);
+    await deps.draftManager.orphanAll(sessionID);
+    deps.store.delete(sessionID);
+    emit("session:end", { sessionID });
+    return c.json({ ok: true });
   });
 
   app.post("/api/sessions/:id/turn", async (c) => {

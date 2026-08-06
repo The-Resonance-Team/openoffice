@@ -10,11 +10,18 @@ type Workflow = {
   on?: Record<string, unknown>;
 };
 
-const DIR = ".github/workflows";
+const DIR = "../../.github/workflows";
 const workflowFiles = readdirSync(DIR).filter((f) => f.endsWith(".yml"));
 
 const EXPECTED_TIMEOUTS: Record<string, Record<string, number>> = {
-  "ci.yml": { typecheck: 10, lint: 10, unit: 15, coverage: 15, e2e: 20 },
+  "ci.yml": {
+    typecheck: 10,
+    lint: 10,
+    unit: 15,
+    coverage: 15,
+    e2e: 20,
+    "build-web": 10,
+  },
   "build.yml": { "build-release": 60 },
   "release.yml": { release: 10 },
   "opencode.yml": { review: 20, comment: 20 },

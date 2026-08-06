@@ -19,7 +19,12 @@ jobs:
     timeout-minutes: 60
     # macOS runner needed only for codesign/notarytool; all targets are
     # cross-compiled, so the newest image works fine and cannot go stale.
-    runs-on: macos-latest
+    runs-on: self-hosted
+    defaults:
+      run:
+        # Every path below (src, dist, entitlements, package.json) belongs to
+        # the CLI workspace; only action inputs still need the apps/cli prefix.
+        working-directory: apps/cli
     env:
       # Signing/publishing activate when the secrets exist; the shakedown
       # release ships unsigned until they do.
@@ -33,6 +38,7 @@ jobs:
           cache: true
           bun-version-file: package.json
       - run: bun install --frozen-lockfile
+        working-directory: .
 
       - name: Build CLI binaries (all platforms)
         run: |
@@ -101,7 +107,7 @@ jobs:
           endpoint: ${{ vars.TRUSTED_SIGNING_ENDPOINT }}
           trusted-signing-account-name: ${{ vars.TRUSTED_SIGNING_ACCOUNT }}
           certificate-profile-name: ${{ vars.TRUSTED_SIGNING_CERT_PROFILE }}
-          files: dist/openoffice-windows-x64.exe
+          files: apps/cli/dist/openoffice-windows-x64.exe
 
       # ---- Release + npm ----
       - name: Generate SHA256SUMS

@@ -4,7 +4,6 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { createApp, AskChannel } from "../index";
-import { createAuthMiddleware } from "../auth";
 import { SessionStore, type Session } from "../../session";
 import { DraftManager } from "../../draft";
 import { HistoryStore } from "../../history";
@@ -43,9 +42,7 @@ function makeApp(shareMode: ShareMode = "auto", auth = false) {
     askChannel,
     shareStore,
     shareMode,
-    authMiddleware: auth
-      ? createAuthMiddleware({ username: "openoffice", password: "secret" })
-      : undefined,
+    auth: auth ? { username: "openoffice", password: "secret" } : undefined,
     createSession: makeSession,
     buildRuntime: () => fakeRuntime,
     runTurn: async () => ({ text: "ok" }),

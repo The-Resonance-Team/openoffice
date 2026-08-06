@@ -33,18 +33,20 @@ jobs:
 
       - name: Bump version
         run: |
-          NEW_VERSION=$(bun -e 'const p=require("./package.json");const i={major:0,minor:1,patch:2}[process.argv[1]];const v=p.version.split(".").map(Number);v[i]++;for(let j=i+1;j<3;j++)v[j]=0;console.log(v.join("."))' "${{ inputs.bump }}")
+          NEW_VERSION=$(bun -e 'const p=require("./apps/cli/package.json");const i={major:0,minor:1,patch:2}[process.argv[1]];const v=p.version.split(".").map(Number);v[i]++;for(let j=i+1;j<3;j++)v[j]=0;console.log(v.join("."))' "${{ inputs.bump }}")
           echo "NEW_VERSION=$NEW_VERSION" >> "$GITHUB_ENV"
 
+      # The published version lives in apps/cli/package.json; the workspace
+      # root is private and carries no version.
       - name: Update package.json
         run: |
-          bun -e 'const fs=require("fs");const p=JSON.parse(fs.readFileSync("package.json","utf8"));p.version=process.env.NEW_VERSION;fs.writeFileSync("package.json",JSON.stringify(p,null,2)+"\n")'
+          bun -e 'const fs=require("fs");const f="apps/cli/package.json";const p=JSON.parse(fs.readFileSync(f,"utf8"));p.version=process.env.NEW_VERSION;fs.writeFileSync(f,JSON.stringify(p,null,2)+"\n")'
 
       - name: Commit and tag
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add package.json bun.lock
+          git add apps/cli/package.json bun.lock
           git commit -m "v$NEW_VERSION"
           git tag "v$NEW_VERSION"
           git push
