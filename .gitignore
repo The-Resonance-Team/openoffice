@@ -5,3 +5,8 @@ coverage/
 .next/
 out/
 next-env.d.ts
+
+# cloud-api
+apps/cloud-api/.env
+apps/cloud-api/src/generated/
+*.tsbuildinfo

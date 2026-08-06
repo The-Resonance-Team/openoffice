@@ -1,5 +1,5 @@
 import { Test, TestingModule } from "@nestjs/testing";
-import { INestApplication } from "@nestjs/common";
+import { INestApplication, VersioningType } from "@nestjs/common";
 import request from "supertest";
 import { App } from "supertest/types";
 import { AppModule } from "./../src/app.module";
@@ -13,14 +13,22 @@ describe("AppController (e2e)", () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
+    // Mirrors src/main.ts bootstrap
+    app.enableVersioning({ type: VersioningType.URI, defaultVersion: "1" });
     await app.init();
   });
 
-  it("/ (GET)", () => {
+  it("/health (GET) — public liveness, requires local Postgres (docker compose up -d postgres)", () => {
     return request(app.getHttpServer())
-      .get("/")
+      .get("/v1/health")
       .expect(200)
-      .expect("Hello World!");
+      .expect((res) => {
+        expect((res.body as { status: string }).status).toBe("ok");
+      });
+  });
+
+  it("everything else (GET /v1) requires a JWT", () => {
+    return request(app.getHttpServer()).get("/v1").expect(401);
   });
 
   afterEach(async () => {
