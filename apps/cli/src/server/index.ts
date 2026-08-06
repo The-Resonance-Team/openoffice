@@ -1,6 +1,5 @@
 import { Hono } from "hono";
-import type { Context, MiddlewareHandler } from "hono";
-import { cors } from "hono/cors";
+import type { Context } from "hono";
 import { streamSSE } from "hono/streaming";
 import { randomUUID } from "node:crypto";
 import { extname } from "node:path";
