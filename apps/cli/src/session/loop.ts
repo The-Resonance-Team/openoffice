@@ -99,19 +99,25 @@ export async function runTurn(options: RunTurnOptions) {
   // Build AI tools with event emission
   const aiTools = tools?.toAIToolsWithEvents(session.id, session.cwd);
 
-  // Call LLM
+  // Call LLM. Retryable failures re-run the whole stream (see llm/retry.ts);
+  // tokens from an interrupted attempt are discarded by resetting the
+  // accumulator here, and clients learn about the retry via llm:retry.
+  let fullText = "";
   const result = chatFn(
     {
       model: session.model,
       messages: toModelMessages(filterCompacted(store.messages(session.id))),
       tools: aiTools,
       system,
+      onRetry: (info) => {
+        fullText = "";
+        emit("llm:retry", { sessionID: session.id, ...info });
+      },
     },
     config
   );
 
   // Stream tokens
-  let fullText = "";
   for await (const chunk of result.textStream) {
     fullText += chunk;
     emit("llm:token", { sessionID: session.id, token: chunk });
@@ -127,6 +133,17 @@ export async function runTurn(options: RunTurnOptions) {
   for (const msg of generatedMessages) {
     if (msg.role === "assistant") {
       assistantId = randomUUID();
+      // Parent row first: parts reference the message (FK), and updatePart
+      // for tool-call parts runs below while streaming tool state.
+      store.updateMessage(session.id, {
+        id: assistantId,
+        role: "assistant",
+        parentID: userMsgId,
+        agent: session.agent,
+        model: splitModelRef(session.model),
+        finish: "done",
+        time: { created: Date.now() },
+      });
       const parts: Part[] = [];
       // AssistantContent can be string | Array<...>
       if (typeof msg.content === "string") {
@@ -153,15 +170,6 @@ export async function runTurn(options: RunTurnOptions) {
       for (const part of parts) {
         store.updatePart(session.id, assistantId, part);
       }
-      store.updateMessage(session.id, {
-        id: assistantId,
-        role: "assistant",
-        parentID: userMsgId,
-        agent: session.agent,
-        model: splitModelRef(session.model),
-        finish: "done",
-        time: { created: Date.now() },
-      });
     } else if (msg.role === "tool") {
       for (const content of msg.content) {
         if (content.type !== "tool-result") continue;
