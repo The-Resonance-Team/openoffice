@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { AgentRegistry, evaluate } from "../src/agent";
-import type { ToolDefinition } from "../src/tool";
+import { AgentRegistry, evaluate } from "@openoffice/core";
+import type { ToolDefinition } from "@openoffice/core";
 import { z } from "zod";
 
 const makeTool = (name: string): ToolDefinition => ({

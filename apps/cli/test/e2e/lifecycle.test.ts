@@ -9,16 +9,16 @@ import {
 import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
-import { SessionStore } from "../../src/session/store";
-import { HistoryStore } from "../../src/history";
-import { DraftManager, filePathHash } from "../../src/draft";
-import { ShareStore } from "../../src/share";
-import { AskChannel, createApp } from "../../src/server";
-import { runTurn } from "../../src/session/loop";
-import { ToolRegistry } from "../../src/tool";
-import { AgentRegistry } from "../../src/agent/registry";
-import { createDefaultOfficeCliTool } from "../../src/office";
-import { on } from "../../src/events";
+import { SessionStore } from "@openoffice/core";
+import { HistoryStore } from "@openoffice/core";
+import { DraftManager, filePathHash } from "@openoffice/core";
+import { ShareStore } from "@openoffice/core";
+import { AskChannel, createApp } from "@openoffice/server";
+import { runTurn } from "@openoffice/core";
+import { ToolRegistry } from "@openoffice/core";
+import { AgentRegistry } from "@openoffice/core";
+import { createDefaultOfficeCliTool } from "@openoffice/core";
+import { on } from "@openoffice/core";
 import {
   startFakeLLM,
   fakeConfig,

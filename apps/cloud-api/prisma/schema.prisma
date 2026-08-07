@@ -1,0 +1,63 @@
+// Prisma schema for apps/cloud-api/ — Org/Team/Member/Role only.
+// Language per cloud/CONTEXT.md: Org (billable tenant), Team (optional
+// grouping), Role (admin / team-admin / member), Member.
+// Cred Proxy, Cloud Config, Cloud Skills, Analytics models land with their
+// features (cloud/docs/adr/0002, 0003).
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// Org-scoped roles (cloud/CONTEXT.md). TEAM_ADMIN has admin-equivalent
+// permissions scoped to their own Team only.
+enum Role {
+  ADMIN
+  TEAM_ADMIN
+  MEMBER
+}
+
+/// The billable, top-level tenant.
+model Org {
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  name      String
+  members   Member[]
+  teams     Team[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// An optional grouping of members within an Org.
+model Team {
+  id        String   @id @default(cuid())
+  orgId     String
+  org       Org      @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  name      String
+  members   Member[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([orgId, name])
+}
+
+/// A person in an Org (managed sign-in, cloud/CONTEXT.md).
+model Member {
+  id        String   @id @default(cuid())
+  orgId     String
+  org       Org      @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  teamId    String?
+  team      Team?    @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  email     String   @unique
+  name      String?
+  role      Role     @default(MEMBER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([orgId, email])
+}

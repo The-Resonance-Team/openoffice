@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { Config } from "../../src/config";
+import type { Config } from "@openoffice/core";
 
 export interface LLMCall {
   index: number;

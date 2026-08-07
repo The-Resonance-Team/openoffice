@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { emit, on } from "../src/events";
+import { emit, on } from "@openoffice/core";
 
 describe("event bus", () => {
   test("emit delivers to subscribed listeners", () => {

@@ -1,7 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import { z } from "zod";
-import { executeTool, ToolRegistry, type ToolDefinition } from "../src/tool";
-import { on } from "../src/events";
+import {
+  executeTool,
+  ToolRegistry,
+  type ToolDefinition,
+} from "@openoffice/core";
+import { on } from "@openoffice/core";
 
 const echoTool: ToolDefinition = {
   name: "echo",

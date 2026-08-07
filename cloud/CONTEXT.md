@@ -2,6 +2,8 @@
 
 The hosted multi-tenant service behind openoffice's "managed sign-in": orgs, teams, and roles that let an admin configure LLM providers and skills once so a non-technical member never has to. Optional — the daemon (see root `CONTEXT.md`) works fully offline with no Cloud account at all.
 
+Code lives in `apps/cloud-api` (NestJS backend, ADR 0005) and `apps/cloud-web` (Next.js frontend); both compile against the shared `@openoffice/schema` and `@openoffice/protocol` packages (root ADR 0025). Design decisions live in `cloud/docs/adr/`.
+
 ## Language
 
 **Org**:

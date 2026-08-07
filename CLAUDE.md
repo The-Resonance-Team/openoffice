@@ -14,8 +14,8 @@ Single-context: one root `CONTEXT.md` + `docs/adr/` (ADR 0001). See `docs/agents
 
 ### Deep modules
 
-Domains under `apps/cli/src/` are deep modules — import only through a domain's root entry points, never subfolder internals. See `apps/cli/src/README.md` before adding or importing one.
+Domains under `packages/core/src/` are deep modules — import only through a domain's root entry points, never subfolder internals. See `packages/core/src/README.md` before adding or importing one.
 
 ### Monorepo
 
-Bun workspaces + Turborepo. `apps/cli` is the published `openoffice` package; `apps/web` is the Next.js frontend. Root is private and versionless — the published version lives in `apps/cli/package.json`. Run tasks with `turbo run <task>` from the root; `bun test` and friends must run with `apps/cli` as cwd. See ADR 0024.
+Bun workspaces + Turborepo. `packages/schema` (shared data model), `packages/protocol` (daemon HTTP/SSE contract), `packages/core` (engine), `packages/server` (daemon process wiring). `apps/cli` is the published `openoffice` package; `apps/web` is the daemon web client; `apps/cloud-api` + `apps/cloud-web` are the hosted Cloud service (ADR 0005). Root is private and versionless — the published version lives in `apps/cli/package.json`. Run tasks with `turbo run <task>` from the root; `bun test` and friends must run with `apps/cli` as cwd. Cross-package imports use the bare `@openoffice/*` specifier, never relative paths. Cloud-api local dev needs Postgres: `docker compose up -d postgres` (root docker-compose.yml), then `prisma migrate dev` inside `apps/cloud-api`. See ADR 0024, ADR 0025.
