@@ -53,25 +53,29 @@ async function listFiles(path: string, include?: string): Promise<string[]> {
   }
 }
 
-async function matchExtractedText(
-  file: string,
+async function matchRg(
   content: string,
-  query: string
-) {
+  query: string,
+  format: (line: string) => string
+): Promise<string[]> {
   try {
     const output = await runRg(
       ["--no-heading", "--line-number", query],
       content
     );
-    return output
-      .trim()
-      .split(/\r?\n/)
-      .filter(Boolean)
-      .map((line) => `${file}:${line}`);
+    return output.trim().split(/\r?\n/).filter(Boolean).map(format);
   } catch (e: any) {
     if (isNoMatch(e)) return [];
     throw e;
   }
+}
+
+async function matchExtractedText(
+  file: string,
+  content: string,
+  query: string
+) {
+  return matchRg(content, query, (line) => `${file}:${line}`);
 }
 
 async function matchMetadata(
@@ -88,20 +92,11 @@ async function matchMetadata(
     .join("\n");
   if (!content) return [];
 
-  try {
-    const output = await runRg(
-      ["--no-heading", "--line-number", query],
-      content
-    );
-    return output
-      .trim()
-      .split(/\r?\n/)
-      .filter(Boolean)
-      .map((line) => `Metadata match: ${file}:${line.replace(/^\d+:/, "")}`);
-  } catch (e: any) {
-    if (isNoMatch(e)) return [];
-    throw e;
-  }
+  return matchRg(
+    content,
+    query,
+    (line) => `Metadata match: ${file}:${line.replace(/^\d+:/, "")}`
+  );
 }
 
 async function matchFilePaths(
@@ -109,20 +104,11 @@ async function matchFilePaths(
   query: string
 ): Promise<string[]> {
   if (!files.length) return [];
-  try {
-    const output = await runRg(
-      ["--no-heading", "--line-number", query],
-      files.join("\n")
-    );
-    return output
-      .trim()
-      .split(/\r?\n/)
-      .filter(Boolean)
-      .map((line) => `Path match: ${line.replace(/^\d+:/, "")}`);
-  } catch (e: any) {
-    if (isNoMatch(e)) return [];
-    throw e;
-  }
+  return matchRg(
+    files.join("\n"),
+    query,
+    (line) => `Path match: ${line.replace(/^\d+:/, "")}`
+  );
 }
 
 export function createGrepTool(deps?: GrepDeps): ToolDefinition {
