@@ -8,11 +8,11 @@ import {
 
 export class RegisterDto {
   @IsEmail()
-  email!: string;
+  email: string;
 
   @IsString()
   @MinLength(8)
-  password!: string;
+  password: string;
 
   @IsOptional()
   @IsString()
@@ -20,5 +20,5 @@ export class RegisterDto {
 
   @IsString()
   @IsNotEmpty()
-  orgName!: string;
+  orgName: string;
 }

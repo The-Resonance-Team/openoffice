@@ -3,7 +3,7 @@ import { Role } from "../../generated/client";
 
 export class CreateInviteDto {
   @IsEmail()
-  email!: string;
+  email: string;
 
   @IsOptional()
   @IsEnum(Role)
