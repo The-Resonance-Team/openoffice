@@ -12,6 +12,7 @@ export interface GrepSearchData {
 
 export interface GrepDeps {
   readDocument: (file: string, ctx: ToolContext) => Promise<string>;
+  readPdf?: (file: string) => Promise<string>;
   readMetadata?: (
     file: string,
     ctx: ToolContext
@@ -231,7 +232,12 @@ export function createGrepTool(deps?: GrepDeps): ToolDefinition {
           }
           if (shouldExtract) {
             try {
-              const content = await deps!.readDocument(resolvedFile, ctx);
+              const ext = extname(resolvedFile).toLowerCase();
+              const reader =
+                ext === ".pdf" && deps?.readPdf
+                  ? deps.readPdf
+                  : deps!.readDocument;
+              const content = await reader(resolvedFile, ctx);
               extractedMatches.push(
                 ...(await matchExtractedText(file, content, params.query))
               );
