@@ -1,10 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import {
-  evaluate,
-  fromConfig,
-  merge,
-  type Ruleset,
-} from "../src/agent/permission";
+import { evaluate, fromConfig, merge, type Ruleset } from "@openoffice/core";
 
 describe("permission evaluation", () => {
   test("allow rule permits tool", () => {

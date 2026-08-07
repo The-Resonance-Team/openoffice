@@ -1,0 +1,27 @@
+{
+  "name": "@openoffice/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsgo --noEmit",
+    "lint": "oxlint",
+    "test": "bun test --timeout=30000"
+  },
+  "dependencies": {
+    "@openoffice/core": "workspace:*",
+    "@openoffice/protocol": "workspace:*",
+    "@openoffice/schema": "workspace:*",
+    "hono": "^4.12.33"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.14",
+    "typescript": "^6",
+    "@typescript/native-preview": "^7.0.0-dev.20260707.2",
+    "oxlint": "^1.76.0"
+  }
+}

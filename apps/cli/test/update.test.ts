@@ -22,7 +22,7 @@ import {
   checkForUpdate,
   performUpdate,
   type ReleaseInfo,
-} from "../src/update";
+} from "@openoffice/server";
 
 function releases(...tags: string[]): ReleaseInfo[] {
   return tags.map((tag) => ({

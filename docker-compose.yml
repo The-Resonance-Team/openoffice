@@ -1,0 +1,24 @@
+# Local dev database for the Cloud service (apps/cloud-api).
+# Postgres is always Docker here — never a native install.
+#   docker compose up -d postgres
+#   docker compose down        # when done
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: openoffice
+      POSTGRES_PASSWORD: openoffice
+      POSTGRES_DB: openoffice_cloud
+    ports:
+      # 5433: 5432 is commonly occupied by other projects' Postgres
+      - "5435:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U openoffice -d openoffice_cloud"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  postgres-data:

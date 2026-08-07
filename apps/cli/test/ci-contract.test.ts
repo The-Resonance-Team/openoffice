@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { parse } from "bun:yaml";
 import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 
 type Job = { "timeout-minutes"?: number };
 type Workflow = {
@@ -10,7 +11,7 @@ type Workflow = {
   on?: Record<string, unknown>;
 };
 
-const DIR = "../../.github/workflows";
+const DIR = join(import.meta.dir, "../../../.github/workflows");
 const workflowFiles = readdirSync(DIR).filter((f) => f.endsWith(".yml"));
 
 const EXPECTED_TIMEOUTS: Record<string, Record<string, number>> = {
