@@ -16,10 +16,10 @@ jest stays the cloud-api runner. No migration to vitest or bun test:
 
 - Adopt the reference stack's _patterns_, not its runner: shared env setup via `setupFiles` (already in place), e2e config kept alive, unit specs colocated.
 - The e2e spec boots the full `AppModule` with a stubbed `PrismaService` (health DB ping served by a stub), so e2e runs DB-free anywhere — including CI. Real DB reachability remains a local-compose concern (`docker compose up -d postgres`).
-- CI includes cloud-api: unit tests join the `unit` job on the self-hosted Linux runner; the windows-latest leg keeps the `--filter=!cloud-api` exclusion (POSIX-only scripts; Windows support for the jest leg is out of scope until the scripts become cross-platform). A `test:e2e` step runs cloud-api e2e on the self-hosted e2e job.
+- CI includes cloud-api: unit tests join the `unit` job — self-hosted, full suite, no filters; a `test:e2e` step runs cloud-api e2e on the self-hosted e2e job. The Windows matrix leg is dropped entirely: the POSIX-only scripts made a partial Windows leg misleading, and Windows coverage is out of scope until the scripts become cross-platform.
 
 ## Consequences
 
 - The repo runs two test runners: `bun test` everywhere, jest in cloud-api. This is deliberate, not drift.
 - cloud-api tests are finally gated in CI; a broken scaffold can no longer land green.
-- Windows CI does not exercise cloud-api jest. If a Windows developer needs it, the fix is script portability (e.g. `cross-env` or invoking jest via `node`), a separate change.
+- CI is Linux-only by choice: the `build-web` and `unit` jobs run on the self-hosted runner, no Windows leg anywhere. If Windows coverage is wanted again, the path is script portability (e.g. `cross-env` or invoking jest via `node`), a separate change.
