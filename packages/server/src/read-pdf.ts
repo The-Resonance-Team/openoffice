@@ -67,8 +67,6 @@ export async function readPdf(file: string): Promise<string> {
     );
   }
 
-  const buffer = readFileSync(file);
-
   if (platformFallback === "cli") {
     try {
       return execFileSync("pdf2md", [file], { encoding: "utf-8" });
@@ -81,6 +79,7 @@ export async function readPdf(file: string): Promise<string> {
   }
 
   // napi path
+  const buffer = readFileSync(file);
   let inspector;
   try {
     inspector = loadInspector();

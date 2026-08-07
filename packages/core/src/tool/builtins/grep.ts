@@ -233,11 +233,10 @@ export function createGrepTool(deps?: GrepDeps): ToolDefinition {
           if (shouldExtract) {
             try {
               const ext = extname(resolvedFile).toLowerCase();
-              const reader =
+              const content =
                 ext === ".pdf" && deps?.readPdf
-                  ? deps.readPdf
-                  : deps!.readDocument;
-              const content = await reader(resolvedFile, ctx);
+                  ? await deps.readPdf(resolvedFile)
+                  : await deps!.readDocument(resolvedFile, ctx);
               extractedMatches.push(
                 ...(await matchExtractedText(file, content, params.query))
               );
