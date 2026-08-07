@@ -97,10 +97,14 @@ jobs:
       - run: bun install --frozen-lockfile
       - name: Warm turbo L1 cache
         run: echo "TURBO_CACHE_DIR=$HOME/.cache/turbo" >> "$GITHUB_ENV"
-      # Through turbo now so tests cache. Same suite as the old bare `bun test`:
-      # cli's own script ignores e2e, cloud-api (jest) is filtered out, cloud-web
-      # has no test task so turbo skips it.
+      # Through turbo now so tests cache. cloud-api (jest) runs on the
+      # self-hosted Linux leg only: its npm scripts use a POSIX
+      # `NODE_OPTIONS=...` prefix that cmd.exe (npm's default script shell on
+      # Windows) cannot parse. Windows keeps the bun-test packages (ADR 0029).
+      - run: bun run test
+        if: matrix.os == 'self-hosted'
       - run: bun run test --filter=!cloud-api
+        if: matrix.os != 'self-hosted'
 
   coverage:
     runs-on: self-hosted
@@ -137,3 +141,6 @@ jobs:
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - run: bun test --timeout=60000 test/e2e/
         working-directory: apps/cli
+      # Cloud-api e2e: full AppModule with a stubbed PrismaService, so no
+      # Postgres is needed on the runner (ADR 0029). setup-env.ts covers env.
+      - run: bun run test:e2e --filter=cloud-api
