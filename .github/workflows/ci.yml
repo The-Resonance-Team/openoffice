@@ -13,6 +13,13 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  # Remote cache (Vercel) turns on once the repo variable TURBO_TEAM and the
+  # secret TURBO_TOKEN exist; empty values disable it cleanly (verified
+  # against turbo 2.10.8: falls back to local cache, no error).
+  TURBO_TEAM: ${{ vars.TURBO_TEAM }}
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+
 jobs:
   typecheck:
     runs-on: self-hosted
@@ -24,6 +31,13 @@ jobs:
           cache: true
           bun-version-file: package.json
       - run: bun install --frozen-lockfile
+      # Turbo's default cache lives in node_modules/.cache, which checkout
+      # (clean: true) wipes every run; turbo does not expand `~`/$HOME in env
+      # values, so the persistent L1 dir must be set via GITHUB_ENV. Only
+      # matters on self-hosted (persistent disk); hosted runners rebuild from
+      # the remote cache either way.
+      - name: Warm turbo L1 cache
+        run: echo "TURBO_CACHE_DIR=$HOME/.cache/turbo" >> "$GITHUB_ENV"
       - run: bun run typecheck
 
   lint:
@@ -36,6 +50,8 @@ jobs:
           cache: true
           bun-version-file: package.json
       - run: bun install --frozen-lockfile
+      - name: Warm turbo L1 cache
+        run: echo "TURBO_CACHE_DIR=$HOME/.cache/turbo" >> "$GITHUB_ENV"
       - run: bun run lint
       - run: bun run lint:boundaries
 
@@ -48,10 +64,22 @@ jobs:
         with:
           cache: true
           bun-version-file: package.json
+      # Hosted runner: HOME is fresh per run, so persist bun's install cache
+      # (setup-bun `cache: true` caches only the bun binary itself).
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: bun-cache
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
       - run: bun install --frozen-lockfile
       - run: bun run turbo run build --filter=web
         env:
           NEXT_PUBLIC_OPENOFFICE_SERVER_PORT: "9999"
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        if: github.ref == 'refs/heads/main'
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
 
   unit:
     strategy:
@@ -67,7 +95,12 @@ jobs:
           cache: true
           bun-version-file: package.json
       - run: bun install --frozen-lockfile
-      - run: bun test --timeout=30000 --path-ignore-patterns=apps/cli/test/e2e --path-ignore-patterns=apps/cloud-api --path-ignore-patterns=apps/cloud-web
+      - name: Warm turbo L1 cache
+        run: echo "TURBO_CACHE_DIR=$HOME/.cache/turbo" >> "$GITHUB_ENV"
+      # Through turbo now so tests cache. Same suite as the old bare `bun test`:
+      # cli's own script ignores e2e, cloud-api (jest) is filtered out, cloud-web
+      # has no test task so turbo skips it.
+      - run: bun run test --filter=!cloud-api
 
   coverage:
     runs-on: self-hosted
@@ -79,6 +112,9 @@ jobs:
           cache: true
           bun-version-file: package.json
       - run: bun install --frozen-lockfile
+      # ponytail: stays a bare root run — the aggregate lcov + threshold gate
+      # (check-coverage.ts 45) is real behavior turbo's per-package coverage
+      # would fragment. Revisit only if the gate moves.
       - run: bun test --timeout=30000 --coverage --coverage-reporter=lcov --path-ignore-patterns=apps/cli/test/e2e --path-ignore-patterns=apps/cloud-api --path-ignore-patterns=apps/cloud-web
       - run: bun run apps/cli/scripts/check-coverage.ts 45
 
@@ -92,6 +128,9 @@ jobs:
           cache: true
           bun-version-file: package.json
       - run: bun install --frozen-lockfile
+      # ponytail: no cache action for officecli — the self-hosted runner's HOME
+      # persists, so ~/.local/bin is already warm across runs; the installer
+      # no-ops when present. Add a hash-keyed cache if the runner goes ephemeral.
       - name: Install officecli
         run: |
           curl -fsSL https://d.officecli.ai/install.sh | bash

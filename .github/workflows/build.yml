@@ -98,7 +98,7 @@ jobs:
 
       - name: Sign Windows binary
         if: env.HAS_AZURE == 'true'
-        uses: azure/trusted-signing-action@v0
+        uses: azure/trusted-signing-action@208f8af4bf26cf2af8597424e3cb5582801523ba # v2.0.0
         env:
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
@@ -120,7 +120,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: gh release create "${{ github.ref_name }}" dist/* --generate-notes
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         if: env.HAS_NPM == 'true'
         with:
           node-version: 22
