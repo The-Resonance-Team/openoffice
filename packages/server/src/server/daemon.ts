@@ -1,9 +1,10 @@
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, dirname, join } from "node:path";
-import { execFileSync } from "node:child_process";
+import { exiftool } from "exiftool-vendored";
 import { randomUUID } from "node:crypto";
+import { toMarkdown } from "@firecrawl/anydoc";
 import {
   resolveConfig,
   SessionStore,
@@ -42,6 +43,7 @@ import { loadAuthConfig, authRequired } from "./auth";
 import { loadCorsOrigins } from "./cors";
 
 import { getDataDir } from "../data-dir";
+
 export { getDataDir } from "../data-dir";
 
 interface DaemonInfo {
@@ -125,28 +127,28 @@ export async function startDaemon(): Promise<DaemonHandle> {
   const agentRegistry = new AgentRegistry();
   const skillsDir = join(process.cwd(), "skills");
   const mcp = new McpManager({ connect: createSdkMcpClient });
+  const readDocument = (file: string) => toMarkdown(file);
+  const readMetadata = (file: string) =>
+    exiftool.read(file) as Promise<Record<string, unknown>>;
 
   const baseTools: ToolDefinition[] = [
     createDefaultOfficeCliTool({ draftManager }),
     createReadTool({
       draftManager,
-      readOffice: async (file) => {
-        const output = execFileSync("officecli", ["get", file, "--json"], {
-          encoding: "utf-8",
-          timeout: 30000,
-        });
-        return output;
-      },
-      readPdf: async (file) => {
-        return execFileSync("pdftotext", ["-layout", file, "-"], {
-          encoding: "utf-8",
-          timeout: 30000,
-        });
-      },
+      readDocument,
     }),
     createWriteTool(),
     createGlobTool(),
-    createGrepTool(),
+    createGrepTool({
+      readDocument,
+      readMetadata,
+      resolveDocument: async (file, ctx) => {
+        const resolved = await draftManager.resolve(file, ctx.sessionID, false);
+        if (resolved.lockError) throw new Error(resolved.lockError);
+        return resolved.path ?? file;
+      },
+      officeExtractLimit: config.grep?.officeExtractLimit,
+    }),
     createSkillTool(skillsDir),
   ];
 

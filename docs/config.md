@@ -30,6 +30,7 @@ The file is JSON or JSONC (comments and trailing commas allowed).
   "office": {
     "managedDocumentsFolder": "~/Documents/Managed",
   },
+  "grep": { "officeExtractLimit": 20 },
   "update": { "check": true },
 }
 ```
@@ -84,6 +85,12 @@ wins (dogfooding rule).
 | Key                      | Type   | Description                          |
 | ------------------------ | ------ | ------------------------------------ |
 | `managedDocumentsFolder` | string | Default folder for managed documents |
+
+### `grep`
+
+| Key                  | Type   | Description                                        |
+| -------------------- | ------ | -------------------------------------------------- |
+| `officeExtractLimit` | number | Maximum AnyDoc-supported document files converted per grep call |
 
 ### `update`
 

@@ -1,12 +1,121 @@
-import { execFileSync } from "node:child_process";
+import { execFile } from "node:child_process";
+import { extname } from "node:path";
 import { z } from "zod";
-import type { ToolDefinition } from "../types";
+import type { ToolContext, ToolDefinition } from "../types";
+import { DOCUMENT_EXTENSIONS } from "./read";
 
-export function createGrepTool(): ToolDefinition {
+export interface GrepDeps {
+  readDocument: (file: string, ctx: ToolContext) => Promise<string>;
+  readMetadata?: (
+    file: string,
+    ctx: ToolContext
+  ) => Promise<Record<string, unknown>>;
+  officeExtractLimit?: number;
+  listFiles?: (path: string, include?: string) => Promise<string[]>;
+  resolveDocument?: (file: string, ctx: ToolContext) => Promise<string>;
+}
+
+const MAX_OFFICE_EXTRACT_LIMIT = 20;
+
+function isNoMatch(error: any): boolean {
+  return error.status === 1 || error.code === 1 || error.code === "1";
+}
+
+function runRg(args: string[], input?: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const child = execFile(
+      "rg",
+      args,
+      {
+        encoding: "utf-8",
+        timeout: 10000,
+        maxBuffer: 1024 * 1024,
+      },
+      (error, stdout) => {
+        if (error) reject(error);
+        else resolve(stdout);
+      }
+    );
+    if (input !== undefined) child.stdin?.end(input);
+  });
+}
+
+async function listFiles(path: string, include?: string): Promise<string[]> {
+  const args = ["--files", path];
+  if (include) args.push("--glob", include);
+
+  try {
+    const output = await runRg(args);
+    return output.trim() ? output.trim().split(/\r?\n/) : [];
+  } catch (e: any) {
+    if (isNoMatch(e)) return [];
+    throw e;
+  }
+}
+
+async function matchRg(
+  content: string,
+  query: string,
+  format: (line: string) => string
+): Promise<string[]> {
+  try {
+    const output = await runRg(
+      ["--no-heading", "--line-number", query],
+      content
+    );
+    return output.trim().split(/\r?\n/).filter(Boolean).map(format);
+  } catch (e: any) {
+    if (isNoMatch(e)) return [];
+    throw e;
+  }
+}
+
+async function matchExtractedText(
+  file: string,
+  content: string,
+  query: string
+) {
+  return matchRg(content, query, (line) => `${file}:${line}`);
+}
+
+async function matchMetadata(
+  file: string,
+  metadata: Record<string, unknown>,
+  query: string
+): Promise<string[]> {
+  const content = Object.entries(metadata)
+    .filter(([, value]) => value !== undefined && value !== null)
+    .map(
+      ([key, value]) =>
+        `${key}: ${typeof value === "object" ? JSON.stringify(value) : String(value)}`
+    )
+    .join("\n");
+  if (!content) return [];
+
+  return matchRg(
+    content,
+    query,
+    (line) => `Metadata match: ${file}:${line.replace(/^\d+:/, "")}`
+  );
+}
+
+async function matchFilePaths(
+  files: string[],
+  query: string
+): Promise<string[]> {
+  if (!files.length) return [];
+  return matchRg(
+    files.join("\n"),
+    query,
+    (line) => `Path match: ${line.replace(/^\d+:/, "")}`
+  );
+}
+
+export function createGrepTool(deps?: GrepDeps): ToolDefinition {
   return {
     name: "grep",
     description:
-      "Search file contents using ripgrep. Returns matching lines with file paths and line numbers.",
+      "Search plain text and AnyDoc-supported document contents. Returns matching lines with file paths and line numbers.",
     parameters: z.object({
       query: z.string().describe("Search pattern (regex supported)"),
       path: z.string().optional().describe("File or directory to search in"),
@@ -17,23 +126,138 @@ export function createGrepTool(): ToolDefinition {
     }),
     execute: async (params, ctx) => {
       try {
-        const args: string[] = ["--no-heading", "--line-number", params.query];
-        if (params.path) args.push(params.path);
-        else args.push(ctx.cwd ?? process.cwd());
-        if (params.include) args.push("--glob", params.include);
+        const target = params.path ?? ctx.cwd ?? process.cwd();
+        let files: string[] = [];
+        let enumerationFailed = false;
+        try {
+          files = await (deps?.listFiles ?? listFiles)(target, params.include);
+        } catch {
+          enumerationFailed = true;
+        }
+        const extractable = files.filter((file) =>
+          DOCUMENT_EXTENSIONS.has(extname(file).toLowerCase())
+        );
+        const plainFiles = files.filter(
+          (file) => !DOCUMENT_EXTENSIONS.has(extname(file).toLowerCase())
+        );
+        const fileMatches = enumerationFailed
+          ? []
+          : await matchFilePaths(files, params.query);
+        let plainMatches: string[] = [];
+        if (!deps || enumerationFailed || plainFiles.length) {
+          const args: string[] = [
+            "--no-heading",
+            "--line-number",
+            params.query,
+          ];
+          if (!deps || enumerationFailed) {
+            args.push(target);
+            if (enumerationFailed) {
+              for (const ext of DOCUMENT_EXTENSIONS) {
+                args.push("--glob", `!*${ext}`);
+              }
+            }
+          } else {
+            args.push(...plainFiles);
+          }
+          if (params.include) args.push("--glob", params.include);
 
-        const output = execFileSync("rg", args, {
-          encoding: "utf-8",
-          stdio: ["pipe", "pipe", "pipe"],
-          timeout: 10000,
-          maxBuffer: 1024 * 1024,
-        });
+          try {
+            const output = await runRg(args);
+            plainMatches = output.trim() ? [output.trim()] : [];
+          } catch (e: any) {
+            if (!isNoMatch(e)) throw e;
+          }
+        }
+        const limit = Math.max(
+          0,
+          Math.min(
+            MAX_OFFICE_EXTRACT_LIMIT,
+            deps?.officeExtractLimit ?? MAX_OFFICE_EXTRACT_LIMIT
+          )
+        );
+        const filesToExtract = extractable.slice(0, limit);
+        const extractionSkipped = extractable.length - filesToExtract.length;
+        const extractedMatches: string[] = [];
+        const metadataMatches: string[] = [];
+        let extractionFailed = 0;
+        let metadataFailed = 0;
+
+        for (const [index, file] of extractable.entries()) {
+          const shouldExtract = index < filesToExtract.length;
+          if (!shouldExtract && !deps?.readMetadata) continue;
+
+          let resolvedFile = file;
+          try {
+            const resolveDocument = deps!.resolveDocument;
+            resolvedFile = resolveDocument
+              ? await resolveDocument(file, ctx)
+              : file;
+          } catch {
+            if (shouldExtract) extractionFailed++;
+            if (deps?.readMetadata) metadataFailed++;
+            continue;
+          }
+          if (shouldExtract) {
+            try {
+              const content = await deps!.readDocument(resolvedFile, ctx);
+              extractedMatches.push(
+                ...(await matchExtractedText(file, content, params.query))
+              );
+            } catch {
+              extractionFailed++;
+            }
+          }
+          if (deps?.readMetadata) {
+            try {
+              metadataMatches.push(
+                ...(await matchMetadata(
+                  file,
+                  await deps!.readMetadata(resolvedFile, ctx),
+                  params.query
+                ))
+              );
+            } catch {
+              metadataFailed++;
+            }
+          }
+        }
+
+        const notes: string[] = [];
+        if (enumerationFailed) {
+          notes.push(
+            "filename search and document extraction skipped because file enumeration failed"
+          );
+        }
+        if (extractionSkipped) {
+          notes.push(
+            `${extractionSkipped} document files skipped due to extraction limit`
+          );
+        }
+        if (extractionFailed) {
+          notes.push(
+            `${extractionFailed} document files skipped due to extraction failure`
+          );
+        }
+        if (metadataFailed) {
+          notes.push(`${metadataFailed} document metadata reads failed`);
+        }
+
+        const matches = [
+          ...fileMatches,
+          ...plainMatches,
+          ...extractedMatches,
+          ...metadataMatches,
+        ];
         return {
           success: true,
-          output: output.trim() || "No matches found",
+          output: [
+            ...(matches.length ? matches : ["No matches found"]),
+            ...notes,
+          ].join("\n"),
         };
       } catch (e: any) {
-        if (e.status === 1) {
+        if (isNoMatch(e)) {
           return { success: true, output: "No matches found" };
         }
         return {
