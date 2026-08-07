@@ -5,6 +5,12 @@ import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
 
 const EXCEL_EXTENSIONS = new Set([".xlsx", ".xlsm", ".xltx", ".xltm"]);
 
+export interface DocumentSearchData {
+  metadata: Record<string, unknown>;
+  structured: string;
+  notes?: string[];
+}
+
 interface PdfOutlineItem {
   title?: string;
   items?: PdfOutlineItem[];
@@ -17,14 +23,23 @@ function outlineText(items: PdfOutlineItem[], lines: string[]): void {
   }
 }
 
-async function readPdfExtras(file: string): Promise<string> {
+async function readPdfSearchData(file: string): Promise<DocumentSearchData> {
   const loadingTask = getDocument({
     data: new Uint8Array(await readFile(file)),
   });
   const lines: string[] = [];
+  let metadata: Record<string, unknown> = {};
 
   try {
     const document = await loadingTask.promise;
+    const pdfMetadata = await document.getMetadata();
+    const xmp = pdfMetadata.metadata
+      ? Object.fromEntries(pdfMetadata.metadata)
+      : undefined;
+    metadata = {
+      ...pdfMetadata.info,
+      ...(xmp && Object.keys(xmp).length ? { XMP: xmp } : {}),
+    };
     outlineText((await document.getOutline()) ?? [], lines);
     for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber++) {
       const page = await document.getPage(pageNumber);
@@ -47,7 +62,7 @@ async function readPdfExtras(file: string): Promise<string> {
     await loadingTask.destroy();
   }
 
-  return lines.join("\n");
+  return { metadata, structured: lines.join("\n") };
 }
 
 function noteText(note: string | { texts?: Array<{ text: string }> }): string {
@@ -56,9 +71,24 @@ function noteText(note: string | { texts?: Array<{ text: string }> }): string {
     : (note.texts ?? []).map(({ text }) => text).join("");
 }
 
-async function readExcelExtras(file: string): Promise<string> {
+async function readExcelSearchData(file: string): Promise<DocumentSearchData> {
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.readFile(file);
+  const metadata = {
+    creator: workbook.creator,
+    title: workbook.title,
+    subject: workbook.subject,
+    description: workbook.description,
+    keywords: workbook.keywords,
+    category: workbook.category,
+    lastModifiedBy: workbook.lastModifiedBy,
+    created: workbook.created,
+    modified: workbook.modified,
+    lastPrinted: workbook.lastPrinted,
+    company: workbook.company,
+    manager: workbook.manager,
+    properties: workbook.properties,
+  };
   const lines: string[] = [];
 
   for (const worksheet of workbook.worksheets) {
@@ -81,12 +111,39 @@ async function readExcelExtras(file: string): Promise<string> {
     });
   }
 
-  return lines.join("\n");
+  return { metadata, structured: lines.join("\n") };
+}
+
+export async function readDocumentSearchData(
+  file: string,
+  readMetadata: (file: string) => Promise<Record<string, unknown>>
+): Promise<DocumentSearchData> {
+  const extension = extname(file).toLowerCase();
+  if (extension === ".pdf") {
+    try {
+      return await readPdfSearchData(file);
+    } catch {
+      return {
+        metadata: await readMetadata(file),
+        structured: "",
+        notes: ["PDF.js search failed; used ExifTool metadata fallback"],
+      };
+    }
+  }
+  if (EXCEL_EXTENSIONS.has(extension)) {
+    try {
+      return await readExcelSearchData(file);
+    } catch {
+      return {
+        metadata: await readMetadata(file),
+        structured: "",
+        notes: ["ExcelJS search failed; used ExifTool metadata fallback"],
+      };
+    }
+  }
+  return { metadata: await readMetadata(file), structured: "" };
 }
 
 export async function readSearchExtras(file: string): Promise<string> {
-  const extension = extname(file).toLowerCase();
-  if (extension === ".pdf") return readPdfExtras(file);
-  if (EXCEL_EXTENSIONS.has(extension)) return readExcelExtras(file);
-  return "";
+  return (await readDocumentSearchData(file, async () => ({}))).structured;
 }
