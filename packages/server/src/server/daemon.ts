@@ -41,6 +41,7 @@ import { checkForUpdate } from "../update";
 import { VERSION } from "../version";
 import { loadAuthConfig, authRequired } from "./auth";
 import { loadCorsOrigins } from "./cors";
+import { readSearchExtras } from "../document-search";
 
 import { getDataDir } from "../data-dir";
 
@@ -142,6 +143,7 @@ export async function startDaemon(): Promise<DaemonHandle> {
     createGrepTool({
       readDocument,
       readMetadata,
+      readSearchExtras,
       resolveDocument: async (file, ctx) => {
         const resolved = await draftManager.resolve(file, ctx.sessionID, false);
         if (resolved.lockError) throw new Error(resolved.lockError);
