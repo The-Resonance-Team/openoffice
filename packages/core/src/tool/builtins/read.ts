@@ -72,6 +72,7 @@ const TEXT_EXTENSIONS = new Set([
 
 export interface ReadDeps {
   readDocument: (file: string, ctx: ToolContext) => Promise<string>;
+  readPdf?: (file: string) => Promise<string>;
   draftManager?: DraftManager;
 }
 
@@ -112,6 +113,22 @@ export function createReadTool(deps: ReadDeps): ToolDefinition {
           error: `File not found: ${params.file}`,
           code: "FILE_NOT_FOUND",
         };
+      }
+
+      if (ext === ".pdf" && deps.readPdf) {
+        try {
+          const content = await deps.readPdf(file);
+          return { success: true, output: content };
+        } catch (e: any) {
+          return {
+            success: false,
+            error: e.message ?? "Failed to read PDF",
+            code:
+              e.code === "PDF_NO_TEXT_LAYER"
+                ? "PDF_NO_TEXT_LAYER"
+                : "PDF_READ_ERROR",
+          };
+        }
       }
 
       if (DOCUMENT_EXTENSIONS.has(ext)) {
