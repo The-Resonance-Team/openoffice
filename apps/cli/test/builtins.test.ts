@@ -337,6 +337,32 @@ describe("grep tool", () => {
     }
   });
 
+  test("keeps plain-text matches when document enumeration fails", async () => {
+    if (!hasRg()) return;
+    const dir = tempDir();
+    writeFileSync(join(dir, "notes.txt"), "plain target\n");
+    writeFileSync(join(dir, "report.docx"), "raw target\n");
+
+    const tool = createGrepTool({
+      readDocument: async () => "document target\n",
+      listFiles: async () => {
+        throw new Error("maxBuffer exceeded");
+      },
+    });
+    const result = await tool.execute(
+      { query: "target", path: dir },
+      { sessionID: "test" }
+    );
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.output).toContain("plain target");
+      expect(result.output).not.toContain("raw target");
+      expect(result.output).not.toContain("document target");
+      expect(result.output).toContain("document extraction skipped");
+    }
+  });
+
   test("searches extracted spreadsheet text", async () => {
     if (!hasRg()) return;
     const dir = tempDir();
@@ -355,6 +381,32 @@ describe("grep tool", () => {
       expect(result.output).toContain("report.xlsx");
       expect(result.output).toContain("spreadsheet target");
     }
+  });
+
+  test("resolves document drafts before extraction", async () => {
+    if (!hasRg()) return;
+    const dir = tempDir();
+    const realPath = join(dir, "report.docx");
+    const draftPath = join(dir, "report-draft.docx");
+    writeFileSync(realPath, "real");
+    writeFileSync(draftPath, "draft");
+
+    let readPath = "";
+    const tool = createGrepTool({
+      readDocument: async (file) => {
+        readPath = file;
+        return "draft target\n";
+      },
+      resolveDocument: async () => draftPath,
+    });
+    const result = await tool.execute(
+      { query: "target", path: realPath },
+      { sessionID: "test" }
+    );
+
+    expect(result.success).toBe(true);
+    expect(readPath).toBe(draftPath);
+    if (result.success) expect(result.output).toContain("draft target");
   });
 
   test("reports office extraction files skipped past the limit", async () => {

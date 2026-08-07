@@ -7,6 +7,8 @@ import { DOCUMENT_EXTENSIONS } from "./read";
 export interface GrepDeps {
   readDocument: (file: string, ctx: ToolContext) => Promise<string>;
   officeExtractLimit?: number;
+  listFiles?: (path: string, include?: string) => Promise<string[]>;
+  resolveDocument?: (file: string, ctx: ToolContext) => Promise<string>;
 }
 
 const MAX_OFFICE_EXTRACT_LIMIT = 20;
@@ -84,8 +86,15 @@ export function createGrepTool(deps?: GrepDeps): ToolDefinition {
     execute: async (params, ctx) => {
       try {
         const target = params.path ?? ctx.cwd ?? process.cwd();
-        const args: string[] = ["--no-heading", "--line-number", params.query];
-        const files = deps ? await listFiles(target, params.include) : [];
+        let files: string[] = [];
+        let enumerationFailed = false;
+        if (deps) {
+          try {
+            files = await (deps.listFiles ?? listFiles)(target, params.include);
+          } catch {
+            enumerationFailed = true;
+          }
+        }
         const extractable = files.filter((file) =>
           DOCUMENT_EXTENSIONS.has(extname(file).toLowerCase())
         );
@@ -93,9 +102,22 @@ export function createGrepTool(deps?: GrepDeps): ToolDefinition {
           (file) => !DOCUMENT_EXTENSIONS.has(extname(file).toLowerCase())
         );
         let plainMatches: string[] = [];
-        if (!deps || plainFiles.length) {
-          if (deps) args.push(...plainFiles);
-          else args.push(target);
+        if (!deps || enumerationFailed || plainFiles.length) {
+          const args: string[] = [
+            "--no-heading",
+            "--line-number",
+            params.query,
+          ];
+          if (!deps || enumerationFailed) {
+            args.push(target);
+            if (enumerationFailed) {
+              for (const ext of DOCUMENT_EXTENSIONS) {
+                args.push("--glob", `!*${ext}`);
+              }
+            }
+          } else {
+            args.push(...plainFiles);
+          }
           if (params.include) args.push("--glob", params.include);
 
           try {
@@ -119,7 +141,11 @@ export function createGrepTool(deps?: GrepDeps): ToolDefinition {
 
         for (const file of filesToExtract) {
           try {
-            const content = await deps!.readDocument(file, ctx);
+            const resolveDocument = deps!.resolveDocument;
+            const resolvedFile = resolveDocument
+              ? await resolveDocument(file, ctx)
+              : file;
+            const content = await deps!.readDocument(resolvedFile, ctx);
             extractedMatches.push(
               ...(await matchExtractedText(file, content, params.query))
             );
@@ -129,6 +155,11 @@ export function createGrepTool(deps?: GrepDeps): ToolDefinition {
         }
 
         const notes: string[] = [];
+        if (enumerationFailed) {
+          notes.push(
+            "document extraction skipped because file enumeration failed"
+          );
+        }
         if (extractionSkipped) {
           notes.push(
             `${extractionSkipped} document files skipped due to extraction limit`

@@ -138,6 +138,11 @@ export async function startDaemon(): Promise<DaemonHandle> {
     createGlobTool(),
     createGrepTool({
       readDocument,
+      resolveDocument: async (file, ctx) => {
+        const resolved = await draftManager.resolve(file, ctx.sessionID, false);
+        if (resolved.lockError) throw new Error(resolved.lockError);
+        return resolved.path ?? file;
+      },
       officeExtractLimit: config.grep?.officeExtractLimit,
     }),
     createSkillTool(skillsDir),
