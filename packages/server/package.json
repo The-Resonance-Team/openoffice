@@ -17,8 +17,10 @@
     "@openoffice/core": "workspace:*",
     "@openoffice/protocol": "workspace:*",
     "@openoffice/schema": "workspace:*",
+    "exceljs": "^4.4.0",
     "exiftool-vendored": "^37.0.0",
-    "hono": "^4.12.33"
+    "hono": "^4.12.33",
+    "pdfjs-dist": "^6.2.108"
   },
   "devDependencies": {
     "@types/bun": "^1.3.14",

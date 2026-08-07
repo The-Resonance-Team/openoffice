@@ -10,6 +10,7 @@ export interface GrepDeps {
     file: string,
     ctx: ToolContext
   ) => Promise<Record<string, unknown>>;
+  readSearchExtras?: (file: string, ctx: ToolContext) => Promise<string>;
   officeExtractLimit?: number;
   listFiles?: (path: string, include?: string) => Promise<string[]>;
   resolveDocument?: (file: string, ctx: ToolContext) => Promise<string>;
@@ -115,7 +116,7 @@ export function createGrepTool(deps?: GrepDeps): ToolDefinition {
   return {
     name: "grep",
     description:
-      "Search plain text and AnyDoc-supported document contents. Returns matching lines with file paths and line numbers.",
+      "Search plain text, document contents, metadata, PDF annotations/bookmarks, and Excel formulas/comments. Returns matching lines with file paths and line numbers.",
     parameters: z.object({
       query: z.string().describe("Search pattern (regex supported)"),
       path: z.string().optional().describe("File or directory to search in"),
@@ -180,12 +181,15 @@ export function createGrepTool(deps?: GrepDeps): ToolDefinition {
         const extractionSkipped = extractable.length - filesToExtract.length;
         const extractedMatches: string[] = [];
         const metadataMatches: string[] = [];
+        const structuredMatches: string[] = [];
         let extractionFailed = 0;
         let metadataFailed = 0;
+        let structuredFailed = 0;
 
         for (const [index, file] of extractable.entries()) {
           const shouldExtract = index < filesToExtract.length;
-          if (!shouldExtract && !deps?.readMetadata) continue;
+          if (!shouldExtract && !deps?.readMetadata && !deps?.readSearchExtras)
+            continue;
 
           let resolvedFile = file;
           try {
@@ -196,6 +200,7 @@ export function createGrepTool(deps?: GrepDeps): ToolDefinition {
           } catch {
             if (shouldExtract) extractionFailed++;
             if (deps?.readMetadata) metadataFailed++;
+            if (deps?.readSearchExtras) structuredFailed++;
             continue;
           }
           if (shouldExtract) {
@@ -221,6 +226,19 @@ export function createGrepTool(deps?: GrepDeps): ToolDefinition {
               metadataFailed++;
             }
           }
+          if (deps?.readSearchExtras) {
+            try {
+              structuredMatches.push(
+                ...(await matchExtractedText(
+                  file,
+                  await deps.readSearchExtras(resolvedFile, ctx),
+                  params.query
+                ))
+              );
+            } catch {
+              structuredFailed++;
+            }
+          }
         }
 
         const notes: string[] = [];
@@ -242,12 +260,16 @@ export function createGrepTool(deps?: GrepDeps): ToolDefinition {
         if (metadataFailed) {
           notes.push(`${metadataFailed} document metadata reads failed`);
         }
+        if (structuredFailed) {
+          notes.push(`${structuredFailed} document structure reads failed`);
+        }
 
         const matches = [
           ...fileMatches,
           ...plainMatches,
           ...extractedMatches,
           ...metadataMatches,
+          ...structuredMatches,
         ];
         return {
           success: true,

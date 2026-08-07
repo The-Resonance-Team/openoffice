@@ -428,6 +428,41 @@ describe("grep tool", () => {
     }
   });
 
+  test("searches PDF annotations and Excel formulas/comments", async () => {
+    if (!hasRg()) return;
+    const dir = tempDir();
+    writeFileSync(join(dir, "manual.pdf"), "placeholder");
+    writeFileSync(join(dir, "budget.xlsx"), "placeholder");
+
+    const tool = createGrepTool({
+      readDocument: async () => "no content match\n",
+      readSearchExtras: async (file) =>
+        file.endsWith(".pdf")
+          ? "PDF annotation: review this\nPDF bookmark: Appendix\n"
+          : "Excel formula: Sheet1!B2 = SUM(A1:A2)\nExcel comment: Sheet1!A1 = budget note\n",
+    });
+
+    const pdfResult = await tool.execute(
+      { query: "Appendix", path: dir },
+      { sessionID: "test" }
+    );
+    const xlsxResult = await tool.execute(
+      { query: "budget", path: dir },
+      { sessionID: "test" }
+    );
+
+    expect(pdfResult.success).toBe(true);
+    expect(xlsxResult.success).toBe(true);
+    if (pdfResult.success) {
+      expect(pdfResult.output).toContain("PDF bookmark:");
+      expect(pdfResult.output).toContain("manual.pdf");
+    }
+    if (xlsxResult.success) {
+      expect(xlsxResult.output).toContain("Excel comment:");
+      expect(xlsxResult.output).toContain("budget.xlsx");
+    }
+  });
+
   test("resolves document drafts before extraction", async () => {
     if (!hasRg()) return;
     const dir = tempDir();
