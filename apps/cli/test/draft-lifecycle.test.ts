@@ -59,7 +59,7 @@ function makeHarness(opts?: { answer?: string }): Harness {
   });
   const readTool = createReadTool({
     draftManager,
-    readOffice: async (file) =>
+    readDocument: async (file) =>
       JSON.parse(await execCli(["get", file])).data.content,
   });
   return { tool, draftManager, history, readTool };

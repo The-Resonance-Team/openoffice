@@ -88,9 +88,9 @@ wins (dogfooding rule).
 
 ### `grep`
 
-| Key                  | Type   | Description                                      |
-| -------------------- | ------ | ------------------------------------------------ |
-| `officeExtractLimit` | number | Maximum Office/PDF files extracted per grep call |
+| Key                  | Type   | Description                                        |
+| -------------------- | ------ | -------------------------------------------------- |
+| `officeExtractLimit` | number | Maximum document/PDF files converted per grep call |
 
 ### `update`
 

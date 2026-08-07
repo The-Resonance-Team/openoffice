@@ -23,6 +23,20 @@ export const LEGACY_OFFICE_EXTENSIONS = new Set([
   ".xlt",
   ".pot",
 ]);
+export const DOCUMENT_EXTENSIONS = new Set([
+  ...OFFICE_EXTENSIONS,
+  ...LEGACY_OFFICE_EXTENSIONS,
+  ".xlsb",
+  ".pps",
+  ".ppsx",
+  ".ppsm",
+  ".odt",
+  ".ods",
+  ".odp",
+  ".rtf",
+  ".epub",
+  ".pdf",
+]);
 const TEXT_EXTENSIONS = new Set([
   ".txt",
   ".md",
@@ -57,8 +71,7 @@ const TEXT_EXTENSIONS = new Set([
 ]);
 
 export interface ReadDeps {
-  readOffice: (file: string, ctx: ToolContext) => Promise<string>;
-  readPdf?: (file: string, ctx: ToolContext) => Promise<string>;
+  readDocument: (file: string, ctx: ToolContext) => Promise<string>;
   draftManager?: DraftManager;
 }
 
@@ -66,7 +79,7 @@ export function createReadTool(deps: ReadDeps): ToolDefinition {
   return {
     name: "read",
     description:
-      "Read file contents. Auto-detects format: Office documents (.docx/.xlsx/.pptx and OpenXML variants) via officecli, .pdf via pdftotext, plain text for everything else. Always use this to read any file.",
+      "Read file contents. Auto-detects Office, OpenDocument, RTF, EPUB, and PDF files via AnyDoc, plain text for everything else. Always use this to read any file.",
     parameters: z.object({
       file: z.string().describe("Path to the file to read"),
     }),
@@ -101,45 +114,17 @@ export function createReadTool(deps: ReadDeps): ToolDefinition {
         };
       }
 
-      if (OFFICE_EXTENSIONS.has(ext)) {
+      if (DOCUMENT_EXTENSIONS.has(ext)) {
         try {
-          const content = await deps.readOffice(file, ctx);
+          const content = await deps.readDocument(file, ctx);
           return { success: true, output: content };
         } catch (e: any) {
           return {
             success: false,
             error: e.message ?? "Failed to read office document",
-            code: "OFFICE_READ_ERROR",
+            code: ext === ".pdf" ? "PDF_READ_ERROR" : "DOCUMENT_READ_ERROR",
           };
         }
-      }
-
-      if (ext === ".pdf") {
-        if (!deps.readPdf) {
-          return {
-            success: false,
-            error: "PDF reading is not available (pdftotext not configured)",
-            code: "PDF_READ_ERROR",
-          };
-        }
-        try {
-          const content = await deps.readPdf(params.file, ctx);
-          return { success: true, output: content };
-        } catch (e: any) {
-          return {
-            success: false,
-            error: e.message ?? "Failed to read PDF",
-            code: "PDF_READ_ERROR",
-          };
-        }
-      }
-
-      if (LEGACY_OFFICE_EXTENSIONS.has(ext)) {
-        return {
-          success: false,
-          error: `Legacy binary Office format (.${ext.slice(1)}) is not supported. Use the convert tool to convert it to the OpenXML equivalent (.docx/.xlsx/.pptx) first`,
-          code: "LEGACY_FORMAT",
-        };
       }
 
       if (TEXT_EXTENSIONS.has(ext) || !ext) {

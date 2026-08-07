@@ -2,11 +2,10 @@ import { execFile } from "node:child_process";
 import { extname } from "node:path";
 import { z } from "zod";
 import type { ToolContext, ToolDefinition } from "../types";
-import { OFFICE_EXTENSIONS, LEGACY_OFFICE_EXTENSIONS } from "./read";
+import { DOCUMENT_EXTENSIONS } from "./read";
 
 export interface GrepDeps {
-  readOffice: (file: string, ctx: ToolContext) => Promise<string>;
-  readPdf?: (file: string, ctx: ToolContext) => Promise<string>;
+  readDocument: (file: string, ctx: ToolContext) => Promise<string>;
   officeExtractLimit?: number;
 }
 
@@ -74,7 +73,7 @@ export function createGrepTool(deps?: GrepDeps): ToolDefinition {
   return {
     name: "grep",
     description:
-      "Search plain text, Office, and PDF file contents. Returns matching lines with file paths and line numbers.",
+      "Search plain text and AnyDoc-supported document contents. Returns matching lines with file paths and line numbers.",
     parameters: z.object({
       query: z.string().describe("Search pattern (regex supported)"),
       path: z.string().optional().describe("File or directory to search in"),
@@ -99,16 +98,9 @@ export function createGrepTool(deps?: GrepDeps): ToolDefinition {
         }
         const target = params.path ?? ctx.cwd ?? process.cwd();
         const files = deps ? await listFiles(target, params.include) : [];
-        const officeFiles = files.filter((file) =>
-          OFFICE_EXTENSIONS.has(extname(file).toLowerCase())
+        const extractable = files.filter((file) =>
+          DOCUMENT_EXTENSIONS.has(extname(file).toLowerCase())
         );
-        const pdfFiles = files.filter(
-          (file) => extname(file).toLowerCase() === ".pdf"
-        );
-        const legacyCount = files.filter((file) =>
-          LEGACY_OFFICE_EXTENSIONS.has(extname(file).toLowerCase())
-        ).length;
-        const extractable = [...officeFiles, ...pdfFiles];
         const limit = Math.max(
           0,
           Math.min(
@@ -123,34 +115,19 @@ export function createGrepTool(deps?: GrepDeps): ToolDefinition {
 
         for (const file of filesToExtract) {
           try {
-            const ext = extname(file).toLowerCase();
-            const content =
-              ext === ".pdf"
-                ? deps?.readPdf
-                  ? await deps.readPdf(file, ctx)
-                  : null
-                : await deps?.readOffice(file, ctx);
-            if (content !== null && content !== undefined) {
-              extractedMatches.push(
-                ...(await matchExtractedText(file, content, params.query))
-              );
-            } else {
-              extractionFailed++;
-            }
+            const content = await deps!.readDocument(file, ctx);
+            extractedMatches.push(
+              ...(await matchExtractedText(file, content, params.query))
+            );
           } catch {
             extractionFailed++;
           }
         }
 
         const notes: string[] = [];
-        if (legacyCount) {
-          notes.push(
-            `${legacyCount} legacy files skipped — convert to OpenXML first`
-          );
-        }
         if (extractionSkipped) {
           notes.push(
-            `${extractionSkipped} office/PDF files skipped due to extraction limit`
+            `${extractionSkipped} document files skipped due to extraction limit`
           );
         }
         if (extractionFailed) {

@@ -1,9 +1,9 @@
-import { execFile, execFileSync, spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, dirname, join } from "node:path";
-import { promisify } from "node:util";
 import { randomUUID } from "node:crypto";
+import { toMarkdown } from "@firecrawl/anydoc";
 import {
   resolveConfig,
   SessionStore,
@@ -43,7 +43,6 @@ import { loadCorsOrigins } from "./cors";
 
 import { getDataDir } from "../data-dir";
 
-const execFileAsync = promisify(execFile);
 export { getDataDir } from "../data-dir";
 
 interface DaemonInfo {
@@ -127,43 +126,18 @@ export async function startDaemon(): Promise<DaemonHandle> {
   const agentRegistry = new AgentRegistry();
   const skillsDir = join(process.cwd(), "skills");
   const mcp = new McpManager({ connect: createSdkMcpClient });
-  const readOffice = async (file: string) => {
-    const { stdout } = await execFileAsync(
-      "officecli",
-      ["view", file, "text", "--json"],
-      {
-        encoding: "utf-8",
-        timeout: 30000,
-        maxBuffer: 10 * 1024 * 1024,
-      }
-    );
-    return stdout;
-  };
-  const readPdf = async (file: string) => {
-    const { stdout } = await execFileAsync(
-      "pdftotext",
-      ["-layout", file, "-"],
-      {
-        encoding: "utf-8",
-        timeout: 30000,
-        maxBuffer: 10 * 1024 * 1024,
-      }
-    );
-    return stdout;
-  };
+  const readDocument = (file: string) => toMarkdown(file);
 
   const baseTools: ToolDefinition[] = [
     createDefaultOfficeCliTool({ draftManager }),
     createReadTool({
       draftManager,
-      readOffice,
-      readPdf,
+      readDocument,
     }),
     createWriteTool(),
     createGlobTool(),
     createGrepTool({
-      readOffice,
-      readPdf,
+      readDocument,
       officeExtractLimit: config.grep?.officeExtractLimit,
     }),
     createSkillTool(skillsDir),

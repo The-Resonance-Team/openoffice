@@ -25,7 +25,7 @@ function tempDir(): string {
 }
 
 const noopDeps = {
-  readOffice: async () => "office content",
+  readDocument: async () => "office content",
 };
 
 describe("read tool", () => {
@@ -61,14 +61,14 @@ describe("read tool", () => {
     if (!result.success) expect(result.code).toBe("FILE_NOT_FOUND");
   });
 
-  test("delegates .docx to readOffice", async () => {
+  test("delegates .docx to readDocument", async () => {
     const dir = tempDir();
     const file = join(dir, "test.docx");
     writeFileSync(file, "binary");
 
     let calledWith = "";
     const tool = createReadTool({
-      readOffice: async (f: string) => {
+      readDocument: async (f: string) => {
         calledWith = f;
         return "document content";
       },
@@ -79,14 +79,14 @@ describe("read tool", () => {
     if (result.success) expect(result.output).toBe("document content");
   });
 
-  test("delegates .xlsx to readOffice", async () => {
+  test("delegates .xlsx to readDocument", async () => {
     const dir = tempDir();
     const file = join(dir, "test.xlsx");
     writeFileSync(file, "binary");
 
     let calledWith = "";
     const tool = createReadTool({
-      readOffice: async (f: string) => {
+      readDocument: async (f: string) => {
         calledWith = f;
         return "spreadsheet content";
       },
@@ -96,14 +96,14 @@ describe("read tool", () => {
     expect(calledWith).toBe(file);
   });
 
-  test("delegates .pptx to readOffice", async () => {
+  test("delegates .pptx to readDocument", async () => {
     const dir = tempDir();
     const file = join(dir, "test.pptx");
     writeFileSync(file, "binary");
 
     let calledWith = "";
     const tool = createReadTool({
-      readOffice: async (f: string) => {
+      readDocument: async (f: string) => {
         calledWith = f;
         return "presentation content";
       },
@@ -113,15 +113,14 @@ describe("read tool", () => {
     expect(calledWith).toBe(file);
   });
 
-  test("delegates .pdf to readPdf when available", async () => {
+  test("delegates .pdf to readDocument", async () => {
     const dir = tempDir();
     const file = join(dir, "test.pdf");
     writeFileSync(file, "%PDF-1.4 binary");
 
     let calledWith = "";
     const tool = createReadTool({
-      readOffice: async () => "",
-      readPdf: async (f: string) => {
+      readDocument: async (f: string) => {
         calledWith = f;
         return "extracted pdf text";
       },
@@ -132,39 +131,40 @@ describe("read tool", () => {
     if (result.success) expect(result.output).toBe("extracted pdf text");
   });
 
-  test("errors on .pdf when readPdf not configured", async () => {
+  test("returns a PDF error when document conversion fails", async () => {
     const dir = tempDir();
     const file = join(dir, "test.pdf");
     writeFileSync(file, "%PDF-1.4 binary");
 
-    const tool = createReadTool({ readOffice: async () => "" });
+    const tool = createReadTool({
+      readDocument: async () => {
+        throw new Error("unsupported PDF");
+      },
+    });
     const result = await tool.execute({ file }, { sessionID: "test" });
     expect(result.success).toBe(false);
     if (!result.success) expect(result.code).toBe("PDF_READ_ERROR");
   });
 
-  test("errors on legacy .doc format with conversion hint", async () => {
+  test("reads legacy .doc through AnyDoc", async () => {
     const dir = tempDir();
     const file = join(dir, "test.doc");
     writeFileSync(file, "legacy binary");
 
-    const tool = createReadTool({ readOffice: async () => "" });
+    const tool = createReadTool({ readDocument: async () => "legacy content" });
     const result = await tool.execute({ file }, { sessionID: "test" });
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.code).toBe("LEGACY_FORMAT");
-      expect(result.error).toContain("docx");
-    }
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.output).toBe("legacy content");
   });
 
-  test("delegates .dotx template to readOffice", async () => {
+  test("delegates .dotx template to readDocument", async () => {
     const dir = tempDir();
     const file = join(dir, "template.dotx");
     writeFileSync(file, "binary");
 
     let calledWith = "";
     const tool = createReadTool({
-      readOffice: async (f: string) => {
+      readDocument: async (f: string) => {
         calledWith = f;
         return "template content";
       },
@@ -174,14 +174,14 @@ describe("read tool", () => {
     expect(calledWith).toBe(file);
   });
 
-  test("delegates .docm macro-enabled to readOffice", async () => {
+  test("delegates .docm macro-enabled to readDocument", async () => {
     const dir = tempDir();
     const file = join(dir, "macro.docm");
     writeFileSync(file, "binary");
 
     let calledWith = "";
     const tool = createReadTool({
-      readOffice: async (f: string) => {
+      readDocument: async (f: string) => {
         calledWith = f;
         return "macro content";
       },
@@ -298,9 +298,10 @@ describe("grep tool", () => {
     writeFileSync(join(dir, "old.doc"), "placeholder");
 
     const tool = createGrepTool({
-      readOffice: async (file) =>
-        file.endsWith("report.docx") ? "office target\n" : "no match\n",
-      readPdf: async () => "pdf target\n",
+      readDocument: async (file) =>
+        file.endsWith("report.docx") || file.endsWith("manual.pdf")
+          ? "document target\n"
+          : "no match\n",
     });
     const result = await tool.execute(
       { query: "target", path: dir },
@@ -312,7 +313,6 @@ describe("grep tool", () => {
       expect(result.output).toContain("plain target");
       expect(result.output).toContain("report.docx");
       expect(result.output).toContain("manual.pdf");
-      expect(result.output).toContain("1 legacy");
       expect(result.output).not.toContain("slides.pptx");
     }
   });
@@ -323,12 +323,12 @@ describe("grep tool", () => {
     writeFileSync(join(dir, "one.docx"), "placeholder");
     writeFileSync(join(dir, "two.docx"), "placeholder");
     const extracted: string[] = [];
-    const readOffice = async (file: string) => {
+    const readDocument = async (file: string) => {
       extracted.push(file);
       return "target\n";
     };
 
-    const tool = createGrepTool({ readOffice, officeExtractLimit: 1 });
+    const tool = createGrepTool({ readDocument, officeExtractLimit: 1 });
     const result = await tool.execute(
       { query: "target", path: dir },
       { sessionID: "test" }
@@ -338,7 +338,7 @@ describe("grep tool", () => {
     expect(extracted).toHaveLength(1);
     if (result.success) {
       expect(result.output).toContain(".docx");
-      expect(result.output).toContain("1 office/PDF files skipped");
+      expect(result.output).toContain("1 document files skipped");
     }
   });
 
@@ -350,11 +350,10 @@ describe("grep tool", () => {
 
     const extracted: string[] = [];
     const tool = createGrepTool({
-      readOffice: async (file) => {
+      readDocument: async (file) => {
         extracted.push(file);
         return "target\n";
       },
-      readPdf: async () => "target\n",
     });
     const result = await tool.execute(
       { query: "target", path: dir, include: "*.docx" },
@@ -377,8 +376,7 @@ describe("grep tool", () => {
     writeFileSync(join(dir, "old.doc"), "placeholder");
 
     const tool = createGrepTool({
-      readOffice: async () => "office text\n",
-      readPdf: async () => "pdf text\n",
+      readDocument: async () => "document text\n",
     });
     const result = await tool.execute(
       { query: "missing", path: dir },
@@ -388,7 +386,6 @@ describe("grep tool", () => {
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.output).toContain("No matches found");
-      expect(result.output).toContain("1 legacy");
     }
   });
 
@@ -398,7 +395,7 @@ describe("grep tool", () => {
     writeFileSync(join(dir, "report.docx"), "placeholder");
 
     const tool = createGrepTool({
-      readOffice: async () => `${"a".repeat(5000)}!`,
+      readDocument: async () => `${"a".repeat(5000)}!`,
     });
     const result = await tool.execute(
       { query: "(a+)+$", path: dir },
@@ -407,6 +404,26 @@ describe("grep tool", () => {
 
     expect(result.success).toBe(true);
     if (result.success) expect(result.output).toBe("No matches found");
+  });
+
+  test("uses the document reader for legacy Office files", async () => {
+    if (!hasRg()) return;
+    const dir = tempDir();
+    writeFileSync(join(dir, "legacy.doc"), "placeholder");
+
+    const tool = createGrepTool({
+      readDocument: async () => "legacy target\n",
+    });
+    const result = await tool.execute(
+      { query: "target", path: dir },
+      { sessionID: "test" }
+    );
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.output).toContain("legacy.doc");
+      expect(result.output).not.toContain("legacy files skipped");
+    }
   });
 });
 
