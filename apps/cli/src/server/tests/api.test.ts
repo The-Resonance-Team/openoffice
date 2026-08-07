@@ -320,6 +320,32 @@ describe("server API", () => {
     off();
   });
 
+  test("ask answer is scoped to its session", async () => {
+    const { app } = makeApp();
+    const first = await post(app, "/api/sessions", { cwd: "/tmp" });
+    const second = await post(app, "/api/sessions", { cwd: "/tmp" });
+    let promptID = "";
+    const { on } = await import("../../events");
+    const off = on("session:ask", (d) => {
+      if (d.sessionID === first.json.id) promptID = d.promptID;
+    });
+    const promise = askChannel.ask(first.json.id, "continue?");
+    expect(promptID).not.toBe("");
+
+    const wrong = await post(
+      app,
+      `/api/sessions/${second.json.id}/ask-answer`,
+      {
+        promptID,
+        answer: "discard",
+      }
+    );
+    expect(wrong.status).toBe(404);
+    expect(askChannel.answer(first.json.id, promptID, "discard")).toBe(true);
+    expect(await promise).toBe("discard");
+    off();
+  });
+
   test("stream delivers llm tokens over SSE", async () => {
     const { app } = makeApp();
     const created = await post(app, "/api/sessions", { cwd: "/tmp" });
