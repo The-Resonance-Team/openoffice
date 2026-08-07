@@ -4,7 +4,7 @@ import {
   HealthCheckService,
   PrismaHealthIndicator,
 } from "@nestjs/terminus";
-import { Public } from "../auth/public.decorator";
+import { Public } from "../auth/decorators";
 import { PrismaService } from "../prisma/prisma.service";
 
 // Liveness + DB reachability. Public (probes are unauthenticated).

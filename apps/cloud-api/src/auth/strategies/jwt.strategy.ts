@@ -3,16 +3,18 @@ import { ConfigService } from "@nestjs/config";
 import { PassportStrategy } from "@nestjs/passport";
 import { ExtractJwt, Strategy } from "passport-jwt";
 import type { Request } from "express";
-import { Role } from "../generated/client";
+import { Role } from "../../generated/client";
 
 export interface JwtPayload {
   sub: string; // memberId
+  userId: string;
   orgId: string;
   role: Role;
 }
 
 export interface AuthenticatedMember {
   memberId: string;
+  userId: string;
   orgId: string;
   role: Role;
 }
@@ -41,6 +43,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   validate(payload: JwtPayload): AuthenticatedMember {
     return {
       memberId: payload.sub,
+      userId: payload.userId,
       orgId: payload.orgId,
       role: payload.role,
     };
