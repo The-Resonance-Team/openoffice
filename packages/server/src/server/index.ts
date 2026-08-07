@@ -22,7 +22,10 @@ import { createAuthMiddleware, type ServerAuthConfig } from "./auth";
 import { createCorsMiddleware } from "./cors";
 
 export class AskChannel {
-  private pending = new Map<string, (answer: string) => void>();
+  private pending = new Map<
+    string,
+    { sessionID: string; resolve: (answer: string) => void }
+  >();
 
   constructor(private ttlMs: number = 5 * 60 * 1000) {}
 
@@ -30,7 +33,7 @@ export class AskChannel {
     const promptID = randomUUID();
     emit("session:ask", { sessionID, promptID, question });
     return new Promise((resolve) => {
-      this.pending.set(promptID, resolve);
+      this.pending.set(promptID, { sessionID, resolve });
       // ponytail: a vanished client must not hang the turn queue forever;
       // "" answers fall through to the default branch (skip/leave) everywhere
       setTimeout(() => {
@@ -39,11 +42,11 @@ export class AskChannel {
     });
   }
 
-  answer(promptID: string, answer: string): boolean {
-    const resolve = this.pending.get(promptID);
-    if (!resolve) return false;
+  answer(sessionID: string, promptID: string, answer: string): boolean {
+    const pending = this.pending.get(promptID);
+    if (!pending || pending.sessionID !== sessionID) return false;
     this.pending.delete(promptID);
-    resolve(answer);
+    pending.resolve(answer);
     return true;
   }
 }
@@ -121,10 +124,11 @@ export function createApp(deps: ServerDeps) {
   function enqueueTurn<T>(sessionID: string, fn: () => Promise<T>): Promise<T> {
     const prev = turnQueues.get(sessionID) ?? Promise.resolve();
     const next = prev.then(fn);
-    turnQueues.set(
-      sessionID,
-      next.catch(() => undefined)
-    );
+    const tail = next.catch(() => undefined);
+    turnQueues.set(sessionID, tail);
+    void tail.then(() => {
+      if (turnQueues.get(sessionID) === tail) turnQueues.delete(sessionID);
+    });
     return next;
   }
 
@@ -316,7 +320,9 @@ export function createApp(deps: ServerDeps) {
     if (typeof body.promptID !== "string" || typeof body.answer !== "string") {
       return c.json({ error: "promptID and answer are required" }, 400);
     }
-    if (!deps.askChannel.answer(body.promptID, body.answer)) {
+    if (
+      !deps.askChannel.answer(c.req.param("id"), body.promptID, body.answer)
+    ) {
       return c.json({ error: "Unknown prompt" }, 404);
     }
     return c.json({ ok: true });
@@ -380,19 +386,21 @@ export function createApp(deps: ServerDeps) {
           // client gone
         }
       };
-      // Subscribe before replaying: a live event emitted between the replay
-      // read and the subscribe would otherwise double-render (persisted in
-      // the replay AND delivered live). While the replay is in flight, live
-      // events are dropped — anything persisted before the replay read is
-      // already in it; anything persisted after it is still delivered live.
+      // Subscribe before replaying and buffer events until the snapshot is
+      // sent, so events emitted during the read are delivered exactly once.
       let replaying = true;
+      const replayBuffer: (() => void)[] = [];
       const subscribe = <K extends keyof EventMap>(
         event: K,
         fn: (d: EventMap[K]) => void
       ) => {
         offs.push(
           on(event, (d) => {
-            if (d.sessionID !== sessionID || replaying) return;
+            if (d.sessionID !== sessionID) return;
+            if (replaying) {
+              replayBuffer.push(() => void fn(d));
+              return;
+            }
             void fn(d);
           })
         );
@@ -410,6 +418,10 @@ export function createApp(deps: ServerDeps) {
             content: d.response,
           })
       );
+      subscribe(
+        "session:ask",
+        (d) => void write({ type: "ask", question: d.question })
+      );
       for (const m of deps.store.messages(sessionID)) {
         if (m.info.role === "user" || m.info.role === "assistant") {
           await write({
@@ -420,10 +432,7 @@ export function createApp(deps: ServerDeps) {
         }
       }
       replaying = false;
-      subscribe(
-        "session:ask",
-        (d) => void write({ type: "ask", question: d.question })
-      );
+      for (const event of replayBuffer) event();
       stream.onAbort(() => {
         for (const off of offs) off();
       });

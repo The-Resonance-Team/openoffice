@@ -275,6 +275,28 @@ describe("session share routes", () => {
     expect(data).toContain("proceed?");
   });
 
+  test("share stream does not drop events emitted during replay", async () => {
+    const { app } = makeApp();
+    const id = await createSession(app);
+    const shared = await post(app, `/api/sessions/${id}/share`);
+    const token = shared.json.url.split("/share/")[1];
+    const originalMessages = store.messages.bind(store);
+    const { emit } = await import("@openoffice/core");
+    store.messages = ((sessionID: string) => {
+      const messages = originalMessages(sessionID);
+      emit("session:message", {
+        sessionID: id,
+        role: "user",
+        content: "during replay",
+      });
+      return messages;
+    }) as typeof store.messages;
+
+    const res = await app.request(`/share/${token}/stream`);
+    const data = await readSSE(res, 1);
+    expect(data).toContain("during replay");
+  });
+
   test("share stream stops delivering after revoke", async () => {
     const { app } = makeApp();
     const id = await createSession(app);
