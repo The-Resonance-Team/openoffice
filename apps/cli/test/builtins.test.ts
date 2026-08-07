@@ -383,6 +383,26 @@ describe("grep tool", () => {
     }
   });
 
+  test("searches filenames and paths", async () => {
+    if (!hasRg()) return;
+    const dir = tempDir();
+    writeFileSync(join(dir, "report.docx"), "placeholder");
+
+    const tool = createGrepTool({
+      readDocument: async () => "no content match\n",
+    });
+    const result = await tool.execute(
+      { query: "report", path: dir },
+      { sessionID: "test" }
+    );
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.output).toContain("Path match:");
+      expect(result.output).toContain("report.docx");
+    }
+  });
+
   test("resolves document drafts before extraction", async () => {
     if (!hasRg()) return;
     const dir = tempDir();

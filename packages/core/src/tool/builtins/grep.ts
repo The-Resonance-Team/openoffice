@@ -70,6 +70,27 @@ async function matchExtractedText(
   }
 }
 
+async function matchFilePaths(
+  files: string[],
+  query: string
+): Promise<string[]> {
+  if (!files.length) return [];
+  try {
+    const output = await runRg(
+      ["--no-heading", "--line-number", query],
+      files.join("\n")
+    );
+    return output
+      .trim()
+      .split(/\r?\n/)
+      .filter(Boolean)
+      .map((line) => `Path match: ${line.replace(/^\d+:/, "")}`);
+  } catch (e: any) {
+    if (isNoMatch(e)) return [];
+    throw e;
+  }
+}
+
 export function createGrepTool(deps?: GrepDeps): ToolDefinition {
   return {
     name: "grep",
@@ -88,12 +109,10 @@ export function createGrepTool(deps?: GrepDeps): ToolDefinition {
         const target = params.path ?? ctx.cwd ?? process.cwd();
         let files: string[] = [];
         let enumerationFailed = false;
-        if (deps) {
-          try {
-            files = await (deps.listFiles ?? listFiles)(target, params.include);
-          } catch {
-            enumerationFailed = true;
-          }
+        try {
+          files = await (deps?.listFiles ?? listFiles)(target, params.include);
+        } catch {
+          enumerationFailed = true;
         }
         const extractable = files.filter((file) =>
           DOCUMENT_EXTENSIONS.has(extname(file).toLowerCase())
@@ -101,6 +120,9 @@ export function createGrepTool(deps?: GrepDeps): ToolDefinition {
         const plainFiles = files.filter(
           (file) => !DOCUMENT_EXTENSIONS.has(extname(file).toLowerCase())
         );
+        const fileMatches = enumerationFailed
+          ? []
+          : await matchFilePaths(files, params.query);
         let plainMatches: string[] = [];
         if (!deps || enumerationFailed || plainFiles.length) {
           const args: string[] = [
@@ -157,7 +179,7 @@ export function createGrepTool(deps?: GrepDeps): ToolDefinition {
         const notes: string[] = [];
         if (enumerationFailed) {
           notes.push(
-            "document extraction skipped because file enumeration failed"
+            "filename search and document extraction skipped because file enumeration failed"
           );
         }
         if (extractionSkipped) {
@@ -171,7 +193,7 @@ export function createGrepTool(deps?: GrepDeps): ToolDefinition {
           );
         }
 
-        const matches = [...plainMatches, ...extractedMatches];
+        const matches = [...fileMatches, ...plainMatches, ...extractedMatches];
         return {
           success: true,
           output: [
