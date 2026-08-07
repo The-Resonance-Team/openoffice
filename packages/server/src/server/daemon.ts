@@ -41,7 +41,7 @@ import { checkForUpdate } from "../update";
 import { VERSION } from "../version";
 import { loadAuthConfig, authRequired } from "./auth";
 import { loadCorsOrigins } from "./cors";
-import { readSearchExtras } from "../document-search";
+import { readDocumentSearchData } from "../document-search";
 
 import { getDataDir } from "../data-dir";
 
@@ -131,6 +131,8 @@ export async function startDaemon(): Promise<DaemonHandle> {
   const readDocument = (file: string) => toMarkdown(file);
   const readMetadata = (file: string) =>
     exiftool.read(file) as Promise<Record<string, unknown>>;
+  const readSearchData = (file: string) =>
+    readDocumentSearchData(file, readMetadata);
 
   const baseTools: ToolDefinition[] = [
     createDefaultOfficeCliTool({ draftManager }),
@@ -142,8 +144,7 @@ export async function startDaemon(): Promise<DaemonHandle> {
     createGlobTool(),
     createGrepTool({
       readDocument,
-      readMetadata,
-      readSearchExtras,
+      readSearchData,
       resolveDocument: async (file, ctx) => {
         const resolved = await draftManager.resolve(file, ctx.sessionID, false);
         if (resolved.lockError) throw new Error(resolved.lockError);

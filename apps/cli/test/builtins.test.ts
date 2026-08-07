@@ -463,6 +463,60 @@ describe("grep tool", () => {
     }
   });
 
+  test("uses one combined document search read per file", async () => {
+    if (!hasRg()) return;
+    const dir = tempDir();
+    writeFileSync(join(dir, "manual.pdf"), "placeholder");
+    let calls = 0;
+
+    const tool = createGrepTool({
+      readDocument: async () => "no content match\n",
+      readSearchData: async () => {
+        calls++;
+        return {
+          metadata: { Title: "quarterly target" },
+          structured: "PDF annotation: target",
+        };
+      },
+    });
+    const result = await tool.execute(
+      { query: "target", path: dir },
+      { sessionID: "test" }
+    );
+
+    expect(result.success).toBe(true);
+    expect(calls).toBe(1);
+    if (result.success) {
+      expect(result.output).toContain("Metadata match:");
+      expect(result.output).toContain("PDF annotation:");
+    }
+  });
+
+  test("does not search system metadata fields", async () => {
+    if (!hasRg()) return;
+    const dir = tempDir();
+    writeFileSync(join(dir, "manual.pdf"), "placeholder");
+
+    const tool = createGrepTool({
+      readDocument: async () => "no content match\n",
+      readSearchData: async () => ({
+        metadata: {
+          FileName: "hidden target",
+          Directory: "hidden target",
+          FileSize: "hidden target",
+          Title: "visible title",
+        },
+      }),
+    });
+    const result = await tool.execute(
+      { query: "hidden", path: dir },
+      { sessionID: "test" }
+    );
+
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.output).toContain("No matches found");
+  });
+
   test("resolves document drafts before extraction", async () => {
     if (!hasRg()) return;
     const dir = tempDir();
