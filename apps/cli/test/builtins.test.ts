@@ -403,6 +403,31 @@ describe("grep tool", () => {
     }
   });
 
+  test("searches document metadata", async () => {
+    if (!hasRg()) return;
+    const dir = tempDir();
+    writeFileSync(join(dir, "report.docx"), "placeholder");
+
+    const tool = createGrepTool({
+      readDocument: async () => "no content match\n",
+      readMetadata: async () => ({
+        Title: "quarterly report",
+        Author: "Alice",
+      }),
+    });
+    const result = await tool.execute(
+      { query: "quarterly", path: dir },
+      { sessionID: "test" }
+    );
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.output).toContain("Metadata match:");
+      expect(result.output).toContain("report.docx");
+      expect(result.output).toContain("Title: quarterly report");
+    }
+  });
+
   test("resolves document drafts before extraction", async () => {
     if (!hasRg()) return;
     const dir = tempDir();

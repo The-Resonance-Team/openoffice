@@ -2,6 +2,7 @@ import { execFileSync, spawn } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, dirname, join } from "node:path";
+import { exiftool } from "exiftool-vendored";
 import { randomUUID } from "node:crypto";
 import { toMarkdown } from "@firecrawl/anydoc";
 import {
@@ -127,6 +128,8 @@ export async function startDaemon(): Promise<DaemonHandle> {
   const skillsDir = join(process.cwd(), "skills");
   const mcp = new McpManager({ connect: createSdkMcpClient });
   const readDocument = (file: string) => toMarkdown(file);
+  const readMetadata = (file: string) =>
+    exiftool.read(file) as Promise<Record<string, unknown>>;
 
   const baseTools: ToolDefinition[] = [
     createDefaultOfficeCliTool({ draftManager }),
@@ -138,6 +141,7 @@ export async function startDaemon(): Promise<DaemonHandle> {
     createGlobTool(),
     createGrepTool({
       readDocument,
+      readMetadata,
       resolveDocument: async (file, ctx) => {
         const resolved = await draftManager.resolve(file, ctx.sessionID, false);
         if (resolved.lockError) throw new Error(resolved.lockError);
