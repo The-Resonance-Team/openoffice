@@ -281,7 +281,7 @@ describe("session share routes", () => {
     const shared = await post(app, `/api/sessions/${id}/share`);
     const token = shared.json.url.split("/share/")[1];
     const originalMessages = store.messages.bind(store);
-    const { emit } = await import("../../events");
+    const { emit } = await import("@openoffice/core");
     store.messages = ((sessionID: string) => {
       const messages = originalMessages(sessionID);
       emit("session:message", {
