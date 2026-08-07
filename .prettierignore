@@ -1,0 +1,7 @@
+# Hand-written prose and generated docs — prettier formatting is noise on
+# them; keep the repo's own formatting for docs and glossaries.
+docs/
+**/docs/
+CONTEXT.md
+CONTEXT-MAP.md
+.claude/

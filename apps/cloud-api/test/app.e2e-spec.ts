@@ -5,6 +5,21 @@ import request from "supertest";
 import cookieParser from "cookie-parser";
 import { App } from "supertest/types";
 import { AppModule } from "./../src/app.module";
+import { PrismaService } from "./../src/prisma/prisma.service";
+
+// CI has no Postgres, so the health DB ping is served by a stub that always
+// reports the database up. Real DB reachability stays a local-compose
+// concern (`docker compose up -d postgres`).
+// The stub mimics a SQL Prisma client: terminus pings via `$runCommandRaw`
+// (Mongo path) and falls back to `$queryRawUnsafe('SELECT 1')` when the
+// client reports it is not a Mongo provider.
+const prismaStub = {
+  $runCommandRaw: jest
+    .fn()
+    .mockRejectedValue(new Error("Use the mongodb provider")),
+  $queryRawUnsafe: jest.fn().mockResolvedValue([{ "?column?": 1 }]),
+  $disconnect: jest.fn().mockResolvedValue(undefined),
+} as unknown as PrismaService;
 
 describe("AppController (e2e)", () => {
   let app: INestApplication<App>;
@@ -12,7 +27,10 @@ describe("AppController (e2e)", () => {
   beforeEach(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
-    }).compile();
+    })
+      .overrideProvider(PrismaService)
+      .useValue(prismaStub)
+      .compile();
 
     app = moduleFixture.createNestApplication();
     // Mirrors src/main.ts bootstrap
@@ -21,7 +39,7 @@ describe("AppController (e2e)", () => {
     await app.init();
   });
 
-  it("/health (GET) — public liveness, requires local Postgres (docker compose up -d postgres)", () => {
+  it("/health (GET) — public liveness (DB ping stubbed — no local Postgres needed)", () => {
     return request(app.getHttpServer())
       .get("/v1/health")
       .expect(200)
