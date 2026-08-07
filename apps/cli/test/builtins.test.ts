@@ -317,6 +317,46 @@ describe("grep tool", () => {
     }
   });
 
+  test("does not search raw document bytes with rg", async () => {
+    if (!hasRg()) return;
+    const dir = tempDir();
+    writeFileSync(join(dir, "report.docx"), "raw target\n");
+
+    const tool = createGrepTool({
+      readDocument: async () => "document target\n",
+    });
+    const result = await tool.execute(
+      { query: "target", path: dir },
+      { sessionID: "test" }
+    );
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.output).toContain("document target");
+      expect(result.output).not.toContain("raw target");
+    }
+  });
+
+  test("searches extracted spreadsheet text", async () => {
+    if (!hasRg()) return;
+    const dir = tempDir();
+    writeFileSync(join(dir, "report.xlsx"), "placeholder");
+
+    const tool = createGrepTool({
+      readDocument: async () => "spreadsheet target\n",
+    });
+    const result = await tool.execute(
+      { query: "target", path: dir },
+      { sessionID: "test" }
+    );
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.output).toContain("report.xlsx");
+      expect(result.output).toContain("spreadsheet target");
+    }
+  });
+
   test("reports office extraction files skipped past the limit", async () => {
     if (!hasRg()) return;
     const dir = tempDir();

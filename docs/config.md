@@ -90,7 +90,7 @@ wins (dogfooding rule).
 
 | Key                  | Type   | Description                                        |
 | -------------------- | ------ | -------------------------------------------------- |
-| `officeExtractLimit` | number | Maximum document/PDF files converted per grep call |
+| `officeExtractLimit` | number | Maximum AnyDoc-supported document files converted per grep call |
 
 ### `update`
 

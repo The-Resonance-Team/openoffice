@@ -10,7 +10,6 @@ export interface GrepDeps {
 }
 
 const MAX_OFFICE_EXTRACT_LIMIT = 20;
-const DEFAULT_OFFICE_EXTRACT_LIMIT = MAX_OFFICE_EXTRACT_LIMIT;
 
 function isNoMatch(error: any): boolean {
   return error.status === 1 || error.code === 1 || error.code === "1";
@@ -84,28 +83,33 @@ export function createGrepTool(deps?: GrepDeps): ToolDefinition {
     }),
     execute: async (params, ctx) => {
       try {
-        const args: string[] = ["--no-heading", "--line-number", params.query];
-        if (params.path) args.push(params.path);
-        else args.push(ctx.cwd ?? process.cwd());
-        if (params.include) args.push("--glob", params.include);
-
-        let plainMatches: string[] = [];
-        try {
-          const output = await runRg(args);
-          plainMatches = output.trim() ? [output.trim()] : [];
-        } catch (e: any) {
-          if (!isNoMatch(e)) throw e;
-        }
         const target = params.path ?? ctx.cwd ?? process.cwd();
+        const args: string[] = ["--no-heading", "--line-number", params.query];
         const files = deps ? await listFiles(target, params.include) : [];
         const extractable = files.filter((file) =>
           DOCUMENT_EXTENSIONS.has(extname(file).toLowerCase())
         );
+        const plainFiles = files.filter(
+          (file) => !DOCUMENT_EXTENSIONS.has(extname(file).toLowerCase())
+        );
+        let plainMatches: string[] = [];
+        if (!deps || plainFiles.length) {
+          if (deps) args.push(...plainFiles);
+          else args.push(target);
+          if (params.include) args.push("--glob", params.include);
+
+          try {
+            const output = await runRg(args);
+            plainMatches = output.trim() ? [output.trim()] : [];
+          } catch (e: any) {
+            if (!isNoMatch(e)) throw e;
+          }
+        }
         const limit = Math.max(
           0,
           Math.min(
             MAX_OFFICE_EXTRACT_LIMIT,
-            deps?.officeExtractLimit ?? DEFAULT_OFFICE_EXTRACT_LIMIT
+            deps?.officeExtractLimit ?? MAX_OFFICE_EXTRACT_LIMIT
           )
         );
         const filesToExtract = extractable.slice(0, limit);
@@ -132,7 +136,7 @@ export function createGrepTool(deps?: GrepDeps): ToolDefinition {
         }
         if (extractionFailed) {
           notes.push(
-            `${extractionFailed} office/PDF files skipped due to extraction failure`
+            `${extractionFailed} document files skipped due to extraction failure`
           );
         }
 
