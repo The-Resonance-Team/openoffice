@@ -64,13 +64,24 @@ export type {
   DiscoveredModel,
 } from "./llm";
 
-export { McpManager } from "./mcp";
-export type { McpClient, McpConfig, McpToolInfo, McpManagerDeps } from "./mcp";
 export {
+  McpManager,
   createSdkMcpClient,
   planMcpConnections,
   normalizeMcpResult,
-} from "./mcp/sdk-client";
+  normalizeMcpContents,
+} from "./mcp";
+export type {
+  McpClient,
+  McpConfig,
+  McpToolInfo,
+  McpPromptInfo,
+  McpResourceInfo,
+  McpManagerDeps,
+  McpServerStatus,
+  McpServerStatusInfo,
+  McpResourceContent,
+} from "./mcp";
 
 export {
   createOfficeCliTool,

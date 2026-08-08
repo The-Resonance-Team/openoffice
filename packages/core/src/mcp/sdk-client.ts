@@ -28,22 +28,50 @@ export function normalizeMcpResult(result: unknown): string {
 
 // Dogfooding rule: a configured server whose name matches a native tool is
 // skipped — the native integration (typed verbs, install check, convert
-// chaining) is strictly better than the MCP `command` string surface.
+// chaining) is strictly better than the MCP `command` string surface. The
+// skip applies at boot; an explicit runtime enable overrides it.
 export function planMcpConnections(
   configured: Record<string, McpConfig> | undefined,
   nativeToolNames: string[]
-): { toConnect: Array<[string, McpConfig]>; skipped: string[] } {
+): {
+  toConnect: Array<[string, McpConfig]>;
+  skipped: string[];
+  disabled: string[];
+} {
   const native = new Set(nativeToolNames);
   const toConnect: Array<[string, McpConfig]> = [];
   const skipped: string[] = [];
+  const disabled: string[] = [];
   for (const [name, cfg] of Object.entries(configured ?? {})) {
-    if (native.has(name)) {
+    if (cfg.enabled === false) {
+      disabled.push(name);
+    } else if (native.has(name)) {
       skipped.push(name);
     } else {
       toConnect.push([name, cfg]);
     }
   }
-  return { toConnect, skipped };
+  return { toConnect, skipped, disabled };
+}
+
+// SDK ReadResourceResult contents -> plain text; throws for binary (blob)
+// content — the read tool feeds text to the LLM, not base64 payloads.
+export type McpResourceContent =
+  | { uri: string; mimeType?: string; text?: string }
+  | { uri: string; mimeType?: string; blob?: string };
+
+export function normalizeMcpContents(contents: McpResourceContent[]): string {
+  const text = contents
+    .map((c) => ("text" in c ? (c.text ?? "") : ""))
+    .filter(Boolean)
+    .join("\n");
+  if (text) return text;
+  if (contents.some((c) => "blob" in c)) {
+    throw new Error(
+      "MCP resource returned binary content — text resources only"
+    );
+  }
+  throw new Error("MCP resource returned no content");
 }
 
 // ponytail: connect can hang on a dead server; a hard timeout is the ceiling.
@@ -76,15 +104,40 @@ export function createSdkMcpClient(config: McpConfig): Promise<McpClient> {
         new StreamableHTTPClientTransport(new URL(config.url))
       );
     }
+    // Capabilities are populated by the connect handshake, so read them after.
+    const capabilities = client.getServerCapabilities();
     return {
       name: "",
-      async listTools() {
+      listTools: async () => {
         const { tools } = await client.listTools();
         return tools.map((t) => ({
           name: t.name,
           description: t.description ?? "",
           inputSchema: t.inputSchema as unknown as Record<string, unknown>,
         }));
+      },
+      // A server without the capability answers no items rather than
+      // erroring — capability-miss must not look like a dead transport.
+      listPrompts: async () => {
+        if (!capabilities?.prompts) return [];
+        const { prompts } = await client.listPrompts();
+        return prompts.map((p) => ({
+          name: p.name,
+          description: p.description,
+        }));
+      },
+      listResources: async () => {
+        if (!capabilities?.resources) return [];
+        const { resources } = await client.listResources();
+        return resources.map((r) => ({
+          uri: r.uri,
+          name: r.name,
+          description: r.description,
+        }));
+      },
+      readResource: async (uri) => {
+        const result = await client.readResource({ uri });
+        return normalizeMcpContents(result.contents);
       },
       async callTool(name, args) {
         const result = await client.callTool({ name, arguments: args });

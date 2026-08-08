@@ -373,3 +373,83 @@ describe("server API", () => {
     reader.cancel();
   });
 });
+
+describe("MCP routes", () => {
+  const initial = {
+    fs: { status: "connected" },
+    off: { status: "disabled" },
+    broken: { status: "error", error: "server is down" },
+  } as const;
+
+  function makeMcpApp(overrides: Record<string, any> = {}) {
+    let state: Record<string, any> = { ...initial };
+    const mcp = {
+      status: () => state,
+      enable: async (name: string) => {
+        state = { ...state, [name]: { status: "connected" } };
+        return state[name];
+      },
+      disable: async (name: string) => {
+        state = { ...state, [name]: { status: "disabled" } };
+        return state[name];
+      },
+    };
+    return createApp({
+      store,
+      draftManager,
+      history,
+      askChannel,
+      shareStore: new ShareStore(store.db),
+      shareMode: "disabled",
+      createSession: makeSession,
+      buildRuntime: () => fakeRuntime,
+      runTurn: fakeRunTurn,
+      mcp,
+      ...overrides,
+    });
+  }
+
+  test("GET /api/mcp reports per-server status", async () => {
+    const { app } = makeMcpApp();
+    const res = await app.request("/api/mcp");
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual(initial);
+  });
+
+  test("POST enable connects a single server", async () => {
+    const { app } = makeMcpApp();
+    const res = await app.request("/api/mcp/broken/enable", { method: "POST" });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ status: "connected" });
+  });
+
+  test("POST disable disconnects a single server", async () => {
+    const { app } = makeMcpApp();
+    const res = await app.request("/api/mcp/fs/disable", { method: "POST" });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ status: "disabled" });
+  });
+
+  test("unknown server name is a 404", async () => {
+    const { app } = makeMcpApp();
+    for (const action of ["enable", "disable"]) {
+      const res = await app.request(`/api/mcp/nope/${action}`, {
+        method: "POST",
+      });
+      expect(res.status).toBe(404);
+      expect(await res.json()).toHaveProperty("error");
+    }
+  });
+
+  test("routes require daemon auth", async () => {
+    const { app } = makeMcpApp({
+      auth: { username: "u", password: "secret" },
+    });
+    const res = await app.request("/api/mcp", {
+      headers: { authorization: `Basic ${btoa("u:secret")}` },
+    });
+    expect(res.status).toBe(200);
+    const unauthorized = await app.request("/api/mcp");
+    expect(unauthorized.status).toBe(401);
+  });
+});

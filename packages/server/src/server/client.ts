@@ -5,6 +5,7 @@ import type {
   DaemonClient,
   StreamHandlers,
   UpdateStatus,
+  McpServerStatusInfo,
 } from "@openoffice/protocol";
 
 export type { StreamHandlers, UpdateStatus } from "@openoffice/protocol";
@@ -132,6 +133,26 @@ export class OpenOfficeClient implements DaemonClient {
       version?: string;
     }>(`/api/update`);
     return status === 200 ? data : null;
+  }
+
+  async mcpStatus(): Promise<Record<string, McpServerStatusInfo>> {
+    const { status, data } =
+      await this.request<Record<string, McpServerStatusInfo>>(`/api/mcp`);
+    return status === 200 ? data : {};
+  }
+
+  async mcpEnable(name: string): Promise<McpServerStatusInfo> {
+    const { data } = await this.request<
+      McpServerStatusInfo & { error?: string }
+    >(`/api/mcp/${name}/enable`, { method: "POST" });
+    return data;
+  }
+
+  async mcpDisable(name: string): Promise<McpServerStatusInfo> {
+    const { data } = await this.request<
+      McpServerStatusInfo & { error?: string }
+    >(`/api/mcp/${name}/disable`, { method: "POST" });
+    return data;
   }
 
   /**

@@ -139,6 +139,7 @@ export async function startDaemon(): Promise<DaemonHandle> {
     createReadTool({
       draftManager,
       readDocument,
+      mcp,
     }),
     createWriteTool(),
     createGlobTool(),
@@ -167,19 +168,28 @@ export async function startDaemon(): Promise<DaemonHandle> {
     },
   };
 
-  const { toConnect, skipped } = planMcpConnections(
+  const { toConnect, skipped, disabled } = planMcpConnections(
     config.mcp,
     baseTools.map((t) => t.name)
   );
   for (const name of skipped) {
+    const cfg = config.mcp?.[name];
+    if (cfg) {
+      mcp.declare(name, cfg, "provided natively, use the built-in tool");
+    }
     console.warn(
       `MCP server "${name}" skipped: provided natively, use the built-in tool`
     );
+  }
+  for (const name of disabled) {
+    const cfg = config.mcp?.[name];
+    if (cfg) mcp.declare(name, cfg);
   }
   for (const [name, mcpConfig] of toConnect) {
     try {
       await mcp.connect(name, mcpConfig);
     } catch (e) {
+      // connect() records the error status; the daemon keeps serving the rest.
       console.warn(
         `MCP server "${name}" failed to connect: ${e instanceof Error ? e.message : e}`
       );
@@ -251,6 +261,7 @@ export async function startDaemon(): Promise<DaemonHandle> {
     askChannel,
     shareStore,
     shareMode: shareMode(config),
+    mcp,
     createSession: (cwd) => {
       const now = Date.now();
       return {

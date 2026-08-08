@@ -51,10 +51,24 @@ describe("buildSystemPrompt", () => {
 
   test("appends mcp instructions when servers are connected", () => {
     const mcp = {
-      status: () => ({ filesystem: "connected" as const }),
+      status: () => ({ filesystem: { status: "connected" } }),
     };
     const prompt = buildSystemPrompt({ agent, mcp: mcp as any });
     expect(prompt).toContain('<server name="filesystem">');
+  });
+
+  test("omits non-connected servers from mcp instructions", () => {
+    const mcp = {
+      status: () => ({
+        filesystem: { status: "connected" },
+        broken: { status: "error", error: "down" },
+        off: { status: "disabled" },
+      }),
+    };
+    const prompt = buildSystemPrompt({ agent, mcp: mcp as any });
+    expect(prompt).toContain('<server name="filesystem">');
+    expect(prompt).not.toContain('name="broken"');
+    expect(prompt).not.toContain('name="off"');
   });
 
   test("omits mcp section when no servers connected", () => {

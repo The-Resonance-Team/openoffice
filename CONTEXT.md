@@ -6,7 +6,7 @@ A CLI that runs LLM agents equipped with tools to automate office document work.
 
 **Reference source**: When building or improving features, always reference the opencode source at `/Users/xirothedev/workspace/opencode`.
 
-**Dogfooding**: A configured MCP server whose name matches a native tool is never connected — the native integration (typed verbs, install check, chaining) is strictly better than the MCP `command`-string surface. Native wins.
+**Dogfooding**: A configured MCP server whose name matches a native tool is never connected — the native integration (typed verbs, install check, chaining) is strictly better than the MCP `command`-string surface. Native wins. The skip applies at boot; an explicit runtime enable of a dogfooded server connects it — user intent overrides the default.
 
 **Event safety**: Events emitted within the daemon (`tool:start`, `tool:done`, etc.) may be streamed to external clients via SSE. Sensitive values are redacted in the event bus `emit()` — every event type is safe, no caller needs to remember. The bus is the single choke point.
 
@@ -44,11 +44,15 @@ _Avoid_: task, background task, worker
 
 **Tool**:
 A callable unit exposed to the agent to perform an action. Defined with a Zod `inputSchema` and an `execute` function. Converted to AI SDK format via the `tool()` helper before passing to `streamText()`. Tools can reference other tools for chaining (e.g., a document reader delegates to officecli or pdf-parse based on file extension). MCP tools are the exception: they carry their server's JSON Schema (not Zod) and the AI SDK accepts it directly.
-_Avoid_: action, function, plugin, capability
+_Avoid_: action, function, capability
+
+**Plugin**:
+The extensibility surface of openoffice: a configured MCP server. There is no npm-package plugin loader — a Plugin contributes tools, prompts, and resources through the Model Context Protocol and nothing else.
+_Avoid_: addon, extension, module
 
 **MCP server**:
-A Model Context Protocol server configured in `config.mcp` as `local` (stdio command) or `remote` (streamable HTTP URL). Connected at startup via `@modelcontextprotocol/sdk`; its tools are exposed namespaced as `{serverName}_{toolName}` with the server's input schema passed through to the AI SDK. A server whose name matches a native tool is skipped (see Rules → Dogfooding).
-_Avoid_: plugin, backend server
+The concrete form of a Plugin: a Model Context Protocol server configured in `config.mcp` as `local` (stdio command) or `remote` (streamable HTTP URL). Connected at startup via `@modelcontextprotocol/sdk`; its tools are exposed namespaced as `{serverName}_{toolName}` with the server's input schema passed through to the AI SDK. Optional `enabled` flag (default true): a disabled server boots as `disabled` rather than connecting. Servers can be enabled/disabled at runtime through the daemon API without a restart; live status is one of `connected` / `disconnected` / `disabled` / `error`. Prompts are listed carrying their server name for namespacing (like tools); resources are read through the `read` tool via `mcp://{serverName}/{uri}` references (see ADR 0030). A server whose name matches a native tool is skipped at boot (see Rules → Dogfooding).
+_Avoid_: backend server
 
 **ToolResult**:
 The outcome of a tool execution. A strict discriminated union: `{ success: true, output: string, data?: unknown }` or `{ success: false, error: string, code?: string }`. The `output` field is human-readable text the LLM sees. The `data` field is optional structured data for programmatic consumers (session loop, draft lifecycle). Each tool normalizes its internal output into this shape.
@@ -67,7 +71,7 @@ An agent-level ruleset controlling which tools are accessible. Uses allow/deny p
 _Avoid*: access control, tool list, capability
 
 **Document toolkit**:
-The collection of tools available for document manipulation: officecli (OOXML editing), pdf-inspector (text-based PDF reading — tables, images, structure; owned by #22, not the `pdftotext` shell-out it replaces), oocr (OCR fallback for scanned/image-based PDFs and standalone images via local Tesseract — owned by #23, not yet built), pandoc (format conversion). Each tool has its own `ToolDefinition` and can reference other tools for chaining. The `read` tool auto-detects file format and delegates to the appropriate backend.
+The collection of tools available for document manipulation: officecli (OOXML editing), pdf-inspector (text-based PDF reading — tables, images, structure; owned by #22, not the `pdftotext` shell-out it replaces), oocr (OCR fallback for scanned/image-based PDFs and standalone images via local Tesseract — owned by #23, not yet built), pandoc (format conversion). Each tool has its own `ToolDefinition` and can reference other tools for chaining. The `read` tool auto-detects file format and delegates to the appropriate backend; an `mcp://` reference delegates to the named MCP server's `readResource`.
 _Avoid_: Office, document tools, doc tools
 
 **Config**:

@@ -20,6 +20,7 @@ import {
   type ShareMode,
 } from "@openoffice/core";
 import type { EventMap } from "@openoffice/protocol";
+import type { McpServerStatusInfo } from "@openoffice/protocol";
 
 import type { UpdateStatus } from "../update";
 
@@ -61,6 +62,14 @@ export interface SessionRuntime {
   system: string;
 }
 
+// The runtime MCP control surface the daemon exposes over HTTP. McpManager
+// satisfies it structurally.
+export interface McpApi {
+  status(): Record<string, McpServerStatusInfo>;
+  enable(name: string): Promise<McpServerStatusInfo>;
+  disable(name: string): Promise<McpServerStatusInfo>;
+}
+
 export interface ServerDeps {
   store: SessionStore;
   draftManager: DraftManager;
@@ -77,6 +86,8 @@ export interface ServerDeps {
     store: SessionStore
   ) => Promise<{ text: string }>;
   updateStatus?: () => Promise<UpdateStatus>;
+  /** Runtime MCP control surface; absent means no /api/mcp routes. */
+  mcp?: McpApi;
   /** Basic auth. Omit (or pass a null password) to run the daemon unguarded. */
   auth?: ServerAuthConfig;
   /** Allowed browser origins. Empty (the default) sends no CORS headers. */
@@ -459,6 +470,29 @@ export function createApp(deps: ServerDeps) {
           502
         );
       }
+    });
+  }
+
+  // Runtime MCP control: per-server status and enable/disable toggles that
+  // connect/disconnect without a daemon restart. In-scope toggles only —
+  // adding/editing servers stays a config-file + restart operation.
+  if (deps.mcp) {
+    app.get("/api/mcp", (c) => c.json(deps.mcp!.status()));
+
+    app.post("/api/mcp/:name/enable", async (c) => {
+      const name = c.req.param("name");
+      if (!deps.mcp!.status()[name]) {
+        return c.json({ error: `MCP server "${name}" not found` }, 404);
+      }
+      return c.json(await deps.mcp!.enable(name));
+    });
+
+    app.post("/api/mcp/:name/disable", async (c) => {
+      const name = c.req.param("name");
+      if (!deps.mcp!.status()[name]) {
+        return c.json({ error: `MCP server "${name}" not found` }, 404);
+      }
+      return c.json(await deps.mcp!.disable(name));
     });
   }
 
