@@ -1,6 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { resolveModel, chat } from "@openoffice/core";
-import type { Config } from "@openoffice/core";
+import { resolveModel, chat, type Config } from "@openoffice/core";
 
 const config: Config = {
   provider: {

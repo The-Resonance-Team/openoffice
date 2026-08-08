@@ -7,13 +7,14 @@ import {
 import { JwtService } from "@nestjs/jwt";
 import { addDays } from "date-fns";
 import argon2 from "argon2";
-import { Role } from "@/generated/client";
+import { Provider, Role } from "@/generated/client";
 import { PrismaService } from "@/prisma/prisma.service";
 import type { LoginDto } from "@/auth/dto/login.dto";
 import type { RegisterDto } from "@/auth/dto/register.dto";
 import type { SwitchOrgDto } from "@/auth/dto/switch-org.dto";
 import { EmailTokenService } from "./email-token.service";
 import { MailerService } from "./mailer.service";
+import { OAuthService, type OAuthProfile } from "./oauth.service";
 import { uniqueOrgSlug } from "./unique-org-slug";
 import { ACCESS_TOKEN_TTL_MINUTES, REFRESH_TTL_DAYS } from "./auth.constants";
 import { randomToken, sha256Hex } from "./tokens";
@@ -56,7 +57,8 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
     private readonly mailer: MailerService,
-    private readonly emailTokens: EmailTokenService
+    private readonly emailTokens: EmailTokenService,
+    private readonly oauth: OAuthService
   ) {}
 
   /** Self-serve signup: creates the User's own Org with them as Owner. */
@@ -201,6 +203,17 @@ export class AuthService {
     if (!user) throw new UnauthorizedException();
     const membership = await this.resolveMembership(userId);
     return this.issueSession(membership, ip);
+  }
+
+  /** Completes an OAuth sign-in: link-or-create, personal org, session. */
+  async oauthSignIn(
+    provider: Provider,
+    profile: OAuthProfile,
+    ip: string
+  ): Promise<AuthResult> {
+    const userId = await this.oauth.linkOrCreateUser(provider, profile);
+    await this.oauth.ensureMembership(userId);
+    return this.sessionForUser(userId, ip);
   }
 
   async me(memberId: string): Promise<MemberProfile> {

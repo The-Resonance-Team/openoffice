@@ -2,8 +2,7 @@ import { describe, expect, test, beforeEach } from "bun:test";
 import { mkdtempSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { CredentialStore } from "../store";
-import type { Credential } from "../store";
+import { CredentialStore, type Credential } from "../store";
 
 const keyOf = (c?: Credential): string | undefined =>
   c?.type === "api" ? c.key : undefined;

@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { chat as defaultChat } from "../llm/chat";
-import type { ChatOptions } from "../llm/chat";
+import { chat as defaultChat, type ChatOptions } from "../llm/chat";
+
 import type { ToolRegistry } from "../tool/registry";
 import type { SessionStore } from "./store";
 import type { Session } from "./types";

@@ -8,8 +8,8 @@ import { randomUUID } from "node:crypto";
 import type { ModelMessage } from "ai";
 import type { Config } from "../config";
 import type { AgentRegistry } from "../agent/registry";
-import type { Model } from "../llm/model-limits";
-import { getModel } from "../llm/model-limits";
+import { getModel, type Model } from "../llm/model-limits";
+
 import type { SessionStore } from "./store";
 import {
   completedCompactions,

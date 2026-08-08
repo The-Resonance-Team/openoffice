@@ -6,6 +6,7 @@ import { PrismaService } from "@/prisma/prisma.service";
 import { AuthService } from "./auth.service";
 import { EmailTokenService } from "./email-token.service";
 import { MailerService } from "./mailer.service";
+import { OAuthService, type OAuthProfile } from "./oauth.service";
 import type { LoginDto } from "@/auth/dto/login.dto";
 import type { RegisterDto } from "@/auth/dto/register.dto";
 import type { SwitchOrgDto } from "@/auth/dto/switch-org.dto";
@@ -44,7 +45,8 @@ describe("AuthService", () => {
         signOptions: { expiresIn: "15m" },
       }),
       mailer,
-      new EmailTokenService(db as PrismaService, mailer)
+      new EmailTokenService(db as PrismaService, mailer),
+      new OAuthService(db as PrismaService)
     );
   });
 
@@ -290,6 +292,26 @@ describe("AuthService", () => {
       expect(profile.user.email).toBe("a@x.dev");
       expect(profile.org.name).toBe("Acme");
       expect(profile.team).toBeNull();
+    });
+  });
+
+  describe("oauthSignIn", () => {
+    it("links or creates the user, ensures a membership, and issues a session", async () => {
+      const res = await service.oauthSignIn(
+        "GOOGLE" as never,
+        {
+          providerUserId: "g-1",
+          email: "oauth@x.dev",
+          emailVerified: true,
+          name: "O",
+        } as OAuthProfile,
+        "1.2.3.4"
+      );
+      expect(res.profile.user.email).toBe("oauth@x.dev");
+      expect(res.profile.user.emailVerified).toBe(true);
+      expect(res.profile.member.role).toBe("OWNER");
+      expect(res.refreshToken).toBeTruthy();
+      expect([...db._session.values()]).toHaveLength(1);
     });
   });
 });

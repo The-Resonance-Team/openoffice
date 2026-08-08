@@ -1,6 +1,6 @@
-import { writeFileSync } from "node:fs";
+import { writeFileSync, mkdirSync } from "node:fs";
 import { dirname, extname } from "node:path";
-import { mkdirSync } from "node:fs";
+
 import { z } from "zod";
 import type { ToolDefinition } from "../types";
 import { OFFICE_EXTENSIONS, LEGACY_OFFICE_EXTENSIONS } from "./read";

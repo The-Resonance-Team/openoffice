@@ -1,8 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { z } from "zod";
-import type { Config } from "./schema";
-import { ConfigSchema } from "./schema";
+import { ConfigSchema, type Config } from "./schema";
 
 export function stripJsonc(text: string): string {
   return stripTrailingCommas(stripComments(text));

@@ -15,15 +15,15 @@ import type { Request, Response } from "express";
 import { Provider } from "@/generated/client";
 import { Cookies, CurrentUser, Public } from "@/auth/decorators";
 import type { AuthenticatedMember } from "@/auth/strategies";
-import type { OAuthProfile } from "@/auth/services";
 import {
   ACCESS_TOKEN_TTL_MINUTES,
   REFRESH_TTL_DAYS,
   AuthService,
-  type AuthResult,
   EmailTokenService,
-  OAuthService,
+  type OAuthProfile,
+  type AuthResult,
 } from "@/auth/services";
+
 import type {
   ForgotPasswordDto,
   LoginDto,
@@ -42,7 +42,6 @@ export class AuthController {
   constructor(
     private readonly auth: AuthService,
     private readonly emailTokens: EmailTokenService,
-    private readonly oauth: OAuthService,
     private readonly config: ConfigService
   ) {}
 
@@ -195,9 +194,7 @@ export class AuthController {
     res: Response
   ) {
     if (!profile) return res.redirect(this.webAppUrl());
-    const userId = await this.oauth.linkOrCreateUser(provider, profile);
-    await this.oauth.ensureMembership(userId);
-    const result = await this.auth.sessionForUser(userId, ipOf(req));
+    const result = await this.auth.oauthSignIn(provider, profile, ipOf(req));
     this.setAuthCookies(res, result);
     res.redirect(this.webAppUrl());
   }

@@ -6,8 +6,8 @@ import {
   createSdkMcpClient,
   normalizeMcpResult,
   planMcpConnections,
+  type McpConfig,
 } from "@openoffice/core";
-import type { McpConfig } from "@openoffice/core";
 
 describe("normalizeMcpResult", () => {
   test("joins text content parts", () => {

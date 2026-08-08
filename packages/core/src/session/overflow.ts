@@ -1,8 +1,8 @@
 // Ported from opencode's session/overflow.ts. Decides when a session's token
 // usage crosses the model's usable context window.
 
-import type { Model } from "../llm/model-limits";
-import { maxOutputTokens } from "../llm/model-limits";
+import { maxOutputTokens, type Model } from "../llm/model-limits";
+
 import type { TokenUsage } from "./parts";
 
 const COMPACTION_BUFFER = 20_000;

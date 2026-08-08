@@ -4,6 +4,8 @@
     "jest": true
   },
   "rules": {
-    "no-explicit-any": "off"
+    "no-explicit-any": "off",
+    "no-duplicate-imports": "error",
+    "import/no-duplicates": "error"
   }
 }
