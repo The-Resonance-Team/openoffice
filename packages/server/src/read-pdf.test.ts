@@ -3,7 +3,8 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { readPdf, PdfError } from "./read-pdf";
 
-const REAL_PDF = join(process.cwd(), "data", "test-real.pdf");
+// ponytail: resolve relative to repo root, not cwd (turbo runs from package dir)
+const REAL_PDF = join(import.meta.dir, "../../../data/test-real.pdf");
 
 describe("readPdf integration — real PDF", () => {
   test("extracts Markdown from real PDF file", async () => {
