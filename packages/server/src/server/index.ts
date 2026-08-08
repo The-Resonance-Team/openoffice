@@ -19,8 +19,7 @@ import {
   type ShareStore,
   type ShareMode,
 } from "@openoffice/core";
-import type { EventMap } from "@openoffice/protocol";
-import type { McpServerStatusInfo } from "@openoffice/protocol";
+import type { EventMap, McpServerStatusInfo } from "@openoffice/protocol";
 
 import type { UpdateStatus } from "../update";
 
