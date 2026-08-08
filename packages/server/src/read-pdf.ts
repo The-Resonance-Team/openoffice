@@ -19,12 +19,14 @@ function platformArchSuffix(): string {
   const arch = process.arch;
 
   if (plat === "linux") {
-    const isMusl = existsSync("/lib/ld-musl-x86_64.so1");
+    // ponytail: probe arch-specific musl loader — x86_64-only misses Alpine ARM
+    const isMusl = existsSync(`/lib/ld-musl-${arch}.so.1`);
     return `linux-${arch}-${isMusl ? "musl" : "gnu"}`;
   }
   if (plat === "darwin") return `darwin-${arch}`;
   // ponytail: win32 hardcoded to x64-msvc — other arch combos need the binary added upstream
-  if (plat === "win32") return "win32-x64-msvc";
+  // ponytail: correct name even when no binary exists — error messages and require.resolve use it
+  if (plat === "win32") return `win32-${arch}-msvc`;
   return `${plat}-${arch}`;
 }
 
@@ -68,12 +70,13 @@ export async function readPdf(file: string): Promise<string> {
   if (platformFallback === "none") {
     throw new PdfError(
       "PDF_UNSUPPORTED_PLATFORM",
-      `No native binary or CLI found for ${resolvedSuffix}. Install @firecrawl/pdf-inspector-${resolvedSuffix} or pdf2md.`
+      `PDF extraction not supported on this platform (${resolvedSuffix}). Install pdf2md: cargo install pdf-inspector`
     );
   }
 
   if (platformFallback === "cli") {
     try {
+      // ponytail: CLI fallback can't classify — output may include scanned content without warning
       return execFileSync("pdf2md", [file], { encoding: "utf-8" });
     } catch (err) {
       throw new PdfError(
@@ -99,7 +102,10 @@ export async function readPdf(file: string): Promise<string> {
   let result;
   let pdfType: string;
   try {
-    const classification = inspector.classifyPdf(buffer);
+    // ponytail: setImmediate to yield event loop — large PDFs shouldn't stall concurrent sessions
+    const classification = await new Promise(resolve => {
+      setImmediate(() => resolve(inspector.classifyPdf(buffer)));
+    }) as { pdfType: string };
     pdfType = classification.pdfType;
 
     if (pdfType === "Scanned" || pdfType === "ImageBased") {
@@ -109,7 +115,9 @@ export async function readPdf(file: string): Promise<string> {
       );
     }
 
-    result = inspector.processPdf(buffer);
+    result = await new Promise(resolve => {
+      setImmediate(() => resolve(inspector.processPdf(buffer)));
+    }) as { markdown?: string; hasEncodingIssues: boolean };
   } catch (e) {
     if (e instanceof PdfError) throw e;
     throw new PdfError("PDF_READ_ERROR", "Failed to classify/process PDF.");

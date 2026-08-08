@@ -123,9 +123,10 @@ export function createReadTool(deps: ReadDeps): ToolDefinition {
           return {
             success: false,
             error: e.message ?? "Failed to read PDF",
+            // ponytail: preserve known error codes — PDF_UNSUPPORTED_PLATFORM tells the agent what to install
             code:
-              e.code === "PDF_NO_TEXT_LAYER"
-                ? "PDF_NO_TEXT_LAYER"
+              e.code === "PDF_NO_TEXT_LAYER" || e.code === "PDF_UNSUPPORTED_PLATFORM"
+                ? e.code
                 : "PDF_READ_ERROR",
           };
         }
