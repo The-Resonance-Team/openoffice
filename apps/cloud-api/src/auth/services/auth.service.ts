@@ -16,24 +16,10 @@ import { EmailTokenService } from "./email-token.service";
 import { MailerService } from "./mailer.service";
 import { OAuthService } from "./oauth.service";
 import type { OAuthProfile } from "./oauth.type";
-import type { AuthResult, MemberProfile } from "./auth.type";
+import type { AuthResult, MemberProfile, Membership } from "./auth.type";
 import { uniqueOrgSlug } from "./unique-org-slug";
-import { ACCESS_TOKEN_TTL_MINUTES, REFRESH_TTL_DAYS } from "./auth.constants";
+import { REFRESH_TTL_DAYS } from "./auth.constants";
 import { randomToken, sha256Hex } from "./tokens";
-
-interface Membership {
-  id: string;
-  orgId: string;
-  role: Role;
-  org: { id: string; slug: string; name: string };
-  team: { id: string; name: string } | null;
-  user: {
-    id: string;
-    email: string;
-    name: string | null;
-    emailVerifiedAt: Date | null;
-  };
-}
 
 @Injectable()
 export class AuthService {

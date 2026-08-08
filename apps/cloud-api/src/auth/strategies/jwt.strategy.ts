@@ -3,7 +3,6 @@ import { ConfigService } from "@nestjs/config";
 import { PassportStrategy } from "@nestjs/passport";
 import { ExtractJwt, Strategy } from "passport-jwt";
 import type { Request } from "express";
-import { Role } from "@/generated/client";
 import type { AuthenticatedMember, JwtPayload } from "./jwt.type";
 
 // JWT from the Authorization: Bearer header OR the `token` httpOnly cookie

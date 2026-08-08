@@ -1,5 +1,4 @@
 import { Injectable, UnauthorizedException } from "@nestjs/common";
-import { Role } from "@/generated/client";
 import { PrismaService } from "@/prisma/prisma.service";
 import type { CreateApiKeyDto } from "@/auth/dto";
 import type { ApiKeyListItem, ApiKeyPrincipal } from "./api-key.type";

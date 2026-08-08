@@ -46,23 +46,6 @@ describe("Cloud API (e2e)", () => {
     return res.body.profile;
   }
 
-  async function verifyAndLogin(n: string) {
-    const cookies = await register(n);
-    const userId = (await meOf(cookies)).user.id;
-    const token = await app
-      .get(EmailTokenService)
-      .createToken(userId, EmailTokenType.VERIFY_EMAIL);
-    await request(app.getHttpServer())
-      .post("/v1/auth/verify-email")
-      .send({ token })
-      .expect(201);
-    const res: any = await request(app.getHttpServer())
-      .post("/v1/auth/login")
-      .send({ email: email(n), password })
-      .expect(201);
-    return cookiesOf(res);
-  }
-
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
