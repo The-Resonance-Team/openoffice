@@ -37,6 +37,13 @@ export const DOCUMENT_EXTENSIONS = new Set([
   ".epub",
   ".pdf",
 ]);
+export const IMAGE_EXTENSIONS = new Set([
+  ".png",
+  ".jpg",
+  ".jpeg",
+  ".tiff",
+  ".bmp",
+]);
 const TEXT_EXTENSIONS = new Set([
   ".txt",
   ".md",
@@ -73,6 +80,7 @@ const TEXT_EXTENSIONS = new Set([
 export interface ReadDeps {
   readDocument: (file: string, ctx: ToolContext) => Promise<string>;
   readPdf?: (file: string) => Promise<string>;
+  readOcr?: (file: string) => Promise<string>;
   draftManager?: DraftManager;
 }
 
@@ -80,7 +88,7 @@ export function createReadTool(deps: ReadDeps): ToolDefinition {
   return {
     name: "read",
     description:
-      "Read file contents. Auto-detects Office, OpenDocument, RTF, EPUB, and PDF files via AnyDoc, plain text for everything else. Always use this to read any file.",
+      "Read file contents. Auto-detects Office, OpenDocument, RTF, EPUB, and PDF files via AnyDoc, plain text for everything else. Scanned/image-based PDFs and images are automatically OCR'd when Tesseract is available. Always use this to read any file.",
     parameters: z.object({
       file: z.string().describe("Path to the file to read"),
     }),
@@ -120,12 +128,30 @@ export function createReadTool(deps: ReadDeps): ToolDefinition {
           const content = await deps.readPdf(file);
           return { success: true, output: content };
         } catch (e: any) {
+          // Auto-fallback to OCR for scanned/image-based PDFs
+          if (e.code === "PDF_NO_TEXT_LAYER" && deps.readOcr) {
+            try {
+              const ocrResult = await deps.readOcr(file);
+              return {
+                success: true,
+                output: ocrResult,
+                data: { source: "ocr" },
+              };
+            } catch (ocrErr: any) {
+              return {
+                success: false,
+                error: ocrErr.message ?? "OCR failed",
+                code: "OCR_FAILED",
+              };
+            }
+          }
           return {
             success: false,
             error: e.message ?? "Failed to read PDF",
             // ponytail: preserve known error codes — PDF_UNSUPPORTED_PLATFORM tells the agent what to install
             code:
-              e.code === "PDF_NO_TEXT_LAYER" || e.code === "PDF_UNSUPPORTED_PLATFORM"
+              e.code === "PDF_NO_TEXT_LAYER" ||
+              e.code === "PDF_UNSUPPORTED_PLATFORM"
                 ? e.code
                 : "PDF_READ_ERROR",
           };
@@ -141,6 +167,19 @@ export function createReadTool(deps: ReadDeps): ToolDefinition {
             success: false,
             error: e.message ?? "Failed to read office document",
             code: ext === ".pdf" ? "PDF_READ_ERROR" : "DOCUMENT_READ_ERROR",
+          };
+        }
+      }
+
+      if (IMAGE_EXTENSIONS.has(ext) && deps.readOcr) {
+        try {
+          const ocrResult = await deps.readOcr(file);
+          return { success: true, output: ocrResult, data: { source: "ocr" } };
+        } catch (e: any) {
+          return {
+            success: false,
+            error: e.message ?? "OCR failed",
+            code: "OCR_FAILED",
           };
         }
       }
