@@ -221,7 +221,7 @@ export class AuthController {
   }
 
   private webAppUrl(): string {
-    return this.config.get<string>("webAppUrl") ?? "http://localhost:3002";
+    return this.config.getOrThrow<string>("webAppUrl");
   }
 }
 

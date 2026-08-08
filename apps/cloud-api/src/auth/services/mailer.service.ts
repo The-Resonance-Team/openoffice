@@ -17,8 +17,8 @@ export class MailerService {
   private readonly webAppUrl: string;
 
   constructor(config: ConfigService) {
-    this.from = config.get<string>("resend.from") ?? "no-reply@openoffice.dev";
-    this.webAppUrl = config.get<string>("webAppUrl") ?? "http://localhost:3002";
+    this.from = config.getOrThrow<string>("resend.from");
+    this.webAppUrl = config.getOrThrow<string>("webAppUrl");
     const apiKey = config.get<string>("resend.apiKey");
     this.resend = apiKey ? new Resend(apiKey) : null;
   }

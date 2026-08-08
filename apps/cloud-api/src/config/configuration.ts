@@ -22,7 +22,7 @@ const envSchema = z.object({
   // Email boundary (cloud ADR 0006): without RESEND_API_KEY the MailerService
   // logs instead of sending — local dev and tests never need a provider.
   RESEND_API_KEY: z.string().optional(),
-  RESEND_FROM: z.string().optional(),
+  RESEND_FROM: z.string().default("no-reply@openoffice.dev"),
   // Where verification/reset/invite links point (cloud-web).
   WEB_APP_URL: z.string().url().default("http://localhost:3002"),
   // OAuth providers (cloud ADR 0006): optional — strategies register only
@@ -67,7 +67,7 @@ export default function configuration() {
     },
     resend: {
       apiKey: process.env.RESEND_API_KEY,
-      from: process.env.RESEND_FROM,
+      from: process.env.RESEND_FROM ?? "no-reply@openoffice.dev",
     },
     webAppUrl: process.env.WEB_APP_URL ?? "http://localhost:3002",
     publicUrl: process.env.PUBLIC_URL ?? "http://localhost:3001",

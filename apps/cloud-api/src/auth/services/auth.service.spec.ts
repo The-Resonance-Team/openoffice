@@ -38,7 +38,12 @@ describe("AuthService", () => {
 
   beforeEach(() => {
     db = fakeDb();
-    mailer = new MailerService(new ConfigService({}));
+    mailer = new MailerService(
+      new ConfigService({
+        resend: { from: "no-reply@test.dev" },
+        webAppUrl: "http://localhost:3002",
+      })
+    );
     service = new AuthService(
       db as PrismaService,
       new JwtService({

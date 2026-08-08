@@ -21,7 +21,12 @@ describe("EmailTokenService", () => {
     db.user.create({ data: { id: "u1", email: "a.dev" } });
     service = new EmailTokenService(
       db as PrismaService,
-      new MailerService(new ConfigService({}))
+      new MailerService(
+        new ConfigService({
+          resend: { from: "no-reply@test.dev" },
+          webAppUrl: "http://localhost:3002",
+        })
+      )
     );
   });
 

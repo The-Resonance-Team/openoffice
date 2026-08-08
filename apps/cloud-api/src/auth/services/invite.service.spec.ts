@@ -22,7 +22,12 @@ describe("InviteService", () => {
 
   beforeEach(async () => {
     db = fakeDb();
-    mailer = new MailerService(new ConfigService({}));
+    mailer = new MailerService(
+      new ConfigService({
+        resend: { from: "no-reply@test.dev" },
+        webAppUrl: "http://localhost:3002",
+      })
+    );
     service = new InviteService(db as PrismaService, mailer);
     await db.org.create({ data: { id: "o1", slug: "acme", name: "Acme" } });
     await db.user.create({ data: { id: "u-admin", email: "admin@x.dev" } });
