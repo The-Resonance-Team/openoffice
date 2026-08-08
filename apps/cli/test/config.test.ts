@@ -2,8 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
-import { findProjectConfig, stripJsonc } from "@openoffice/core";
-import { resolveConfig } from "@openoffice/core";
+import { findProjectConfig, stripJsonc, resolveConfig } from "@openoffice/core";
 
 function tempDir(): string {
   return mkdtempSync(join(tmpdir(), "openoffice-test-"));

@@ -1,7 +1,7 @@
 import { homedir } from "node:os";
 import { join } from "node:path";
-import type { Config } from "./schema";
-import { ConfigSchema } from "./schema";
+import { ConfigSchema, type Config } from "./schema";
+
 import {
   applyEnvOverrides,
   findProjectConfig,

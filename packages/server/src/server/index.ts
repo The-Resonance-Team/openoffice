@@ -1,23 +1,28 @@
-import { Hono } from "hono";
-import type { Context } from "hono";
+import { Hono, type Context } from "hono";
+
 import { streamSSE } from "hono/streaming";
 import { randomUUID } from "node:crypto";
 import { extname } from "node:path";
-import { on, emit } from "@openoffice/core";
-import type { EventMap } from "@openoffice/protocol";
-import type {
-  SessionStore,
-  Session,
-  WithParts,
-  TextPart,
+import {
+  on,
+  emit,
+  filePathHash,
+  AuthRequiredError,
+  shareViewerPage,
+  type SessionStore,
+  type Session,
+  type WithParts,
+  type TextPart,
+  type ToolRegistry,
+  type DraftManager,
+  type HistoryStore,
+  type ShareStore,
+  type ShareMode,
 } from "@openoffice/core";
-import type { ToolRegistry } from "@openoffice/core";
-import { filePathHash, type DraftManager } from "@openoffice/core";
-import type { HistoryStore } from "@openoffice/core";
+import type { EventMap } from "@openoffice/protocol";
+
 import type { UpdateStatus } from "../update";
-import { AuthRequiredError } from "@openoffice/core";
-import type { ShareStore, ShareMode } from "@openoffice/core";
-import { shareViewerPage } from "@openoffice/core";
+
 import { createAuthMiddleware, type ServerAuthConfig } from "./auth";
 import { createCorsMiddleware } from "./cors";
 

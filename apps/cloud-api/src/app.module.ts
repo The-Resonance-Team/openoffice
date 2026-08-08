@@ -6,11 +6,12 @@ import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
 import { LoggerModule } from "nestjs-pino";
 import { AppController } from "./app.controller";
 import { AppService } from "./app.service";
-import { AuthModule } from "./auth/auth.module";
-import { JwtAuthGuard } from "./auth/jwt-auth.guard";
-import configuration, { validateEnv } from "./config/configuration";
-import { HealthController } from "./health/health.controller";
-import { PrismaModule } from "./prisma/prisma.module";
+import { AuthModule } from "@/auth/auth.module";
+import { ApiKeyOrJwtGuard } from "@/auth/guards/api-key-or-jwt.guard";
+import { RolesGuard } from "@/auth/guards/roles.guard";
+import configuration, { validateEnv } from "@/config/configuration";
+import { HealthController } from "@/health/health.controller";
+import { PrismaModule } from "@/prisma/prisma.module";
 
 @Module({
   imports: [
@@ -48,8 +49,10 @@ import { PrismaModule } from "./prisma/prisma.module";
     AppService,
     // Throttle before auth so flood attempts never reach JWT/passport work.
     { provide: APP_GUARD, useClass: ThrottlerGuard },
-    // Global guard: all routes require a JWT unless @Public().
-    { provide: APP_GUARD, useClass: JwtAuthGuard },
+    // Global guard: all routes require a JWT or Daemon API Key unless @Public().
+    { provide: APP_GUARD, useClass: ApiKeyOrJwtGuard },
+    // @Roles() enforcement, after the principal is attached above.
+    { provide: APP_GUARD, useClass: RolesGuard },
   ],
 })
 export class AppModule {}

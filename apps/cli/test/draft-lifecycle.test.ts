@@ -8,10 +8,13 @@ import {
 } from "node:fs";
 import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
-import { createOfficeCliTool } from "@openoffice/core";
-import { DraftManager, filePathHash } from "@openoffice/core";
-import { HistoryStore } from "@openoffice/core";
-import { createReadTool } from "@openoffice/core";
+import {
+  createOfficeCliTool,
+  DraftManager,
+  filePathHash,
+  HistoryStore,
+  createReadTool,
+} from "@openoffice/core";
 
 let dir: string;
 let realFile: string;

@@ -1,6 +1,8 @@
-// Prisma schema for apps/cloud-api/ — Org/Team/Member/Role only.
-// Language per cloud/CONTEXT.md: Org (billable tenant), Team (optional
-// grouping), Role (admin / team-admin / member), Member.
+// Prisma schema for apps/cloud-api/ — Org/Team/Member/Role, identity and
+// auth (cloud ADR 0006: in-house Passport+JWT, User/Member split, sessions,
+// Daemon API Keys, email tokens, invites).
+// Language per cloud/CONTEXT.md: User (person), Member (org-scoped join),
+// Org (billable tenant), Team (optional grouping), Role (org-scoped).
 // Cred Proxy, Cloud Config, Cloud Skills, Analytics models land with their
 // features (cloud/docs/adr/0002, 0003).
 
@@ -14,12 +16,25 @@ datasource db {
   provider = "postgresql"
 }
 
-// Org-scoped roles (cloud/CONTEXT.md). TEAM_ADMIN has admin-equivalent
-// permissions scoped to their own Team only.
+// Org-scoped roles (cloud/CONTEXT.md, ADR 0001). OWNER is unique per Org;
+// TEAM_LEADER has admin-equivalent permissions scoped to their Team only.
 enum Role {
+  OWNER
   ADMIN
-  TEAM_ADMIN
+  TEAM_LEADER
   MEMBER
+}
+
+/// OAuth identity providers a User can link (cloud ADR 0006).
+enum Provider {
+  GOOGLE
+  GITHUB
+}
+
+/// Purpose of a one-time email token (cloud ADR 0006).
+enum EmailTokenType {
+  VERIFY_EMAIL
+  RESET_PASSWORD
 }
 
 /// The billable, top-level tenant.
@@ -29,6 +44,7 @@ model Org {
   name      String
   members   Member[]
   teams     Team[]
+  invites   Invite[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -46,18 +62,118 @@ model Team {
   @@unique([orgId, name])
 }
 
-/// A person in an Org (managed sign-in, cloud/CONTEXT.md).
+/// The person with access to Cloud: one identity per human, spanning every
+/// Org they belong to (cloud/CONTEXT.md → User). Not org-scoped.
+model User {
+  id              String          @id @default(cuid())
+  email           String          @unique
+  name            String?
+  passwordHash    String?
+  emailVerifiedAt DateTime?
+  lastOrgId       String?
+  memberships     Member[]
+  oauthAccounts   OAuthAccount[]
+  sessions        Session[]
+  apiKeys         ApiKey[]
+  emailTokens     EmailToken[]
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+}
+
+/// A User's position inside one Org (cloud/CONTEXT.md → Member).
+/// A User may be a Member of several Orgs; each membership is independent.
 model Member {
   id        String   @id @default(cuid())
   orgId     String
   org       Org      @relation(fields: [orgId], references: [id], onDelete: Cascade)
   teamId    String?
   team      Team?    @relation(fields: [teamId], references: [id], onDelete: SetNull)
-  email     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   name      String?
   role      Role     @default(MEMBER)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([orgId, email])
+  @@unique([orgId, userId])
+}
+
+/// A User's linked OAuth identity (cloud ADR 0006: auto-link on verified
+/// provider email).
+model OAuthAccount {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider       Provider
+  providerUserId String
+  email          String?
+  createdAt      DateTime @default(now())
+
+  @@unique([provider, providerUserId])
+}
+
+/// A web sign-in session holding the rotating refresh token (sha256-hashed
+/// at rest — refresh tokens are high-entropy randoms; argon2 stays for
+/// passwords, cloud ADR 0006: rotation with reuse detection — the previous
+/// hash is kept so a replayed pre-rotation token revokes the session).
+model Session {
+  id               String    @id @default(cuid())
+  userId           String
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  hashedRefresh    String
+  prevHashedRefresh String?
+  ip               String?
+  expiresAt        DateTime
+  revokedAt        DateTime?
+  createdAt        DateTime  @default(now())
+}
+
+/// A Daemon API Key: long-lived, revocable, one per machine, bound to exactly
+/// one Org (cloud/CONTEXT.md → Daemon API Key). keyHash is the sha256 of the
+/// raw key — verified on every daemon request, so argon2 is too slow here.
+model ApiKey {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orgId     String
+  name      String
+  keyPrefix String
+  keyHash   String    @unique
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, orgId])
+}
+
+/// One-time email token (verification, password reset). Token stored as its
+/// sha256; lookup by hash, single use, short TTL.
+model EmailToken {
+  id        String          @id @default(cuid())
+  userId    String
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      EmailTokenType
+  tokenHash String          @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime        @default(now())
+
+  @@index([userId, type])
+}
+
+/// An invitation to join an Org (cloud ADR 0006: 7-day, one-time, carries the
+/// Analytics consent disclosure). Email-scoped, not user-scoped — the
+/// recipient may not exist yet.
+model Invite {
+  id          String    @id @default(cuid())
+  orgId       String
+  org         Org       @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  invitedById String
+  email       String
+  role        Role      @default(MEMBER)
+  tokenHash   String    @unique
+  expiresAt   DateTime
+  usedAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([orgId, email])
 }

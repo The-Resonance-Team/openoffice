@@ -1,9 +1,12 @@
 import { describe, expect, test, beforeAll } from "bun:test";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
-import { DraftManager } from "@openoffice/core";
-import { HistoryStore } from "@openoffice/core";
-import { createDefaultOfficeCliTool } from "@openoffice/core";
+import {
+  DraftManager,
+  HistoryStore,
+  createDefaultOfficeCliTool,
+} from "@openoffice/core";
+
 import { tempDir, officecliAvailable, runOfficecli } from "./helpers";
 
 const skip = !officecliAvailable();

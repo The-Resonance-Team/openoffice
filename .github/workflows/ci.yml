@@ -107,6 +107,20 @@ jobs:
   e2e:
     runs-on: self-hosted
     timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: openoffice
+          POSTGRES_PASSWORD: openoffice
+          POSTGRES_DB: openoffice_cloud
+        ports:
+          - "5435:5432"
+        options: >-
+          --health-cmd "pg_isready -U openoffice -d openoffice_cloud"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
@@ -123,6 +137,11 @@ jobs:
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - run: bun test --timeout=60000 test/e2e/
         working-directory: apps/cli
-      # Cloud-api e2e: full AppModule with a stubbed PrismaService, so no
-      # Postgres is needed on the runner (ADR 0029). setup-env.ts covers env.
+      # Cloud-api e2e: real AppModule against the Postgres service above
+      # (docker-compose-compatible credentials/port, standing Docker rule).
+      - name: Migrate cloud-api database
+        working-directory: apps/cloud-api
+        env:
+          DATABASE_URL: postgresql://openoffice:openoffice@127.0.0.1:5435/openoffice_cloud
+        run: bunx prisma migrate deploy
       - run: bun run test:e2e --filter=cloud-api

@@ -3,9 +3,9 @@ import { z } from "zod";
 import {
   executeTool,
   ToolRegistry,
+  on,
   type ToolDefinition,
 } from "@openoffice/core";
-import { on } from "@openoffice/core";
 
 const echoTool: ToolDefinition = {
   name: "echo",

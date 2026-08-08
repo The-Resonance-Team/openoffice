@@ -3,13 +3,15 @@ import { mkdtempSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
-import { createApp, AskChannel } from "../index";
-import { SessionStore, type Session } from "@openoffice/core";
-import { DraftManager } from "@openoffice/core";
-import { HistoryStore } from "@openoffice/core";
-import { ShareStore } from "@openoffice/core";
-import type { SessionRuntime } from "../index";
-import type { ShareMode } from "@openoffice/core";
+import { createApp, AskChannel, type SessionRuntime } from "../index";
+import {
+  SessionStore,
+  DraftManager,
+  HistoryStore,
+  ShareStore,
+  type Session,
+  type ShareMode,
+} from "@openoffice/core";
 
 let dir: string;
 let store: SessionStore;

@@ -3,19 +3,7 @@ import { ConfigService } from "@nestjs/config";
 import { PassportStrategy } from "@nestjs/passport";
 import { ExtractJwt, Strategy } from "passport-jwt";
 import type { Request } from "express";
-import { Role } from "../generated/client";
-
-export interface JwtPayload {
-  sub: string; // memberId
-  orgId: string;
-  role: Role;
-}
-
-export interface AuthenticatedMember {
-  memberId: string;
-  orgId: string;
-  role: Role;
-}
+import type { AuthenticatedMember, JwtPayload } from "./jwt.type";
 
 // JWT from the Authorization: Bearer header OR the `token` httpOnly cookie
 // (cookieParser is registered in main.ts). Header wins if both are present.
@@ -41,6 +29,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   validate(payload: JwtPayload): AuthenticatedMember {
     return {
       memberId: payload.sub,
+      userId: payload.userId,
       orgId: payload.orgId,
       role: payload.role,
     };

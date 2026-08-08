@@ -1,7 +1,11 @@
 import { execFileSync } from "node:child_process";
-import { createOfficeCliTool, isMutating, parseError } from "./tool";
+import {
+  createOfficeCliTool,
+  isMutating,
+  parseError,
+  type OfficeCliDeps,
+} from "./tool";
 import { checkInstalled, resetCache } from "./install";
-import type { OfficeCliDeps } from "./tool";
 
 export { isMutating, parseError, checkInstalled, resetCache };
 export { createOfficeCliTool };
