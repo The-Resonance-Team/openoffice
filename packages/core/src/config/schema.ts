@@ -22,6 +22,8 @@ export const McpConfigSchema = z.object({
   command: z.array(z.string()).optional(),
   url: z.string().optional(),
   environment: z.record(z.string(), z.string()).optional(),
+  // Default true; a false server boots as `disabled`, never connecting.
+  enabled: z.boolean().optional(),
 });
 
 export const OfficeConfigSchema = z.object({

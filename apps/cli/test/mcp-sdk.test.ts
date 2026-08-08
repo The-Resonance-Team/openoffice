@@ -5,6 +5,7 @@ import { join } from "node:path";
 import {
   createSdkMcpClient,
   normalizeMcpResult,
+  normalizeMcpContents,
   planMcpConnections,
   type McpConfig,
 } from "@openoffice/core";
@@ -68,6 +69,51 @@ describe("planMcpConnections (dogfooding)", () => {
     expect(toConnect).toEqual([]);
     expect(skipped).toEqual([]);
   });
+
+  test("enabled:false servers are excluded from boot connect", () => {
+    const { toConnect, skipped, disabled } = planMcpConnections(
+      {
+        on: { type: "local", command: ["npx", "x"] },
+        off: { type: "local", command: ["npx", "y"], enabled: false },
+        officecli: { type: "local", command: ["officecli", "mcp"] },
+      },
+      native
+    );
+    expect(disabled).toEqual(["off"]);
+    expect(skipped).toEqual(["officecli"]);
+    expect(toConnect.map(([n]) => n)).toEqual(["on"]);
+  });
+
+  test("disabled wins over dogfooding", () => {
+    const { toConnect, skipped, disabled } = planMcpConnections(
+      { read: { type: "local", command: ["x"], enabled: false } },
+      native
+    );
+    expect(disabled).toEqual(["read"]);
+    expect(skipped).toEqual([]);
+    expect(toConnect).toEqual([]);
+  });
+});
+
+describe("normalizeMcpContents", () => {
+  test("joins text contents", () => {
+    expect(
+      normalizeMcpContents([
+        { uri: "mem://a", text: "a" },
+        { uri: "mem://b", text: "b" },
+      ])
+    ).toBe("a\nb");
+  });
+
+  test("throws on binary (blob) content", () => {
+    expect(() =>
+      normalizeMcpContents([{ uri: "mem://a", blob: "AAAA" }])
+    ).toThrow("binary content");
+  });
+
+  test("throws on empty content", () => {
+    expect(() => normalizeMcpContents([])).toThrow("no content");
+  });
 });
 
 describe("createSdkMcpClient (stdio round-trip)", () => {
@@ -78,9 +124,18 @@ describe("createSdkMcpClient (stdio round-trip)", () => {
     `
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { ListToolsRequestSchema, CallToolRequestSchema } from "@modelcontextprotocol/sdk/types.js";
+import {
+  ListToolsRequestSchema,
+  CallToolRequestSchema,
+  ListPromptsRequestSchema,
+  ListResourcesRequestSchema,
+  ReadResourceRequestSchema,
+} from "@modelcontextprotocol/sdk/types.js";
 
-const server = new Server({ name: "test-server", version: "1.0.0" }, { capabilities: { tools: {} } });
+const server = new Server(
+  { name: "test-server", version: "1.0.0" },
+  { capabilities: { tools: {}, prompts: {}, resources: {} } }
+);
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
   tools: [
     {
@@ -101,6 +156,91 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
   if (name === "fail") return { content: [{ type: "text", text: "kaboom" }], isError: true };
   throw new Error("unknown tool " + name);
 });
+server.setRequestHandler(ListPromptsRequestSchema, async () => ({
+  prompts: [{ name: "summarize", description: "Summarize a document" }],
+}));
+server.setRequestHandler(ListResourcesRequestSchema, async () => ({
+  resources: [{ uri: "mem://notes/hello", name: "Hello note" }],
+}));
+server.setRequestHandler(ReadResourceRequestSchema, async (req) => {
+  if (req.params.uri !== "mem://notes/hello") throw new Error("unknown resource " + req.params.uri);
+  return { contents: [{ uri: req.params.uri, mimeType: "text/plain", text: "hello resource" }] };
+});
+await server.connect(new StdioServerTransport());
+`
+  );
+
+  const toolsOnlyScript = join(dir, "tools-only.ts");
+  writeFileSync(
+    toolsOnlyScript,
+    `
+import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
+
+const server = new Server({ name: "tools-only", version: "1.0.0" }, { capabilities: { tools: {} } });
+server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: [] }));
+await server.connect(new StdioServerTransport());
+`
+  );
+
+  const promptsOnlyScript = join(dir, "prompts-only.ts");
+  writeFileSync(
+    promptsOnlyScript,
+    `
+import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { ListPromptsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
+
+const server = new Server({ name: "prompts-only", version: "1.0.0" }, { capabilities: { prompts: {} } });
+server.setRequestHandler(ListPromptsRequestSchema, async () => ({
+  prompts: [{ name: "draft", description: "Draft a doc" }],
+}));
+await server.connect(new StdioServerTransport());
+`
+  );
+
+  const paginatedScript = join(dir, "paginated.ts");
+  writeFileSync(
+    paginatedScript,
+    `
+import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import {
+  ListToolsRequestSchema,
+  ListPromptsRequestSchema,
+  ListResourcesRequestSchema,
+} from "@modelcontextprotocol/sdk/types.js";
+
+const server = new Server({ name: "paginated", version: "1.0.0" }, {
+  capabilities: { tools: {}, prompts: {}, resources: {} },
+});
+const page = (all: unknown[], cursor?: string) => {
+  const offset = Number(cursor ?? 0);
+  const slice = all.slice(offset, offset + 2);
+  return { slice, nextCursor: offset + 2 < all.length ? String(offset + 2) : undefined };
+};
+server.setRequestHandler(ListToolsRequestSchema, async (req) => {
+  const { slice, nextCursor } = page(
+    ["t1", "t2", "t3"].map((name) => ({ name, description: "", inputSchema: { type: "object" } })),
+    req.params?.cursor
+  );
+  return { tools: slice, nextCursor };
+});
+server.setRequestHandler(ListPromptsRequestSchema, async (req) => {
+  const { slice, nextCursor } = page(
+    ["p1", "p2", "p3"].map((name) => ({ name })),
+    req.params?.cursor
+  );
+  return { prompts: slice, nextCursor };
+});
+server.setRequestHandler(ListResourcesRequestSchema, async (req) => {
+  const { slice, nextCursor } = page(
+    ["r1", "r2", "r3"].map((uri) => ({ uri: "mem://" + uri, name: uri })),
+    req.params?.cursor
+  );
+  return { resources: slice, nextCursor };
+});
 await server.connect(new StdioServerTransport());
 `
   );
@@ -108,6 +248,18 @@ await server.connect(new StdioServerTransport());
   const config: McpConfig = {
     type: "local",
     command: [process.execPath, serverScript],
+  };
+  const toolsOnlyConfig: McpConfig = {
+    type: "local",
+    command: [process.execPath, toolsOnlyScript],
+  };
+  const promptsOnlyConfig: McpConfig = {
+    type: "local",
+    command: [process.execPath, promptsOnlyScript],
+  };
+  const paginatedConfig: McpConfig = {
+    type: "local",
+    command: [process.execPath, paginatedScript],
   };
   let client: Awaited<ReturnType<typeof createSdkMcpClient>> | undefined;
 
@@ -131,6 +283,63 @@ await server.connect(new StdioServerTransport());
       await client!.callTool("fail", {});
     } catch (e) {
       expect((e as Error).message).toBe("kaboom");
+    }
+  });
+
+  test("lists prompts and resources and reads a resource", async () => {
+    expect(await client!.listPrompts()).toEqual([
+      { name: "summarize", description: "Summarize a document" },
+    ]);
+    expect(await client!.listResources()).toEqual([
+      { uri: "mem://notes/hello", name: "Hello note" },
+    ]);
+    expect(await client!.readResource("mem://notes/hello")).toBe(
+      "hello resource"
+    );
+  });
+
+  test("tools-only server yields no prompts or resources (capability guard)", async () => {
+    const toolsOnly = await createSdkMcpClient(toolsOnlyConfig);
+    try {
+      expect(await toolsOnly.listPrompts()).toEqual([]);
+      expect(await toolsOnly.listResources()).toEqual([]);
+    } finally {
+      await toolsOnly.close();
+    }
+  });
+
+  test("prompts-only server yields no tools but keeps its prompts", async () => {
+    const promptsOnly = await createSdkMcpClient(promptsOnlyConfig);
+    try {
+      expect(await promptsOnly.listTools()).toEqual([]);
+      expect(await promptsOnly.listPrompts()).toEqual([
+        { name: "draft", description: "Draft a doc" },
+      ]);
+    } finally {
+      await promptsOnly.close();
+    }
+  });
+
+  test("cursor-paginated servers return every item", async () => {
+    const paginated = await createSdkMcpClient(paginatedConfig);
+    try {
+      expect((await paginated.listTools()).map((t) => t.name)).toEqual([
+        "t1",
+        "t2",
+        "t3",
+      ]);
+      expect((await paginated.listPrompts()).map((p) => p.name)).toEqual([
+        "p1",
+        "p2",
+        "p3",
+      ]);
+      expect((await paginated.listResources()).map((r) => r.uri)).toEqual([
+        "mem://r1",
+        "mem://r2",
+        "mem://r3",
+      ]);
+    } finally {
+      await paginated.close();
     }
   });
 });

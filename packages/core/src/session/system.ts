@@ -37,11 +37,12 @@ export function buildSystemPrompt(options: SystemPromptOptions): string {
 
   // 4. MCP server instructions
   if (options.mcp) {
-    const status = options.mcp.status();
-    const servers = Object.keys(status);
-    if (servers.length > 0) {
+    const connected = Object.entries(options.mcp.status())
+      .filter(([, info]) => info.status === "connected")
+      .map(([name]) => name);
+    if (connected.length > 0) {
       parts.push(
-        `<mcp_instructions>\n${servers
+        `<mcp_instructions>\n${connected
           .map((s) => `  <server name="${s}">\n    Connected.\n  </server>`)
           .join("\n")}\n</mcp_instructions>`
       );

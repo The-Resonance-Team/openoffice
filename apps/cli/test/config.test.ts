@@ -21,7 +21,10 @@ describe("config loading", () => {
         agent: {
           main: { description: "docs", tools: ["office"], model: "claude" },
         },
-        mcp: { fs: { type: "local", command: ["npx", "server"] } },
+        mcp: {
+          fs: { type: "local", command: ["npx", "server"] },
+          off: { type: "local", command: ["npx", "x"], enabled: false },
+        },
         office: { managedDocumentsFolder: "~/docs" },
         grep: { officeExtractLimit: 7 },
       })
@@ -36,6 +39,7 @@ describe("config loading", () => {
     expect(config.agent?.main?.tools).toEqual(["office"]);
     expect(config.mcp?.fs?.type).toBe("local");
     expect(config.mcp?.fs?.command).toEqual(["npx", "server"]);
+    expect(config.mcp?.off?.enabled).toBe(false);
     expect(config.grep?.officeExtractLimit).toBe(7);
   });
 

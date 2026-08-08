@@ -20,6 +20,19 @@ export interface UpdateStatus {
   current?: string;
 }
 
+// Per-server MCP runtime state, as reported by GET /api/mcp. "enabled" is the
+// configured/runtime intent; status is the live transport state.
+export type McpServerStatus =
+  "connected" | "disconnected" | "disabled" | "error";
+
+export interface McpServerStatusInfo {
+  status: McpServerStatus;
+  /** Message from the last failed connect or list attempt. */
+  error?: string;
+  /** Boot-time skip reason (e.g. dogfooded by a native tool). */
+  note?: string;
+}
+
 export interface DaemonClient {
   createSession(cwd: string): Promise<Session>;
   getSession(id: string): Promise<Session | null>;
@@ -30,6 +43,9 @@ export interface DaemonClient {
   askAnswer(id: string, promptID: string, answer: string): Promise<void>;
   endSession(id: string): Promise<void>;
   updateStatus(): Promise<UpdateStatus | null>;
+  mcpStatus(): Promise<Record<string, McpServerStatusInfo>>;
+  mcpEnable(name: string): Promise<McpServerStatusInfo>;
+  mcpDisable(name: string): Promise<McpServerStatusInfo>;
   /** Subscribe to the session's event stream. Returns an abort function. */
   stream(id: string, handlers: StreamHandlers): () => void;
 }
