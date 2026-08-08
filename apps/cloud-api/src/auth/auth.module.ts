@@ -2,19 +2,25 @@ import { Global, Module } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { JwtModule, type JwtSignOptions } from "@nestjs/jwt";
 import { PassportModule } from "@nestjs/passport";
-import { ApiKeysController } from "./controllers";
-import { AuthController } from "./controllers";
-import { InvitesController } from "./controllers";
-import { ApiKeyService } from "./services";
-import { AuthService } from "./services";
-import { EmailTokenService } from "./services";
-import { InviteService } from "./services";
-import { MailerService } from "./services";
-import { OAuthService } from "./services";
-import { ApiKeyStrategy } from "./strategies";
-import { GithubStrategy } from "./strategies";
-import { GoogleStrategy } from "./strategies";
-import { JwtStrategy } from "./strategies";
+import {
+  ApiKeysController,
+  AuthController,
+  InvitesController,
+} from "./controllers";
+import {
+  ApiKeyService,
+  AuthService,
+  EmailTokenService,
+  InviteService,
+  MailerService,
+  OAuthService,
+} from "./services";
+import {
+  ApiKeyStrategy,
+  GithubStrategy,
+  GoogleStrategy,
+  JwtStrategy,
+} from "./strategies";
 
 // OAuth strategies register only when their provider credentials exist —
 // local dev without GOOGLE_*/GITHUB_* envs stays bootable (password auth).
