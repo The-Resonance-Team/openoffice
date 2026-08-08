@@ -1,6 +1,5 @@
 import { readFileSync, existsSync } from "node:fs";
 import { execFileSync } from "node:child_process";
-import * as os from "node:os";
 
 export type PdfErrorCode =
   "PDF_NO_TEXT_LAYER" | "PDF_READ_ERROR" | "PDF_UNSUPPORTED_PLATFORM";
@@ -15,8 +14,9 @@ export class PdfError extends Error {
 }
 
 function platformArchSuffix(): string {
-  const plat = os.platform();
-  const arch = os.arch();
+  // ponytail: process.platform/arch over os module import — same thing, zero deps
+  const plat = process.platform;
+  const arch = process.arch;
 
   if (plat === "linux") {
     const isMusl = existsSync("/lib/ld-musl-x86_64.so1");
@@ -95,27 +95,24 @@ export async function readPdf(file: string): Promise<string> {
     );
   }
 
-  let classification;
-  try {
-    classification = inspector.classifyPdf(buffer);
-  } catch {
-    throw new PdfError("PDF_READ_ERROR", "Failed to classify PDF.");
-  }
-
-  const pdfType = classification.pdfType;
-
-  if (pdfType === "Scanned" || pdfType === "ImageBased") {
-    throw new PdfError(
-      "PDF_NO_TEXT_LAYER",
-      "Scanned/image PDF detected. Use OCR (oocr) for text extraction."
-    );
-  }
-
+  // ponytail: single try/catch for classify+process — both fail the same way
   let result;
+  let pdfType: string;
   try {
+    const classification = inspector.classifyPdf(buffer);
+    pdfType = classification.pdfType;
+
+    if (pdfType === "Scanned" || pdfType === "ImageBased") {
+      throw new PdfError(
+        "PDF_NO_TEXT_LAYER",
+        "Scanned/image PDF detected. Use OCR (oocr) for text extraction."
+      );
+    }
+
     result = inspector.processPdf(buffer);
-  } catch {
-    throw new PdfError("PDF_READ_ERROR", "Failed to process PDF.");
+  } catch (e) {
+    if (e instanceof PdfError) throw e;
+    throw new PdfError("PDF_READ_ERROR", "Failed to classify/process PDF.");
   }
 
   const markdown = result.markdown ?? "";
