@@ -184,6 +184,22 @@ await server.connect(new StdioServerTransport());
 `
   );
 
+  const promptsOnlyScript = join(dir, "prompts-only.ts");
+  writeFileSync(
+    promptsOnlyScript,
+    `
+import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { ListPromptsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
+
+const server = new Server({ name: "prompts-only", version: "1.0.0" }, { capabilities: { prompts: {} } });
+server.setRequestHandler(ListPromptsRequestSchema, async () => ({
+  prompts: [{ name: "draft", description: "Draft a doc" }],
+}));
+await server.connect(new StdioServerTransport());
+`
+  );
+
   const config: McpConfig = {
     type: "local",
     command: [process.execPath, serverScript],
@@ -191,6 +207,10 @@ await server.connect(new StdioServerTransport());
   const toolsOnlyConfig: McpConfig = {
     type: "local",
     command: [process.execPath, toolsOnlyScript],
+  };
+  const promptsOnlyConfig: McpConfig = {
+    type: "local",
+    command: [process.execPath, promptsOnlyScript],
   };
   let client: Awaited<ReturnType<typeof createSdkMcpClient>> | undefined;
 
@@ -236,6 +256,18 @@ await server.connect(new StdioServerTransport());
       expect(await toolsOnly.listResources()).toEqual([]);
     } finally {
       await toolsOnly.close();
+    }
+  });
+
+  test("prompts-only server yields no tools but keeps its prompts", async () => {
+    const promptsOnly = await createSdkMcpClient(promptsOnlyConfig);
+    try {
+      expect(await promptsOnly.listTools()).toEqual([]);
+      expect(await promptsOnly.listPrompts()).toEqual([
+        { name: "draft", description: "Draft a doc" },
+      ]);
+    } finally {
+      await promptsOnly.close();
     }
   });
 });

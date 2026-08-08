@@ -109,6 +109,7 @@ export function createSdkMcpClient(config: McpConfig): Promise<McpClient> {
     return {
       name: "",
       listTools: async () => {
+        if (!capabilities?.tools) return [];
         const { tools } = await client.listTools();
         return tools.map((t) => ({
           name: t.name,
