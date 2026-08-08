@@ -3,13 +3,12 @@ import { tmpdir } from "node:os";
 import { join, extname } from "node:path";
 import { execFileSync } from "node:child_process";
 import { checkTesseract, checkPdftoppm } from "./install";
+import { IMAGE_EXTENSIONS } from "../tool/builtins/read";
 
 const PAGE_LIMIT = 100;
 const LANG = "eng+vie";
 const OCR_PREFIX =
   "[OCR: Extracted from scanned document via Tesseract. May contain recognition errors.]";
-
-const IMAGE_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".tiff", ".bmp"]);
 
 export class OcrError extends Error {
   code: "TESSERACT_NOT_INSTALLED" | "PDFTOPPM_NOT_INSTALLED" | "OCR_FAILED";

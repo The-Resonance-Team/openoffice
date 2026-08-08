@@ -171,7 +171,14 @@ export function createReadTool(deps: ReadDeps): ToolDefinition {
         }
       }
 
-      if (IMAGE_EXTENSIONS.has(ext) && deps.readOcr) {
+      if (IMAGE_EXTENSIONS.has(ext)) {
+        if (!deps.readOcr) {
+          return {
+            success: false,
+            error: `Cannot read ${ext} files: OCR not available. Install Tesseract to enable image reading.`,
+            code: "OCR_NOT_AVAILABLE",
+          };
+        }
         try {
           const ocrResult = await deps.readOcr(file);
           return { success: true, output: ocrResult, data: { source: "ocr" } };

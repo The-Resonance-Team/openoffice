@@ -139,6 +139,7 @@ export {
   createGrepTool,
   createQuestionTool,
   createConvertTool,
+  IMAGE_EXTENSIONS,
 } from "./tool";
 export type {
   ToolDefinition,

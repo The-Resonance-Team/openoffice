@@ -217,7 +217,7 @@ describe("createReadTool — image OCR routing", () => {
     expect(ocrCalledWith).toBe(file);
   });
 
-  test("falls through to unknown extension when readOcr not provided", async () => {
+  test("returns OCR_NOT_AVAILABLE when readOcr not provided", async () => {
     const dir = tempDir();
     const file = join(dir, "test.png");
     writeFileSync(file, "binary png data");
@@ -226,9 +226,11 @@ describe("createReadTool — image OCR routing", () => {
       readDocument: async () => "anydoc",
     });
     const result = await tool.execute({ file }, { sessionID: "test" });
-    expect(result.success).toBe(true);
-    // Falls through to unknown extension handler which tries text read
-    if (result.success) expect(result.output).toBe("binary png data");
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.code).toBe("OCR_NOT_AVAILABLE");
+      expect(result.error).toContain("OCR not available");
+    }
   });
 
   test("returns OCR_FAILED when image OCR fails", async () => {
