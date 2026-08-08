@@ -23,15 +23,16 @@ function platformArchSuffix(): string {
     return `linux-${arch}-${isMusl ? "musl" : "gnu"}`;
   }
   if (plat === "darwin") return `darwin-${arch}`;
+  // ponytail: win32 hardcoded to x64-msvc — other arch combos need the binary added upstream
   if (plat === "win32") return "win32-x64-msvc";
   return `${plat}-${arch}`;
 }
 
 type NapiAvailable = "napi" | "cli" | "none";
 
-const platformFallback: NapiAvailable = (() => {
+function resolvePlatformMode(): NapiAvailable {
+  const suffix = platformArchSuffix();
   try {
-    const suffix = platformArchSuffix();
     require.resolve(`@firecrawl/pdf-inspector-${suffix}`);
     return "napi";
   } catch {
@@ -44,9 +45,13 @@ const platformFallback: NapiAvailable = (() => {
     // pdf2md CLI not available
   }
   return "none";
-})();
+}
+
+const resolvedSuffix = platformArchSuffix();
+const platformFallback: NapiAvailable = resolvePlatformMode();
 
 function loadInspector() {
+  // ponytail: dynamic require for optional native dep — static import crashes when binary is missing
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   return require("@firecrawl/pdf-inspector") as {
     classifyPdf: (buf: Buffer) => { pdfType: string; [k: string]: unknown };
@@ -63,7 +68,7 @@ export async function readPdf(file: string): Promise<string> {
   if (platformFallback === "none") {
     throw new PdfError(
       "PDF_UNSUPPORTED_PLATFORM",
-      `No native binary or CLI found for ${platformArchSuffix()}. Install @firecrawl/pdf-inspector-${platformArchSuffix()} or pdf2md.`
+      `No native binary or CLI found for ${resolvedSuffix}. Install @firecrawl/pdf-inspector-${resolvedSuffix} or pdf2md.`
     );
   }
 
@@ -86,7 +91,7 @@ export async function readPdf(file: string): Promise<string> {
   } catch {
     throw new PdfError(
       "PDF_UNSUPPORTED_PLATFORM",
-      `Failed to load pdf-inspector native binding for ${platformArchSuffix()}.`
+      `Failed to load pdf-inspector native binding for ${resolvedSuffix}.`
     );
   }
 

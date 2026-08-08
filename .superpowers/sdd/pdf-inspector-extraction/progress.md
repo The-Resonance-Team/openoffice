@@ -8,3 +8,4 @@ Task 5: complete (commit ab16452, review clean — readPdf wired to daemon.ts an
 Task 6: complete (commit 9bffdf8, review clean — 4 integration tests for readPdf, skipped scanned PDF test)
 Task 7: complete (commit 427ae93, review clean — CONTEXT.md updated with pdf-inspector details)
 Task 8: complete (verification only — 42 tests pass, 0 fail, 0 type errors, all builds green)
+Final review: complete (APPROVE with 2 Important findings fixed — commit b358125)
