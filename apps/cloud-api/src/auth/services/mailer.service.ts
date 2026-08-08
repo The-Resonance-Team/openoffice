@@ -1,36 +1,26 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import nodemailer, { type Transporter } from "nodemailer";
+import { Resend } from "resend";
 import type { Mail } from "./mailer.type";
 
 /**
- * Email boundary (cloud ADR 0006: verification/reset/invite mail). Uses SMTP
- * when configured; logs the full message — token included — to the console
- * otherwise, so local dev and tests get working flows with no mail server.
+ * Email boundary (cloud ADR 0006: verification/reset/invite mail). Sends via
+ * Resend when RESEND_API_KEY is set; logs the full message — token included —
+ * to the console otherwise, so local dev and tests get working flows with no
+ * provider account.
  */
 @Injectable()
 export class MailerService {
   private readonly logger = new Logger(MailerService.name);
-  private readonly transporter: Transporter | null;
+  private readonly resend: Resend | null;
   private readonly from: string;
   private readonly webAppUrl: string;
 
   constructor(config: ConfigService) {
-    this.from = config.get<string>("smtp.from") ?? "no-reply@openoffice.dev";
+    this.from = config.get<string>("resend.from") ?? "no-reply@openoffice.dev";
     this.webAppUrl = config.get<string>("webAppUrl") ?? "http://localhost:3002";
-    const host = config.get<string>("smtp.host");
-    const port = config.get<number>("smtp.port") ?? 587;
-    this.transporter = host
-      ? nodemailer.createTransport({
-          host,
-          port,
-          secure: port === 465,
-          auth: {
-            user: config.get<string>("smtp.user") ?? "",
-            pass: config.get<string>("smtp.pass") ?? "",
-          },
-        })
-      : null;
+    const apiKey = config.get<string>("resend.apiKey");
+    this.resend = apiKey ? new Resend(apiKey) : null;
   }
 
   /** Absolute link for email bodies. */
@@ -39,13 +29,13 @@ export class MailerService {
   }
 
   async send(mail: Mail): Promise<void> {
-    if (!this.transporter) {
+    if (!this.resend) {
       this.logger.log(
         `[dev mailer] to=${mail.to} subject="${mail.subject}"\n${mail.text}`
       );
       return;
     }
-    await this.transporter.sendMail({
+    await this.resend.emails.send({
       from: this.from,
       to: mail.to,
       subject: mail.subject,
