@@ -43,7 +43,7 @@ A turn running detached from any connected client — started, then polled or ca
 _Avoid_: task, background task, worker
 
 **Tool**:
-A callable unit exposed to the agent to perform an action. Defined with a Zod `inputSchema` and an `execute` function. Converted to AI SDK format via the `tool()` helper before passing to `streamText()`. Tools can reference other tools for chaining (e.g., a document reader delegates to pdf-inspector (PDF) or anydoc (other formats) based on file extension). MCP tools are the exception: they carry their server's JSON Schema (not Zod) and the AI SDK accepts it directly.
+A callable unit exposed to the agent to perform an action. Defined with a Zod `inputSchema` and an `execute` function. Converted to AI SDK format via the `tool()` helper before passing to `streamText()`. Tools can reference other tools for chaining (e.g., a document reader delegates to officecli or pdf-parse based on file extension). MCP tools are the exception: they carry their server's JSON Schema (not Zod) and the AI SDK accepts it directly.
 _Avoid_: action, function, plugin, capability
 
 **MCP server**:
@@ -67,7 +67,7 @@ An agent-level ruleset controlling which tools are accessible. Uses allow/deny p
 _Avoid*: access control, tool list, capability
 
 **Document toolkit**:
-The collection of tools available for document manipulation: officecli (OOXML editing), pdf-inspector (PDF reading via napi-rs — classifyPdf detects TextBased/Scanned/ImageBased/Mixed; TextBased → full Markdown with tables/images/structure, Scanned/ImageBased → honest error, Mixed/encoding issues → partial extraction with warning; owned by #22), anydoc (docx/xlsx/pptx to Markdown — retained for non-PDF formats), oocr (OCR fallback for scanned/image-based PDFs via local Tesseract — owned by #23, not yet built), pandoc (format conversion). Each tool has its own `ToolDefinition` and can reference other tools for chaining. The `read` tool auto-detects file format and delegates to the appropriate backend.
+The collection of tools available for document manipulation: officecli (OOXML editing), pdf-inspector (text-based PDF reading — tables, images, structure; owned by #22, not the `pdftotext` shell-out it replaces), oocr (OCR fallback for scanned/image-based PDFs and standalone images via local Tesseract — owned by #23, not yet built), pandoc (format conversion). Each tool has its own `ToolDefinition` and can reference other tools for chaining. The `read` tool auto-detects file format and delegates to the appropriate backend.
 _Avoid_: Office, document tools, doc tools
 
 **Config**:
