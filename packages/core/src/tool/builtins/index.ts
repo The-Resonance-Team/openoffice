@@ -1,4 +1,4 @@
-export { createReadTool, type ReadDeps } from "./read";
+export { createReadTool, type ReadDeps, IMAGE_EXTENSIONS } from "./read";
 export { createWriteTool } from "./write";
 export { createGlobTool } from "./glob";
 export { createGrepTool, type GrepDeps } from "./grep";

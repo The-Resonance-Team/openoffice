@@ -82,6 +82,9 @@ export {
 } from "./office";
 export type { OfficeCliDeps } from "./office";
 
+export { readOcr, OcrError, checkTesseract, checkPdftoppm } from "./ocr";
+export { resetCache as resetOcrCache } from "./ocr";
+
 export {
   SessionStore,
   runTurn,
@@ -136,6 +139,7 @@ export {
   createGrepTool,
   createQuestionTool,
   createConvertTool,
+  IMAGE_EXTENSIONS,
 } from "./tool";
 export type {
   ToolDefinition,
