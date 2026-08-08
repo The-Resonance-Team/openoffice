@@ -2,16 +2,9 @@ import { Injectable, UnauthorizedException } from "@nestjs/common";
 import { Provider, Role } from "@/generated/client";
 import { PrismaService } from "@/prisma/prisma.service";
 import { uniqueOrgSlug } from "./unique-org-slug";
+import type { OAuthProfile } from "./oauth.type";
 
 /** Normalized provider profile (strategies map passport profiles to this). */
-export interface OAuthProfile {
-  providerUserId: string;
-  email?: string;
-  name?: string;
-  /** Verified by the provider itself — the auto-link trust anchor. */
-  emailVerified?: boolean;
-}
-
 @Injectable()
 export class OAuthService {
   constructor(private readonly prisma: PrismaService) {}

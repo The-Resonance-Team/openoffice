@@ -14,28 +14,12 @@ import type { RegisterDto } from "@/auth/dto/register.dto";
 import type { SwitchOrgDto } from "@/auth/dto/switch-org.dto";
 import { EmailTokenService } from "./email-token.service";
 import { MailerService } from "./mailer.service";
-import { OAuthService, type OAuthProfile } from "./oauth.service";
+import { OAuthService } from "./oauth.service";
+import type { OAuthProfile } from "./oauth.type";
+import type { AuthResult, MemberProfile } from "./auth.type";
 import { uniqueOrgSlug } from "./unique-org-slug";
 import { ACCESS_TOKEN_TTL_MINUTES, REFRESH_TTL_DAYS } from "./auth.constants";
 import { randomToken, sha256Hex } from "./tokens";
-
-export interface MemberProfile {
-  user: {
-    id: string;
-    email: string;
-    name: string | null;
-    emailVerified: boolean;
-  };
-  member: { id: string; role: Role };
-  org: { id: string; slug: string; name: string };
-  team: { id: string; name: string } | null;
-}
-
-export interface AuthResult {
-  accessToken: string;
-  refreshToken: string;
-  profile: MemberProfile;
-}
 
 interface Membership {
   id: string;

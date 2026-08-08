@@ -1,12 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import nodemailer, { type Transporter } from "nodemailer";
-
-export interface Mail {
-  to: string;
-  subject: string;
-  text: string;
-}
+import type { Mail } from "./mailer.type";
 
 /**
  * Email boundary (cloud ADR 0006: verification/reset/invite mail). Uses SMTP

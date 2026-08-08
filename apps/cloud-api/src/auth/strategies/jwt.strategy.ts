@@ -4,20 +4,7 @@ import { PassportStrategy } from "@nestjs/passport";
 import { ExtractJwt, Strategy } from "passport-jwt";
 import type { Request } from "express";
 import { Role } from "@/generated/client";
-
-export interface JwtPayload {
-  sub: string; // memberId
-  userId: string;
-  orgId: string;
-  role: Role;
-}
-
-export interface AuthenticatedMember {
-  memberId: string;
-  userId: string;
-  orgId: string;
-  role: Role;
-}
+import type { AuthenticatedMember, JwtPayload } from "./jwt.type";
 
 // JWT from the Authorization: Bearer header OR the `token` httpOnly cookie
 // (cookieParser is registered in main.ts). Header wins if both are present.
