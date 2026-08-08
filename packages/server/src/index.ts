@@ -45,3 +45,5 @@ export type {
 } from "./update";
 export { VERSION } from "./version";
 export { getDataDir } from "./data-dir";
+export { readPdf, PdfError } from "./read-pdf";
+export type { PdfErrorCode } from "./read-pdf";

@@ -5,6 +5,7 @@ import { basename, dirname, join } from "node:path";
 import { exiftool } from "exiftool-vendored";
 import { randomUUID } from "node:crypto";
 import { toMarkdown } from "@firecrawl/anydoc";
+import { readPdf } from "../read-pdf";
 import {
   resolveConfig,
   SessionStore,
@@ -140,12 +141,14 @@ export async function startDaemon(): Promise<DaemonHandle> {
       draftManager,
       readDocument,
       mcp,
+      readPdf,
     }),
     createWriteTool(),
     createGlobTool(),
     createGrepTool({
       readDocument,
       readSearchData,
+      readPdf,
       resolveDocument: async (file, ctx) => {
         const resolved = await draftManager.resolve(file, ctx.sessionID, false);
         if (resolved.lockError) throw new Error(resolved.lockError);
