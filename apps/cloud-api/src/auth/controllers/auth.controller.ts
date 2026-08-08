@@ -12,12 +12,12 @@ import { AuthGuard } from "@nestjs/passport";
 import { Throttle } from "@nestjs/throttler";
 import { ConfigService } from "@nestjs/config";
 import type { Request, Response } from "express";
-import { Provider } from "../../generated/client";
-import { Cookies } from "../decorators";
-import { CurrentUser } from "../decorators";
-import { Public } from "../decorators";
-import type { AuthenticatedMember } from "../strategies";
-import type { OAuthProfile } from "../services";
+import { Provider } from "@/generated/client";
+import { Cookies } from "@/auth/decorators";
+import { CurrentUser } from "@/auth/decorators";
+import { Public } from "@/auth/decorators";
+import type { AuthenticatedMember } from "@/auth/strategies";
+import type { OAuthProfile } from "@/auth/services";
 import {
   ACCESS_TOKEN_TTL_MINUTES,
   REFRESH_TTL_DAYS,
@@ -25,14 +25,14 @@ import {
   type AuthResult,
   EmailTokenService,
   OAuthService,
-} from "../services";
-import type { ForgotPasswordDto } from "../dto";
-import type { LoginDto } from "../dto";
-import type { RegisterDto } from "../dto";
-import type { ResendVerificationDto } from "../dto";
-import type { ResetPasswordDto } from "../dto";
-import type { SwitchOrgDto } from "../dto";
-import type { VerifyEmailDto } from "../dto";
+} from "@/auth/services";
+import type { ForgotPasswordDto } from "@/auth/dto";
+import type { LoginDto } from "@/auth/dto";
+import type { RegisterDto } from "@/auth/dto";
+import type { ResendVerificationDto } from "@/auth/dto";
+import type { ResetPasswordDto } from "@/auth/dto";
+import type { SwitchOrgDto } from "@/auth/dto";
+import type { VerifyEmailDto } from "@/auth/dto";
 
 const ACCESS_COOKIE_MAX_AGE = ACCESS_TOKEN_TTL_MINUTES * 60 * 1000;
 const REFRESH_COOKIE_MAX_AGE = REFRESH_TTL_DAYS * 24 * 3600 * 1000;

@@ -1,8 +1,8 @@
 import { Injectable, UnauthorizedException } from "@nestjs/common";
 import { addHours } from "date-fns";
 import argon2 from "argon2";
-import { EmailTokenType } from "../../generated/client";
-import { PrismaService } from "../../prisma/prisma.service";
+import { EmailTokenType } from "@/generated/client";
+import { PrismaService } from "@/prisma/prisma.service";
 import { MailerService } from "./mailer.service";
 import { randomToken, sha256Hex } from "./tokens";
 

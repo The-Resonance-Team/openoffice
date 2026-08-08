@@ -2,7 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { PassportStrategy } from "@nestjs/passport";
 import { Strategy } from "passport";
 import type { Request } from "express";
-import { ApiKeyService } from "../services/api-key.service";
+import { ApiKeyService } from "@/auth/services/api-key.service";
 
 /**
  * Authenticates a Daemon API Key presented as `x-api-key: oo_live_...`.

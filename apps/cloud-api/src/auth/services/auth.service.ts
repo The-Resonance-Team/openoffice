@@ -7,11 +7,11 @@ import {
 import { JwtService } from "@nestjs/jwt";
 import { addDays } from "date-fns";
 import argon2 from "argon2";
-import { Role } from "../../generated/client";
-import { PrismaService } from "../../prisma/prisma.service";
-import type { LoginDto } from "../dto/login.dto";
-import type { RegisterDto } from "../dto/register.dto";
-import type { SwitchOrgDto } from "../dto/switch-org.dto";
+import { Role } from "@/generated/client";
+import { PrismaService } from "@/prisma/prisma.service";
+import type { LoginDto } from "@/auth/dto/login.dto";
+import type { RegisterDto } from "@/auth/dto/register.dto";
+import type { SwitchOrgDto } from "@/auth/dto/switch-org.dto";
 import { EmailTokenService } from "./email-token.service";
 import { MailerService } from "./mailer.service";
 import { uniqueOrgSlug } from "./unique-org-slug";

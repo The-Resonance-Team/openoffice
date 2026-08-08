@@ -1,11 +1,11 @@
 import { Body, Controller, Post } from "@nestjs/common";
-import { Role } from "../../generated/client";
-import type { AuthenticatedMember } from "../strategies";
-import { CurrentUser } from "../decorators";
-import { Roles } from "../decorators";
-import type { AcceptInviteDto } from "../dto";
-import type { CreateInviteDto } from "../dto";
-import { InviteService } from "../services";
+import { Role } from "@/generated/client";
+import type { AuthenticatedMember } from "@/auth/strategies";
+import { CurrentUser } from "@/auth/decorators";
+import { Roles } from "@/auth/decorators";
+import type { AcceptInviteDto } from "@/auth/dto";
+import type { CreateInviteDto } from "@/auth/dto";
+import { InviteService } from "@/auth/services";
 
 @Controller("invites")
 export class InvitesController {

@@ -1,8 +1,8 @@
 import { createHash } from "node:crypto";
 import { ConfigService } from "@nestjs/config";
-import { EmailTokenType } from "../../generated/client";
+import { EmailTokenType } from "@/generated/client";
 import { fakeDb } from "../../../test/fake-db";
-import { PrismaService } from "../../prisma/prisma.service";
+import { PrismaService } from "@/prisma/prisma.service";
 import { EmailTokenService } from "./email-token.service";
 import { MailerService } from "./mailer.service";
 

@@ -2,13 +2,13 @@ import { JwtService } from "@nestjs/jwt";
 import { ConfigService } from "@nestjs/config";
 import { createHash } from "node:crypto";
 import { fakeDb } from "../../../test/fake-db";
-import { PrismaService } from "../../prisma/prisma.service";
+import { PrismaService } from "@/prisma/prisma.service";
 import { AuthService } from "./auth.service";
 import { EmailTokenService } from "./email-token.service";
 import { MailerService } from "./mailer.service";
-import type { LoginDto } from "../dto/login.dto";
-import type { RegisterDto } from "../dto/register.dto";
-import type { SwitchOrgDto } from "../dto/switch-org.dto";
+import type { LoginDto } from "@/auth/dto/login.dto";
+import type { RegisterDto } from "@/auth/dto/register.dto";
+import type { SwitchOrgDto } from "@/auth/dto/switch-org.dto";
 
 const sha256 = (s: string): string =>
   createHash("sha256").update(s).digest("hex");

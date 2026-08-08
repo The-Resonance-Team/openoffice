@@ -1,6 +1,6 @@
 import { Injectable, UnauthorizedException } from "@nestjs/common";
-import { Provider, Role } from "../../generated/client";
-import { PrismaService } from "../../prisma/prisma.service";
+import { Provider, Role } from "@/generated/client";
+import { PrismaService } from "@/prisma/prisma.service";
 import { uniqueOrgSlug } from "./unique-org-slug";
 
 /** Normalized provider profile (strategies map passport profiles to this). */

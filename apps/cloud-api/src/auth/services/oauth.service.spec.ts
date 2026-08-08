@@ -1,7 +1,7 @@
 import { UnauthorizedException } from "@nestjs/common";
-import { Provider } from "../../generated/client";
+import { Provider } from "@/generated/client";
 import { fakeDb } from "../../../test/fake-db";
-import { PrismaService } from "../../prisma/prisma.service";
+import { PrismaService } from "@/prisma/prisma.service";
 import { OAuthService } from "./oauth.service";
 
 describe("OAuthService", () => {

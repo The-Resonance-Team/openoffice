@@ -1,6 +1,6 @@
 import { ExecutionContext, ForbiddenException } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
-import { Role } from "../../generated/client";
+import { Role } from "@/generated/client";
 import { RolesGuard } from "./roles.guard";
 
 function ctxWith(role: Role | undefined): ExecutionContext {

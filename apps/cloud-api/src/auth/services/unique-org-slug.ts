@@ -1,4 +1,4 @@
-import type { PrismaService } from "../../prisma/prisma.service";
+import type { PrismaService } from "@/prisma/prisma.service";
 
 /** A free Org slug for `name`; appends -2, -3... while taken (ADR: slug unique). */
 export async function uniqueOrgSlug(

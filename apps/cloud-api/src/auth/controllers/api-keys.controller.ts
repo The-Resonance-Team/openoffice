@@ -1,8 +1,8 @@
 import { Body, Controller, Delete, Get, Param, Post } from "@nestjs/common";
-import type { AuthenticatedMember } from "../strategies";
-import { CurrentUser } from "../decorators";
-import type { CreateApiKeyDto } from "../dto";
-import { ApiKeyService } from "../services";
+import type { AuthenticatedMember } from "@/auth/strategies";
+import { CurrentUser } from "@/auth/decorators";
+import type { CreateApiKeyDto } from "@/auth/dto";
+import { ApiKeyService } from "@/auth/services";
 
 @Controller("api-keys")
 export class ApiKeysController {

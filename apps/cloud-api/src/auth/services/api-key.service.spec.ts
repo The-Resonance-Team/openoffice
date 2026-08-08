@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { fakeDb } from "../../../test/fake-db";
-import { PrismaService } from "../../prisma/prisma.service";
-import type { CreateApiKeyDto } from "../dto";
+import { PrismaService } from "@/prisma/prisma.service";
+import type { CreateApiKeyDto } from "@/auth/dto";
 import { ApiKeyService } from "./api-key.service";
 
 const sha256 = (s: string): string =>

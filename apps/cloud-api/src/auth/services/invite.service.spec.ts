@@ -5,12 +5,12 @@ import {
   ConflictException,
   UnauthorizedException,
 } from "@nestjs/common";
-import { Role } from "../../generated/client";
+import { Role } from "@/generated/client";
 import { fakeDb } from "../../../test/fake-db";
-import { PrismaService } from "../../prisma/prisma.service";
+import { PrismaService } from "@/prisma/prisma.service";
 import { InviteService } from "./invite.service";
 import { MailerService } from "./mailer.service";
-import type { CreateInviteDto } from "../dto/create-invite.dto";
+import type { CreateInviteDto } from "@/auth/dto/create-invite.dto";
 
 const sha256 = (s: string): string =>
   createHash("sha256").update(s).digest("hex");

@@ -1,7 +1,7 @@
 import { Injectable, UnauthorizedException } from "@nestjs/common";
-import { Role } from "../../generated/client";
-import { PrismaService } from "../../prisma/prisma.service";
-import type { CreateApiKeyDto } from "../dto";
+import { Role } from "@/generated/client";
+import { PrismaService } from "@/prisma/prisma.service";
+import type { CreateApiKeyDto } from "@/auth/dto";
 import { randomToken, sha256Hex } from "./tokens";
 
 /** The principal a Daemon API Key resolves to — same shape as the JWT user. */

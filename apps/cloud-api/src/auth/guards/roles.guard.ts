@@ -5,8 +5,8 @@ import {
   Injectable,
 } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
-import { Role } from "../../generated/client";
-import { ROLES_KEY } from "../decorators";
+import { Role } from "@/generated/client";
+import { ROLES_KEY } from "@/auth/decorators";
 
 // Role hierarchy (cloud ADR 0001): higher roles pass any lower-role gate.
 const ROLE_WEIGHT: Record<Role, number> = {

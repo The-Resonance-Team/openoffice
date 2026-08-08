@@ -5,9 +5,9 @@ import {
   UnauthorizedException,
 } from "@nestjs/common";
 import { addDays } from "date-fns";
-import { Role } from "../../generated/client";
-import { PrismaService } from "../../prisma/prisma.service";
-import type { CreateInviteDto } from "../dto/create-invite.dto";
+import { Role } from "@/generated/client";
+import { PrismaService } from "@/prisma/prisma.service";
+import type { CreateInviteDto } from "@/auth/dto/create-invite.dto";
 import { MailerService } from "./mailer.service";
 import { randomToken, sha256Hex } from "./tokens";
 
