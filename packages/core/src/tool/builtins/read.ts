@@ -42,6 +42,7 @@ export const IMAGE_EXTENSIONS = new Set([
   ".jpg",
   ".jpeg",
   ".tiff",
+  ".tif",
   ".bmp",
 ]);
 const TEXT_EXTENSIONS = new Set([

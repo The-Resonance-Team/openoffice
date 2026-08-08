@@ -3,12 +3,33 @@ import { tmpdir } from "node:os";
 import { join, extname } from "node:path";
 import { execFileSync } from "node:child_process";
 import { checkTesseract, checkPdftoppm } from "./install";
-import { IMAGE_EXTENSIONS } from "../tool/builtins/read";
+import { IMAGE_EXTENSIONS } from "../tool";
 
 const PAGE_LIMIT = 100;
-const LANG = "eng+vie";
 const OCR_PREFIX =
   "[OCR: Extracted from scanned document via Tesseract. May contain recognition errors.]";
+
+let cachedLang: string | null = null;
+
+function resolveLang(): string {
+  if (cachedLang !== null) return cachedLang;
+  try {
+    const output = execFileSync("tesseract", ["--list-langs"], {
+      timeout: 5000,
+      encoding: "utf-8",
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+    const langs = output.split("\n").filter((l) => l.trim() && l.trim() !== "List of available languages");
+    if (langs.includes("vie")) {
+      cachedLang = "eng+vie";
+    } else {
+      cachedLang = "eng";
+    }
+  } catch {
+    cachedLang = "eng";
+  }
+  return cachedLang;
+}
 
 export class OcrError extends Error {
   code: "TESSERACT_NOT_INSTALLED" | "PDFTOPPM_NOT_INSTALLED" | "OCR_FAILED";
@@ -30,11 +51,11 @@ function isPdfFile(file: string): boolean {
   return extname(file).toLowerCase() === ".pdf";
 }
 
-function rasterizePdf(pdfPath: string, outDir: string): string[] {
+function rasterizePdf(pdfPath: string, outDir: string, pageLimit: number): { files: string[]; totalRasterized: number } {
   try {
     execFileSync(
       "pdftoppm",
-      ["-png", "-r", "300", pdfPath, join(outDir, "page")],
+      ["-png", "-r", "300", "-f", "1", "-l", String(pageLimit), pdfPath, join(outDir, "page")],
       { timeout: 60000, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }
     );
   } catch (err: any) {
@@ -51,15 +72,12 @@ function rasterizePdf(pdfPath: string, outDir: string): string[] {
     .filter((f) => f.startsWith("page") && f.endsWith(".png"))
     .sort();
 
-  if (files.length > PAGE_LIMIT) {
-    return files.slice(0, PAGE_LIMIT);
-  }
-  return files;
+  return { files, totalRasterized: files.length };
 }
 
-function ocrImage(imagePath: string): string {
+function ocrImage(imagePath: string, lang: string): string {
   try {
-    return execFileSync("tesseract", [imagePath, "stdout", "-l", LANG], {
+    return execFileSync("tesseract", [imagePath, "stdout", "-l", lang], {
       timeout: 30000,
       encoding: "utf-8",
       stdio: ["pipe", "pipe", "pipe"],
@@ -84,8 +102,10 @@ export async function readOcr(file: string): Promise<string> {
     );
   }
 
+  const lang = resolveLang();
+
   if (isImageFile(file)) {
-    const text = ocrImage(file);
+    const text = ocrImage(file, lang);
     return `${OCR_PREFIX}\n\n${text}`;
   }
 
@@ -100,17 +120,16 @@ export async function readOcr(file: string): Promise<string> {
 
     const tmpDir = mkdtempSync(join(tmpdir(), "oocr-"));
     try {
-      const pages = rasterizePdf(file, tmpDir);
-      const exceeded = pages.length >= PAGE_LIMIT;
+      const { files, totalRasterized } = rasterizePdf(file, tmpDir, PAGE_LIMIT);
       const texts: string[] = [];
 
-      for (const page of pages) {
-        texts.push(ocrImage(join(tmpDir, page)));
+      for (const page of files) {
+        texts.push(ocrImage(join(tmpDir, page), lang));
       }
 
       const combined = texts.join("\n\n");
-      const warning = exceeded
-        ? `[Warning: PDF has ${pages.length}+ pages. OCR limited to first ${PAGE_LIMIT} pages.]\n\n`
+      const warning = totalRasterized >= PAGE_LIMIT
+        ? `[Warning: PDF has ${totalRasterized}+ pages. OCR limited to first ${PAGE_LIMIT} pages.]\n\n`
         : "";
 
       return `${OCR_PREFIX}\n\n${warning}${combined}`;
