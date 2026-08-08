@@ -200,6 +200,51 @@ await server.connect(new StdioServerTransport());
 `
   );
 
+  const paginatedScript = join(dir, "paginated.ts");
+  writeFileSync(
+    paginatedScript,
+    `
+import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import {
+  ListToolsRequestSchema,
+  ListPromptsRequestSchema,
+  ListResourcesRequestSchema,
+} from "@modelcontextprotocol/sdk/types.js";
+
+const server = new Server({ name: "paginated", version: "1.0.0" }, {
+  capabilities: { tools: {}, prompts: {}, resources: {} },
+});
+const page = (all: unknown[], cursor?: string) => {
+  const offset = Number(cursor ?? 0);
+  const slice = all.slice(offset, offset + 2);
+  return { slice, nextCursor: offset + 2 < all.length ? String(offset + 2) : undefined };
+};
+server.setRequestHandler(ListToolsRequestSchema, async (req) => {
+  const { slice, nextCursor } = page(
+    ["t1", "t2", "t3"].map((name) => ({ name, description: "", inputSchema: { type: "object" } })),
+    req.params?.cursor
+  );
+  return { tools: slice, nextCursor };
+});
+server.setRequestHandler(ListPromptsRequestSchema, async (req) => {
+  const { slice, nextCursor } = page(
+    ["p1", "p2", "p3"].map((name) => ({ name })),
+    req.params?.cursor
+  );
+  return { prompts: slice, nextCursor };
+});
+server.setRequestHandler(ListResourcesRequestSchema, async (req) => {
+  const { slice, nextCursor } = page(
+    ["r1", "r2", "r3"].map((uri) => ({ uri: "mem://" + uri, name: uri })),
+    req.params?.cursor
+  );
+  return { resources: slice, nextCursor };
+});
+await server.connect(new StdioServerTransport());
+`
+  );
+
   const config: McpConfig = {
     type: "local",
     command: [process.execPath, serverScript],
@@ -211,6 +256,10 @@ await server.connect(new StdioServerTransport());
   const promptsOnlyConfig: McpConfig = {
     type: "local",
     command: [process.execPath, promptsOnlyScript],
+  };
+  const paginatedConfig: McpConfig = {
+    type: "local",
+    command: [process.execPath, paginatedScript],
   };
   let client: Awaited<ReturnType<typeof createSdkMcpClient>> | undefined;
 
@@ -268,6 +317,29 @@ await server.connect(new StdioServerTransport());
       ]);
     } finally {
       await promptsOnly.close();
+    }
+  });
+
+  test("cursor-paginated servers return every item", async () => {
+    const paginated = await createSdkMcpClient(paginatedConfig);
+    try {
+      expect((await paginated.listTools()).map((t) => t.name)).toEqual([
+        "t1",
+        "t2",
+        "t3",
+      ]);
+      expect((await paginated.listPrompts()).map((p) => p.name)).toEqual([
+        "p1",
+        "p2",
+        "p3",
+      ]);
+      expect((await paginated.listResources()).map((r) => r.uri)).toEqual([
+        "mem://r1",
+        "mem://r2",
+        "mem://r3",
+      ]);
+    } finally {
+      await paginated.close();
     }
   });
 });

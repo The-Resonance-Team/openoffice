@@ -83,6 +83,27 @@ function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
   return Promise.race([p, timeout]).finally(() => clearTimeout(timer));
 }
 
+const MAX_LIST_PAGES = 1_000;
+
+// Cursor-paginated list (tools/prompts/resources), opencode parity. Guards
+// against cursor cycles; caps at MAX_LIST_PAGES.
+async function paginate<T>(
+  list: (cursor?: string) => Promise<{ items: T[]; nextCursor?: string }>
+): Promise<T[]> {
+  const items: T[] = [];
+  const seen = new Set<string>();
+  let cursor: string | undefined;
+  for (let page = 0; page < MAX_LIST_PAGES; page++) {
+    const result = await list(cursor);
+    items.push(...result.items);
+    cursor = result.nextCursor;
+    if (!cursor) return items;
+    if (seen.has(cursor)) throw new Error("MCP list returned a cursor cycle");
+    seen.add(cursor);
+  }
+  throw new Error(`MCP list exceeded ${MAX_LIST_PAGES} pages`);
+}
+
 export function createSdkMcpClient(config: McpConfig): Promise<McpClient> {
   const client = new Client({ name: "openoffice", version: "0.1.0" });
 
@@ -110,7 +131,10 @@ export function createSdkMcpClient(config: McpConfig): Promise<McpClient> {
       name: "",
       listTools: async () => {
         if (!capabilities?.tools) return [];
-        const { tools } = await client.listTools();
+        const tools = await paginate(async (cursor) => {
+          const page = await client.listTools(cursor ? { cursor } : undefined);
+          return { items: page.tools, nextCursor: page.nextCursor };
+        });
         return tools.map((t) => ({
           name: t.name,
           description: t.description ?? "",
@@ -121,7 +145,12 @@ export function createSdkMcpClient(config: McpConfig): Promise<McpClient> {
       // erroring — capability-miss must not look like a dead transport.
       listPrompts: async () => {
         if (!capabilities?.prompts) return [];
-        const { prompts } = await client.listPrompts();
+        const prompts = await paginate(async (cursor) => {
+          const page = await client.listPrompts(
+            cursor ? { cursor } : undefined
+          );
+          return { items: page.prompts, nextCursor: page.nextCursor };
+        });
         return prompts.map((p) => ({
           name: p.name,
           description: p.description,
@@ -129,7 +158,12 @@ export function createSdkMcpClient(config: McpConfig): Promise<McpClient> {
       },
       listResources: async () => {
         if (!capabilities?.resources) return [];
-        const { resources } = await client.listResources();
+        const resources = await paginate(async (cursor) => {
+          const page = await client.listResources(
+            cursor ? { cursor } : undefined
+          );
+          return { items: page.resources, nextCursor: page.nextCursor };
+        });
         return resources.map((r) => ({
           uri: r.uri,
           name: r.name,
