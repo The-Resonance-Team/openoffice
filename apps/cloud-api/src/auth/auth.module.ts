@@ -1,4 +1,4 @@
-import { Global, Module } from "@nestjs/common";
+import { Global, Module, type Provider } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { JwtModule, type JwtSignOptions } from "@nestjs/jwt";
 import { PassportModule } from "@nestjs/passport";
@@ -22,17 +22,28 @@ import {
   JwtStrategy,
 } from "./strategies";
 
-// OAuth strategies register only when their provider credentials exist —
-// local dev without GOOGLE_*/GITHUB_* envs stays bootable (password auth).
-function oauthStrategies() {
-  const strategies = [];
-  if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
-    strategies.push(GoogleStrategy);
-  }
-  if (process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET) {
-    strategies.push(GithubStrategy);
-  }
-  return strategies;
+/**
+ * Registers an OAuth strategy only when the provider's credentials are
+ * configured (local dev without the Google/GitHub env pairs stays bootable
+ * on password auth). The presence check reads the validated config; the
+ * strategy constructor then getOrThrows the client id/secret before they
+ * ever reach passport — undefined secrets fail loudly at boot, not inside
+ * the OAuth2 handshake.
+ */
+function oauthStrategyProvider(
+  Strategy: typeof GoogleStrategy,
+  provider: "google" | "github"
+): Provider {
+  return {
+    provide: Strategy,
+    inject: [ConfigService],
+    useFactory: (config: ConfigService) => {
+      const clientId = config.get<string>(`${provider}.clientId`);
+      const clientSecret = config.get<string>(`${provider}.clientSecret`);
+      if (!clientId || !clientSecret) return null;
+      return new Strategy(config);
+    },
+  };
 }
 
 @Global()
@@ -62,7 +73,8 @@ function oauthStrategies() {
     OAuthService,
     JwtStrategy,
     ApiKeyStrategy,
-    ...oauthStrategies(),
+    oauthStrategyProvider(GoogleStrategy, "google"),
+    oauthStrategyProvider(GithubStrategy, "github"),
   ],
   exports: [JwtModule, AuthService, ApiKeyService, OAuthService, InviteService],
 })
