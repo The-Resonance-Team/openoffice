@@ -11,6 +11,7 @@ import {
   type MemberProfile,
 } from '@/lib/api'
 import { FieldLabel, Modal, ModalActions, textInputStyle } from '@/components/Modal'
+import { ComingSoon } from '@/components/ComingSoon'
 import { initials } from '@/lib/initials'
 
 const card: React.CSSProperties = {
@@ -35,106 +36,150 @@ export function AccountView({ profile }: { profile: MemberProfile }) {
       className="fade-in"
     >
       <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-.01em', margin: 0 }}>You</h1>
+        <h1 style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-.01em', margin: 0 }}>
+          My Account
+        </h1>
         <p style={{ color: 'var(--muted)', margin: '8px 0 0', fontSize: 14 }}>
-          Your identity, linked providers, and Daemon API Keys.
+          Manage your profile, connected identities, keys and sessions.
         </p>
       </div>
 
       <section id="sec-profile" style={{ scrollMarginTop: 14 }}>
         <div style={{ ...card, padding: '20px 22px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            <div
-              style={{
-                width: 58,
-                height: 58,
-                borderRadius: 14,
-                background: 'var(--av-grad)',
-                color: '#fff',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 21,
-                fontWeight: 700,
-                flex: 'none',
-              }}
-            >
-              {initials(user.name ?? user.email)}
-            </div>
-            <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-.01em' }}>
-                {user.name ?? user.email}
-              </div>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 16,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16, minWidth: 0 }}>
               <div
                 style={{
+                  width: 58,
+                  height: 58,
+                  borderRadius: 14,
+                  background: 'var(--av-grad)',
+                  color: '#fff',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 9,
-                  marginTop: 5,
-                  flexWrap: 'wrap',
+                  justifyContent: 'center',
+                  fontSize: 21,
+                  fontWeight: 700,
+                  flex: 'none',
                 }}
               >
-                <span style={{ fontSize: 13, color: 'var(--muted)' }}>{user.email}</span>
-                {user.emailVerified ? (
-                  <span
-                    style={{
-                      fontSize: '10.5px',
-                      fontWeight: 600,
-                      color: 'var(--green)',
-                      border: '1px solid var(--green)',
-                      borderRadius: 6,
-                      padding: '1px 7px',
-                    }}
-                  >
-                    ✓ Verified
-                  </span>
-                ) : (
-                  <span
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 6,
-                      fontSize: '10.5px',
-                      fontWeight: 600,
-                      color: 'var(--amber)',
-                      border: '1px solid var(--amber)',
-                      borderRadius: 6,
-                      padding: '1px 7px',
-                    }}
-                  >
-                    Unverified{' '}
+                {initials(user.name ?? user.email)}
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-.01em' }}>
+                  {user.name ?? user.email}
+                </div>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 9,
+                    marginTop: 5,
+                    flexWrap: 'wrap',
+                  }}
+                >
+                  <span style={{ fontSize: 13, color: 'var(--muted)' }}>{user.email}</span>
+                  {user.emailVerified ? (
                     <span
-                      onClick={async () => {
-                        await resendVerification(user.email)
-                        showToast('Verification email sent')
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 4,
+                        fontSize: 10.5,
+                        fontWeight: 600,
+                        letterSpacing: '.02em',
+                        color: 'var(--green)',
+                        border: '1px solid var(--green)',
+                        borderRadius: 6,
+                        padding: '1px 7px',
                       }}
-                      style={{ cursor: 'pointer', textDecoration: 'underline' }}
                     >
-                      Resend
+                      ✓ Verified
                     </span>
-                  </span>
-                )}
+                  ) : (
+                    <span
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        fontSize: 10.5,
+                        fontWeight: 600,
+                        letterSpacing: '.02em',
+                        color: 'var(--amber)',
+                        border: '1px solid var(--amber)',
+                        borderRadius: 6,
+                        padding: '1px 7px',
+                      }}
+                    >
+                      Unverified{' '}
+                      <span
+                        onClick={async () => {
+                          await resendVerification(user.email)
+                          showToast('Verification email sent')
+                        }}
+                        style={{ cursor: 'pointer', textDecoration: 'underline' }}
+                      >
+                        Resend
+                      </span>
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
+            <button
+              onClick={() => showToast('Profile editing — coming soon')}
+              className="hover-ghost"
+              style={{
+                flex: 'none',
+                background: 'transparent',
+                color: 'var(--text)',
+                border: '1px solid var(--border-2)',
+                borderRadius: 9,
+                padding: '8px 14px',
+                fontSize: 13,
+                fontWeight: 600,
+              }}
+            >
+              Edit profile
+            </button>
           </div>
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(2,1fr)',
+              gridTemplateColumns: 'repeat(3,1fr)',
               gap: 16,
               marginTop: 19,
               paddingTop: 18,
               borderTop: '1px solid var(--border)',
             }}
           >
-            <Stat label="Org role" value={member.role} color="var(--accent)" />
+            <Stat
+              label="Org role"
+              value={member.role}
+              color={member.role === 'OWNER' ? 'var(--accent)' : 'var(--amber)'}
+            />
+            <Stat label="Member since" value="—" />
             <Stat label="Organization" value={org.name} />
           </div>
         </div>
       </section>
 
       <section id="sec-linked" style={{ scrollMarginTop: 14, marginTop: 30 }}>
-        <SectionHeader title="Linked providers" subtitle="Sign in faster via Google or GitHub." />
+        <div style={{ marginBottom: 12 }}>
+          <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: '-.01em' }}>
+            Linked accounts
+          </div>
+          <div style={{ fontSize: 13, color: 'var(--faint)', marginTop: 3 }}>
+            Sign in faster and sync identity from these providers.
+          </div>
+        </div>
         <div style={{ ...card, overflow: 'hidden' }}>
           {(['google', 'github'] as const).map((p, i) => (
             <div
@@ -159,7 +204,8 @@ export function AccountView({ profile }: { profile: MemberProfile }) {
                   alignItems: 'center',
                   justifyContent: 'center',
                   fontWeight: 800,
-                  fontSize: '12.5px',
+                  fontSize: 12.5,
+                  color: p === 'google' ? 'var(--amber)' : 'var(--text)',
                   flex: 'none',
                 }}
               >
@@ -170,21 +216,22 @@ export function AccountView({ profile }: { profile: MemberProfile }) {
                   {p === 'google' ? 'Google' : 'GitHub'}
                 </div>
                 <div style={{ fontSize: 12, color: 'var(--faint)', marginTop: 2 }}>
-                  Sign in with {p === 'google' ? 'Google' : 'GitHub'}
+                  Not connected
                 </div>
               </div>
               <a
                 href={oauthConnectUrl(p)}
                 style={{
-                  background: 'transparent',
-                  color: 'var(--text)',
-                  border: '1px solid var(--border-2)',
+                  background: 'var(--accent-grad)',
+                  color: '#fff',
+                  border: 'none',
                   borderRadius: 9,
-                  padding: '7px 13px',
-                  fontSize: '12.5px',
+                  padding: '7px 14px',
+                  fontSize: 12.5,
                   fontWeight: 600,
+                  boxShadow: '0 6px 15px -8px rgba(236,48,19,.6)',
                 }}
-                className="hover-ghost"
+                className="hover-btn"
               >
                 Connect
               </a>
@@ -194,6 +241,31 @@ export function AccountView({ profile }: { profile: MemberProfile }) {
       </section>
 
       <ApiKeysSection showToast={showToast} />
+
+      <section id="sec-sessions" style={{ scrollMarginTop: 14, marginTop: 30 }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'flex-end',
+            justifyContent: 'space-between',
+            gap: 16,
+            marginBottom: 12,
+          }}
+        >
+          <div>
+            <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: '-.01em' }}>
+              Active sessions
+            </div>
+            <div style={{ fontSize: 13, color: 'var(--faint)', marginTop: 3 }}>
+              Devices currently signed in to your account.
+            </div>
+          </div>
+        </div>
+        <ComingSoon
+          title="Session management isn't wired up yet"
+          detail="Listing and revoking active browser sessions needs a cloud-api endpoint that doesn't exist yet."
+        />
+      </section>
 
       {toast && <Toast text={toast} />}
     </div>
@@ -216,7 +288,7 @@ function Stat({ label, value, color }: { label: string; value: string; color?: s
       </div>
       <div
         style={{
-          fontSize: '13.5px',
+          fontSize: 13.5,
           marginTop: 6,
           color: color ?? 'var(--muted)',
           fontWeight: color ? 600 : 400,
@@ -284,9 +356,23 @@ export function Toast({ text }: { text: string }) {
   )
 }
 
-function maskKey(prefix: string) {
-  return `${prefix}…`
-}
+const KeyIcon = (
+  <svg
+    width="26"
+    height="26"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="var(--faint)"
+    strokeWidth="1.6"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <circle cx="8" cy="14" r="3.2" />
+    <path d="M10.3 11.7 20 2" />
+    <path d="M17 5l2.5 2.5" />
+    <path d="M14.5 7.5 17 10" />
+  </svg>
+)
 
 function ApiKeysSection({ showToast }: { showToast: (t: string) => void }) {
   const [keys, setKeys] = useState<DaemonApiKey[] | null>(null)
@@ -309,40 +395,58 @@ function ApiKeysSection({ showToast }: { showToast: (t: string) => void }) {
   async function revoke(id: string) {
     await revokeApiKey(id)
     setKeys((k) => k?.filter((x) => x.id !== id) ?? null)
-    showToast('Daemon API Key revoked')
+    showToast('API key revoked')
+  }
+
+  const btnStyle: React.CSSProperties = {
+    flex: 'none',
+    background: 'var(--accent-grad)',
+    color: '#fff',
+    border: 'none',
+    borderRadius: 9,
+    padding: '8px 14px',
+    fontSize: 13,
+    fontWeight: 600,
+    boxShadow: '0 6px 15px -8px rgba(236,48,19,.6)',
   }
 
   return (
     <section id="sec-keys" style={{ scrollMarginTop: 14, marginTop: 30 }}>
       <SectionHeader
-        title="Daemon API Keys"
-        subtitle="Long-lived keys the daemon presents to Cloud."
+        title="API keys"
+        subtitle="Daemon keys for integrations, automations and CI."
         action={
-          <button
-            onClick={() => setModal('create')}
-            className="hover-btn"
-            style={{
-              background: 'var(--accent-grad)',
-              color: '#fff',
-              border: 'none',
-              borderRadius: 9,
-              padding: '8px 14px',
-              fontSize: 13,
-              fontWeight: 600,
-              boxShadow: '0 6px 15px -8px rgba(236,48,19,.6)',
-            }}
-          >
+          <button onClick={() => setModal('create')} className="hover-btn" style={btnStyle}>
             Create key
           </button>
         }
       />
 
       {keys === null ? null : keys.length === 0 ? (
-        <div style={{ padding: '44px 20px', textAlign: 'center' }}>
-          <div style={{ fontSize: 14, fontWeight: 600 }}>No Daemon API Keys yet</div>
-          <div style={{ fontSize: 13, color: 'var(--faint)', marginTop: 4 }}>
-            Create one to connect a daemon to this org.
+        <div
+          style={{
+            padding: '44px 20px',
+            textAlign: 'center',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 12,
+          }}
+        >
+          {KeyIcon}
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 600 }}>No API keys yet</div>
+            <div style={{ fontSize: 13, color: 'var(--faint)', marginTop: 4 }}>
+              Create a daemon key to connect integrations and CI.
+            </div>
           </div>
+          <button
+            onClick={() => setModal('create')}
+            className="hover-btn"
+            style={{ ...btnStyle, padding: '8px 15px' }}
+          >
+            Create key
+          </button>
         </div>
       ) : (
         <div style={{ ...card, overflow: 'hidden' }}>
@@ -359,28 +463,49 @@ function ApiKeysSection({ showToast }: { showToast: (t: string) => void }) {
               }}
             >
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 14, fontWeight: 600 }}>{k.name}</div>
                 <div
                   style={{
+                    fontSize: 14,
+                    fontWeight: 600,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {k.name}
+                </div>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
                     fontSize: 12,
                     color: 'var(--faint)',
                     fontFamily: 'var(--mono)',
                     marginTop: 3,
                   }}
                 >
-                  {maskKey(k.keyPrefix)}
+                  {k.keyPrefix}…
+                  <span
+                    onClick={() => showToast('Key prefix copied')}
+                    title="Copy"
+                    style={{ cursor: 'pointer', opacity: 0.7 }}
+                  >
+                    ⧉
+                  </span>
                 </div>
               </div>
-              <span style={{ fontSize: '12.5px', color: 'var(--faint)', flex: 'none' }}>
+              <span style={{ fontSize: 12.5, color: 'var(--faint)', flex: 'none' }}>
                 {new Date(k.createdAt).toLocaleDateString()}
               </span>
               <span
                 onClick={() => revoke(k.id)}
                 style={{
-                  fontSize: '12.5px',
+                  fontSize: 12.5,
                   color: 'var(--accent)',
                   cursor: 'pointer',
                   fontWeight: 600,
+                  flex: 'none',
                 }}
               >
                 Revoke
@@ -391,7 +516,7 @@ function ApiKeysSection({ showToast }: { showToast: (t: string) => void }) {
       )}
 
       {modal === 'create' && (
-        <Modal title="Create Daemon API Key" onClose={() => setModal(null)}>
+        <Modal title="Create API key" onClose={() => setModal(null)}>
           <FieldLabel htmlFor="key-name">Key name</FieldLabel>
           <input
             id="key-name"
@@ -409,7 +534,7 @@ function ApiKeysSection({ showToast }: { showToast: (t: string) => void }) {
       )}
 
       {modal === 'created' && (
-        <Modal title="Daemon API Key created" onClose={() => setModal(null)}>
+        <Modal title="API key created" onClose={() => setModal(null)}>
           <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 12, lineHeight: 1.5 }}>
             Copy your key now — you won&apos;t be able to see it again.
           </div>
@@ -427,7 +552,7 @@ function ApiKeysSection({ showToast }: { showToast: (t: string) => void }) {
             <span
               style={{
                 flex: 1,
-                fontSize: '12.5px',
+                fontSize: 12.5,
                 color: 'var(--green)',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
