@@ -129,7 +129,10 @@ export async function runTurn(options: RunTurnOptions) {
   // Persist generated messages; tool parts keep their callID so the matching
   // tool result can be filled in.
   let assistantId: string | null = null;
-  const pending = new Map<string, string>(); // toolCallId -> part id
+  const pending = new Map<
+    string,
+    { partId: string; input: string | Record<string, unknown> }
+  >(); // toolCallId -> part id + original input
   for (const msg of generatedMessages) {
     if (msg.role === "assistant") {
       assistantId = randomUUID();
@@ -163,7 +166,10 @@ export async function runTurn(options: RunTurnOptions) {
               },
             };
             const partId = store.updatePart(session.id, assistantId, part);
-            pending.set(content.toolCallId, partId);
+            pending.set(content.toolCallId, {
+              partId,
+              input: content.input as string | Record<string, unknown>,
+            });
           }
         }
       }
@@ -173,8 +179,9 @@ export async function runTurn(options: RunTurnOptions) {
     } else if (msg.role === "tool") {
       for (const content of msg.content) {
         if (content.type !== "tool-result") continue;
-        const partId = pending.get(content.toolCallId);
-        if (!partId || !assistantId) continue;
+        const pendingEntry = pending.get(content.toolCallId);
+        if (!pendingEntry || !assistantId) continue;
+        const { partId, input } = pendingEntry;
         const output = content.output;
         let value: string;
         let isError = false;
@@ -199,10 +206,10 @@ export async function runTurn(options: RunTurnOptions) {
           state: isError
             ? {
                 status: "error",
-                input: "",
+                input,
                 error: { message: value },
               }
-            : { status: "completed", input: "", output: value },
+            : { status: "completed", input, output: value },
         });
       }
     }
