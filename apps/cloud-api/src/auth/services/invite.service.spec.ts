@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { ConfigService } from '@nestjs/config';
 import { BadRequestException, ConflictException, UnauthorizedException } from '@nestjs/common';
+import { addDays, subMilliseconds } from 'date-fns';
 import { Role } from '@/generated/client';
 import { fakeDb } from '../../../test/fake-db';
 import { PrismaService } from '@/prisma/prisma.service';
@@ -49,7 +50,7 @@ describe('InviteService', () => {
     expect(invites[0].tokenHash).toMatch(/^[0-9a-f]{64}$/);
     expect(invites[0].role).toBe('MEMBER');
     const now = Date.now();
-    expect(invites[0].expiresAt.getTime()).toBeGreaterThan(now + 6 * 86_400_000);
+    expect(invites[0].expiresAt.getTime()).toBeGreaterThan(addDays(now, 6).getTime());
     expect(send).toHaveBeenCalledWith(expect.objectContaining({ to: 'b@x.dev' }));
     const link = send.mock.calls[0][0].text;
     expect(link).toContain('/invite?token=');
@@ -85,7 +86,7 @@ describe('InviteService', () => {
     const invite = await db.invite.findFirst({
       where: { tokenHash: sha256(token) },
     });
-    invite.expiresAt = new Date(Date.now() - 1_000);
+    invite.expiresAt = subMilliseconds(new Date(), 1000);
     await expect(service.accept(token, 'u-invitee')).rejects.toThrow(UnauthorizedException);
 
     await createInvite();

@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { ConfigService } from '@nestjs/config';
+import { addHours, addMinutes, subMilliseconds } from 'date-fns';
 import { EmailTokenType } from '@/generated/client';
 import { fakeDb } from '../../../test/fake-db';
 import { PrismaService } from '@/prisma/prisma.service';
@@ -36,16 +37,16 @@ describe('EmailTokenService', () => {
     expect(stored.tokenHash).toBe(sha256(raw));
     expect(stored.tokenHash).not.toBe(raw);
     const now = Date.now();
-    expect(stored.expiresAt.getTime()).toBeGreaterThan(now + 23 * 3_600_000);
-    expect(stored.expiresAt.getTime()).toBeLessThan(now + 25 * 3_600_000);
+    expect(stored.expiresAt.getTime()).toBeGreaterThan(addHours(now, 23).getTime());
+    expect(stored.expiresAt.getTime()).toBeLessThan(addHours(now, 25).getTime());
   });
 
   it('gives reset tokens a 1h expiry', async () => {
     const raw = await service.createToken('u1', EmailTokenType.RESET_PASSWORD);
     const stored = byHash(db, sha256(raw));
     const now = Date.now();
-    expect(stored.expiresAt.getTime()).toBeGreaterThan(now + 59 * 60_000);
-    expect(stored.expiresAt.getTime()).toBeLessThan(now + 61 * 60_000);
+    expect(stored.expiresAt.getTime()).toBeGreaterThan(addMinutes(now, 59).getTime());
+    expect(stored.expiresAt.getTime()).toBeLessThan(addMinutes(now, 61).getTime());
   });
 
   it('verifies the user on consume and makes the token single-use', async () => {
@@ -59,7 +60,7 @@ describe('EmailTokenService', () => {
     await expect(service.consumeVerify('deadbeef')).rejects.toThrow(/Invalid or expired token/);
     const raw = await service.createToken('u1', EmailTokenType.VERIFY_EMAIL);
     const stored = byHash(db, sha256(raw));
-    stored.expiresAt = new Date(Date.now() - 1_000);
+    stored.expiresAt = subMilliseconds(new Date(), 1000);
     await expect(service.consumeVerify(raw)).rejects.toThrow(/Invalid or expired token/);
   });
 

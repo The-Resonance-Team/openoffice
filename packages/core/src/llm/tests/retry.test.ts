@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { APICallError } from 'ai';
+import { addSeconds } from 'date-fns';
 import { classifyRetryable, retryDelay, streamWithRetry } from '../retry';
 
 const apiError = (statusCode?: number, extra: Record<string, unknown> = {}) =>
@@ -39,7 +40,7 @@ describe('retryDelay', () => {
   });
 
   test('retry-after as an HTTP date resolves to ms from now', () => {
-    const future = new Date(Date.now() + 10_000).toUTCString();
+    const future = addSeconds(new Date(), 10).toUTCString();
     const delay = retryDelay(1, { 'retry-after': future });
     expect(delay).toBeGreaterThan(9000);
     expect(delay).toBeLessThanOrEqual(10_000);

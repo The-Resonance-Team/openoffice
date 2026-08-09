@@ -1,3 +1,4 @@
+import { differenceInMinutes, differenceInHours, format } from 'date-fns';
 import type { Session } from '../api/daemon';
 
 interface Props {
@@ -8,11 +9,13 @@ interface Props {
 }
 
 function relativeTime(ts: number): string {
-  const diff = Date.now() - ts;
-  if (diff < 60_000) return 'now';
-  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m`;
-  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h`;
-  return new Date(ts).toLocaleDateString();
+  const date = new Date(ts);
+  const mins = differenceInMinutes(Date.now(), date);
+  if (mins < 1) return 'now';
+  if (mins < 60) return `${mins}m`;
+  const hours = differenceInHours(Date.now(), date);
+  if (hours < 24) return `${hours}h`;
+  return format(date, 'MMM d, yyyy');
 }
 
 const preview = (s: Session): string => {

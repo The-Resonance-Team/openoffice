@@ -1,6 +1,7 @@
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { createHash } from 'node:crypto';
+import { addDays, subMilliseconds } from 'date-fns';
 import { fakeDb } from '../../../test/fake-db';
 import { PrismaService } from '@/prisma/prisma.service';
 import { AuthService } from './auth.service';
@@ -83,7 +84,7 @@ describe('AuthService', () => {
       expect(session).toBeDefined();
       expect(session.userId).toBe(user.id);
       expect(session.ip).toBe('1.2.3.4');
-      expect(session.expiresAt.getTime()).toBeGreaterThan(Date.now() + 6 * 86_400_000);
+      expect(session.expiresAt.getTime()).toBeGreaterThan(addDays(Date.now(), 6).getTime());
 
       expect(send).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -201,7 +202,7 @@ describe('AuthService', () => {
       const session = [...db._session.values()].find(
         (s: any) => s.hashedRefresh === sha256(refreshToken),
       );
-      session.expiresAt = new Date(Date.now() - 1_000);
+      session.expiresAt = subMilliseconds(new Date(), 1000);
       await expect(service.refresh(refreshToken, '1.2.3.4')).rejects.toThrow(/Invalid session/);
     });
   });
@@ -260,7 +261,7 @@ describe('AuthService', () => {
         data: {
           userId: user.id,
           hashedRefresh: sha256('valid-refresh'),
-          expiresAt: new Date(Date.now() + 86_400_000),
+          expiresAt: addDays(new Date(), 1),
         },
       });
       await expect(
