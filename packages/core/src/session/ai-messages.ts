@@ -4,7 +4,7 @@
 // parts and hands ModelMessages to the AI SDK).
 
 import type { ModelMessage, TextPart, ToolCallPart, ToolResultPart } from "ai";
-import type { CompactionPart, Part, ToolPart, WithParts } from "./parts";
+import type { CompactionPart, ToolPart, WithParts } from "./parts";
 
 const TOOL_OUTPUT_MAX_CHARS = 2_000;
 

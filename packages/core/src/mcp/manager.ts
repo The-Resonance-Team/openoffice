@@ -249,10 +249,10 @@ export class McpManager {
     try {
       const content = await client.readResource(uri);
       return { success: true, output: content };
-    } catch (e: any) {
+    } catch (e: unknown) {
       return {
         success: false,
-        error: e.message ?? "MCP resource read failed",
+        error: (e as Error).message ?? "MCP resource read failed",
         code: "MCP_RESOURCE_ERROR",
       };
     }
@@ -278,10 +278,10 @@ export class McpManager {
         output: typeof result === "string" ? result : JSON.stringify(result),
         data: result,
       };
-    } catch (e: any) {
+    } catch (e: unknown) {
       return {
         success: false,
-        error: e.message ?? "MCP tool call failed",
+        error: (e as Error).message ?? "MCP tool call failed",
         code: "MCP_TOOL_ERROR",
       };
     }

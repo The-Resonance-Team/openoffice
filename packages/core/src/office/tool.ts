@@ -308,8 +308,8 @@ export function createOfficeCliTool(deps: OfficeCliDeps): ToolDefinition {
           };
         }
         return { success: true, output, data: parsed };
-      } catch (e: any) {
-        if (e.code === "ENOENT") {
+      } catch (e: unknown) {
+        if ((e as { code?: string }).code === "ENOENT") {
           return {
             success: false,
             error:
@@ -318,7 +318,7 @@ export function createOfficeCliTool(deps: OfficeCliDeps): ToolDefinition {
           };
         }
 
-        const stdout = e.stdout ?? "";
+        const stdout = (e as { stdout?: string }).stdout ?? "";
         const parsed = parseError(stdout);
         return {
           success: false,
