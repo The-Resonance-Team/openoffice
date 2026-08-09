@@ -1,8 +1,8 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common'
-import { Provider, Role } from '@/generated/client'
-import { PrismaService } from '@/prisma/prisma.service'
-import { uniqueOrgSlug } from './unique-org-slug'
-import type { OAuthProfile } from './oauth.type'
+import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Provider, Role } from '@/generated/client';
+import { PrismaService } from '@/prisma/prisma.service';
+import { uniqueOrgSlug } from './unique-org-slug';
+import type { OAuthProfile } from './oauth.type';
 
 /** Normalized provider profile (strategies map passport profiles to this). */
 @Injectable()
@@ -23,12 +23,12 @@ export class OAuthService {
           providerUserId: profile.providerUserId,
         },
       },
-    })
-    if (existing) return existing.userId
+    });
+    if (existing) return existing.userId;
 
-    const email = profile.email?.toLowerCase()
+    const email = profile.email?.toLowerCase();
     if (!email || !profile.emailVerified) {
-      throw new UnauthorizedException('Provider did not return a verified email')
+      throw new UnauthorizedException('Provider did not return a verified email');
     }
 
     const user =
@@ -39,7 +39,7 @@ export class OAuthService {
           name: profile.name,
           emailVerifiedAt: new Date(),
         },
-      }))
+      }));
     await this.prisma.oAuthAccount.create({
       data: {
         provider,
@@ -47,16 +47,16 @@ export class OAuthService {
         email,
         userId: user.id,
       },
-    })
+    });
     // The provider already verified the email — the linked password account
     // inherits that verification (ADR 0006: provider-verified = verified).
     if (!user.emailVerifiedAt) {
       await this.prisma.user.update({
         where: { id: user.id },
         data: { emailVerifiedAt: new Date() },
-      })
+      });
     }
-    return user.id
+    return user.id;
   }
 
   /**
@@ -66,22 +66,22 @@ export class OAuthService {
   async ensureMembership(userId: string): Promise<void> {
     const count = await this.prisma.member.count({
       where: { userId },
-    })
-    if (count > 0) return
-    const user = await this.prisma.user.findUnique({ where: { id: userId } })
-    if (!user) throw new UnauthorizedException()
-    const slug = await uniqueOrgSlug(this.prisma, user.name ?? user.email.split('@')[0] ?? 'org')
+    });
+    if (count > 0) return;
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new UnauthorizedException();
+    const slug = await uniqueOrgSlug(this.prisma, user.name ?? user.email.split('@')[0] ?? 'org');
     await this.prisma.$transaction(async (tx) => {
       const org = await tx.org.create({
         data: { slug, name: user.name ?? user.email },
-      })
+      });
       await tx.member.create({
         data: { orgId: org.id, userId, role: Role.OWNER },
-      })
+      });
       await tx.user.update({
         where: { id: userId },
         data: { lastOrgId: org.id },
-      })
-    })
+      });
+    });
   }
 }

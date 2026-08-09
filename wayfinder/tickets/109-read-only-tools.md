@@ -13,6 +13,7 @@ Implement basic read-only tools the agent needs alongside officecli.
 ### Tools to implement
 
 **1. read** — read file contents
+
 ```ts
 {
   name: "read",
@@ -26,6 +27,7 @@ Implement basic read-only tools the agent needs alongside officecli.
 ```
 
 **2. write** — write file contents (for non-office files)
+
 ```ts
 {
   name: "write",
@@ -39,6 +41,7 @@ Implement basic read-only tools the agent needs alongside officecli.
 ```
 
 **3. glob** — find files by pattern
+
 ```ts
 {
   name: "glob",
@@ -52,6 +55,7 @@ Implement basic read-only tools the agent needs alongside officecli.
 ```
 
 **4. grep** — search file contents
+
 ```ts
 {
   name: "grep",
@@ -65,6 +69,7 @@ Implement basic read-only tools the agent needs alongside officecli.
 ```
 
 **5. question** — ask user a question
+
 ```ts
 {
   name: "question",

@@ -12,6 +12,7 @@ What level of testing is needed for v1?
 ### Test levels
 
 **1. Unit tests** (bun test):
+
 - Tool definitions validate correctly
 - Config loading works
 - Event system fires/receives
@@ -19,12 +20,14 @@ What level of testing is needed for v1?
 - Lock acquire/release works
 
 **2. Integration tests**:
+
 - officecli create/read/edit per format
 - Agent loop completes a turn
 - Accept/undo routes work end-to-end
 - MCP connection works
 
 **3. E2E tests**:
+
 - Full draft lifecycle: create → edit → preview → accept
 - Undo flow: create → edit → undo → real file untouched
 - Concurrent access: two sessions, one locks

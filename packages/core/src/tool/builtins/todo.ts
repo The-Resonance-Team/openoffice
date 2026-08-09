@@ -1,12 +1,12 @@
-import { z } from "zod";
-import type { Todo } from "@openoffice/schema";
-import type { ToolDefinition } from "../types";
-import { emit } from "../../events";
+import { z } from 'zod';
+import type { Todo } from '@openoffice/schema';
+import type { ToolDefinition } from '../types';
+import { emit } from '../../events';
 
 const todoSchema = z.object({
   content: z.string().min(1),
-  status: z.enum(["pending", "in_progress", "completed", "cancelled"]),
-  priority: z.enum(["high", "medium", "low"]),
+  status: z.enum(['pending', 'in_progress', 'completed', 'cancelled']),
+  priority: z.enum(['high', 'medium', 'low']),
 });
 
 const parameters = z.object({
@@ -35,15 +35,13 @@ Rules:
 
 export function createTodoTool(deps: TodoDeps): ToolDefinition {
   return {
-    name: "todo",
+    name: 'todo',
     description: DESCRIPTION,
     parameters,
     execute: async (
       params: unknown,
-      ctx
-    ): Promise<
-      { success: true; output: string } | { success: false; error: string }
-    > => {
+      ctx,
+    ): Promise<{ success: true; output: string } | { success: false; error: string }> => {
       const parsed = parameters.safeParse(params);
       if (!parsed.success) {
         return {
@@ -53,7 +51,7 @@ export function createTodoTool(deps: TodoDeps): ToolDefinition {
       }
       const todos: Todo[] = parsed.data.todos;
       deps.setTodos(ctx.sessionID, todos);
-      emit("todo:updated", { sessionID: ctx.sessionID, todos });
+      emit('todo:updated', { sessionID: ctx.sessionID, todos });
       return { success: true, output: JSON.stringify(todos, null, 2) };
     },
   };

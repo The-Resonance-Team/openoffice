@@ -1,7 +1,7 @@
-import { streamText, isStepCount, type ModelMessage } from "ai";
-import { resolveModel } from "./providers";
-import { streamWithRetry, type RetryInfo } from "./retry";
-import type { Config } from "../config";
+import { streamText, isStepCount, type ModelMessage } from 'ai';
+import { resolveModel } from './providers';
+import { streamWithRetry, type RetryInfo } from './retry';
+import type { Config } from '../config';
 
 export interface ChatOptions {
   model: string;
@@ -41,7 +41,7 @@ export function chat(options: ChatOptions, config: Config) {
         stopWhen,
       });
     },
-    { maxAttempts: config.llm?.retry?.max, onRetry }
+    { maxAttempts: config.llm?.retry?.max, onRetry },
   );
 
   return { ...stream, hitStepCap: () => hitStepCap };

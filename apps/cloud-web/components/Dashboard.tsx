@@ -1,14 +1,14 @@
-'use client'
+'use client';
 
-import { useEffect, useRef, useState } from 'react'
-import { canManageOrg, getMe, isUnauthorized, type MemberProfile } from '@/lib/api'
-import { initials } from '@/lib/initials'
-import { AccountView } from '@/components/AccountView'
-import { OrgView } from '@/components/OrgView'
-import { SettingsView } from '@/components/SettingsView'
-import { DashboardHome } from '@/components/DashboardHome'
+import { useEffect, useRef, useState } from 'react';
+import { canManageOrg, getMe, isUnauthorized, type MemberProfile } from '@/lib/api';
+import { initials } from '@/lib/initials';
+import { AccountView } from '@/components/AccountView';
+import { OrgView } from '@/components/OrgView';
+import { SettingsView } from '@/components/SettingsView';
+import { DashboardHome } from '@/components/DashboardHome';
 
-type View = 'home' | 'account' | 'org' | 'settings'
+type View = 'home' | 'account' | 'org' | 'settings';
 
 const I = {
   home: (
@@ -76,41 +76,42 @@ const I = {
       <circle cx="7" cy="16" r="2" />
     </svg>
   ),
-}
+};
 
 export function Dashboard() {
-  const [profile, setProfile] = useState<MemberProfile | null>(null)
-  const [status, setStatus] = useState<'loading' | 'ready' | 'unauthorized' | 'error'>('loading')
-  const [view, setView] = useState<View>('home')
-  const [orgMenuOpen, setOrgMenuOpen] = useState(false)
+  const [profile, setProfile] = useState<MemberProfile | null>(null);
+  const [status, setStatus] = useState<'loading' | 'ready' | 'unauthorized' | 'error'>('loading');
+  const [view, setView] = useState<View>('home');
+  const [orgMenuOpen, setOrgMenuOpen] = useState(false);
   const [collapse, setCollapse] = useState<{ account: boolean; org: boolean }>({
     account: false,
     org: false,
-  })
-  const mainRef = useRef<HTMLDivElement>(null)
+  });
+  const mainRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     getMe()
       .then((r) => {
-        setProfile(r.profile)
-        setStatus('ready')
+        setProfile(r.profile);
+        setStatus('ready');
       })
-      .catch((err) => setStatus(isUnauthorized(err) ? 'unauthorized' : 'error'))
-  }, [])
+      .catch((err) => setStatus(isUnauthorized(err) ? 'unauthorized' : 'error'));
+  }, []);
 
   function nav(v: View) {
-    setView(v)
-    setCollapse((c) => ({ ...c, [v]: false }))
-    requestAnimationFrame(() => mainRef.current?.scrollTo({ top: 0 }))
+    setView(v);
+    setCollapse((c) => ({ ...c, [v]: false }));
+    requestAnimationFrame(() => mainRef.current?.scrollTo({ top: 0 }));
   }
 
-  if (status === 'loading') return <Centered>Loading…</Centered>
+  if (status === 'loading') return <Centered>Loading…</Centered>;
   if (status === 'unauthorized')
-    return <Centered>Sign in required — no session cookie found.</Centered>
-  if (status === 'error' || !profile) return <Centered>Couldn&apos;t reach the Cloud API.</Centered>
+    return <Centered>Sign in required — no session cookie found.</Centered>;
+  if (status === 'error' || !profile)
+    return <Centered>Couldn&apos;t reach the Cloud API.</Centered>;
 
-  const canManage = canManageOrg(profile.member.role)
-  const displayName = profile.user.name ?? profile.user.email
+  const canManage = canManageOrg(profile.member.role);
+  const displayName = profile.user.name ?? profile.user.email;
 
   return (
     <div
@@ -155,8 +156,9 @@ export function Dashboard() {
           <span style={{ width: 1, height: 18, background: 'var(--border-2)' }} />
 
           <div style={{ position: 'relative' }}>
-            <div
+            <button
               onClick={() => setOrgMenuOpen((o) => !o)}
+              aria-expanded={orgMenuOpen}
               className="hover-ghost"
               style={{
                 display: 'flex',
@@ -165,6 +167,10 @@ export function Dashboard() {
                 cursor: 'pointer',
                 padding: '4px 9px',
                 borderRadius: 9,
+                background: 'transparent',
+                border: 'none',
+                font: 'inherit',
+                color: 'inherit',
               }}
             >
               <div
@@ -202,11 +208,12 @@ export function Dashboard() {
                 </span>
               </div>
               <span style={{ color: 'var(--faint)', fontSize: 10, marginLeft: 1 }}>▾</span>
-            </div>
+            </button>
             {orgMenuOpen && (
               <>
                 <div
                   onClick={() => setOrgMenuOpen(false)}
+                  aria-hidden="true"
                   style={{ position: 'fixed', inset: 0, zIndex: 150 }}
                 />
                 <div
@@ -236,7 +243,7 @@ export function Dashboard() {
                   >
                     Switch workspace
                   </div>
-                  <div
+                  <button
                     className="hover-ghost"
                     style={{
                       display: 'flex',
@@ -246,6 +253,11 @@ export function Dashboard() {
                       borderRadius: 8,
                       cursor: 'pointer',
                       background: 'var(--panel-2)',
+                      border: 'none',
+                      font: 'inherit',
+                      color: 'inherit',
+                      textAlign: 'left',
+                      width: '100%',
                     }}
                   >
                     <div
@@ -302,9 +314,9 @@ export function Dashboard() {
                     >
                       ✓
                     </span>
-                  </div>
+                  </button>
                   <div style={{ height: 1, background: 'var(--border)', margin: '6px 5px' }} />
-                  <div
+                  <button
                     onClick={() => setOrgMenuOpen(false)}
                     className="hover-ghost"
                     style={{
@@ -315,6 +327,11 @@ export function Dashboard() {
                       borderRadius: 8,
                       cursor: 'pointer',
                       color: 'var(--muted)',
+                      background: 'transparent',
+                      border: 'none',
+                      font: 'inherit',
+                      textAlign: 'left',
+                      width: '100%',
                     }}
                   >
                     <span
@@ -335,7 +352,7 @@ export function Dashboard() {
                       +
                     </span>
                     <span style={{ fontSize: 13, fontWeight: 600 }}>Create workspaces</span>
-                  </div>
+                  </button>
                 </div>
               </>
             )}
@@ -343,12 +360,10 @@ export function Dashboard() {
         </div>
 
         <div
-          className="hover-ghost"
           style={{
             display: 'flex',
             alignItems: 'center',
             gap: 9,
-            cursor: 'pointer',
             padding: '4px 10px 4px 4px',
             borderRadius: 9,
           }}
@@ -423,15 +438,23 @@ export function Dashboard() {
             active={view === 'account'}
             onClick={() => nav('account')}
             right={
-              <span
+              <button
                 onClick={(e) => {
-                  e.stopPropagation()
-                  setCollapse((c) => ({ ...c, account: !c.account }))
+                  e.stopPropagation();
+                  setCollapse((c) => ({ ...c, account: !c.account }));
                 }}
-                style={{ color: 'var(--faint)', fontSize: 10, padding: '2px 3px' }}
+                aria-label={collapse.account ? 'Expand submenu' : 'Collapse submenu'}
+                style={{
+                  color: 'var(--faint)',
+                  fontSize: 10,
+                  padding: '2px 3px',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                }}
               >
                 {collapse.account ? '▸' : '▾'}
-              </span>
+              </button>
             }
           />
           {view === 'account' && !collapse.account && (
@@ -446,15 +469,23 @@ export function Dashboard() {
                 active={view === 'org'}
                 onClick={() => nav('org')}
                 right={
-                  <span
+                  <button
                     onClick={(e) => {
-                      e.stopPropagation()
-                      setCollapse((c) => ({ ...c, org: !c.org }))
+                      e.stopPropagation();
+                      setCollapse((c) => ({ ...c, org: !c.org }));
                     }}
-                    style={{ color: 'var(--faint)', fontSize: 10, padding: '2px 3px' }}
+                    aria-label={collapse.org ? 'Expand submenu' : 'Collapse submenu'}
+                    style={{
+                      color: 'var(--faint)',
+                      fontSize: 10,
+                      padding: '2px 3px',
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                    }}
                   >
                     {collapse.org ? '▸' : '▾'}
-                  </span>
+                  </button>
                 }
               />
               {view === 'org' && !collapse.org && (
@@ -516,7 +547,6 @@ export function Dashboard() {
                 style={{
                   fontSize: 12.5,
                   color: 'var(--accent)',
-                  cursor: 'pointer',
                   marginTop: 9,
                   fontWeight: 600,
                 }}
@@ -529,6 +559,7 @@ export function Dashboard() {
 
         <main
           ref={mainRef}
+          id="main"
           style={{
             flex: 1,
             minWidth: 0,
@@ -544,7 +575,7 @@ export function Dashboard() {
         </main>
       </div>
     </div>
-  )
+  );
 }
 
 function NavItem({
@@ -554,46 +585,59 @@ function NavItem({
   onClick,
   right,
 }: {
-  icon: React.ReactNode
-  label: string
-  active: boolean
-  onClick: () => void
-  right?: React.ReactNode
+  icon: React.ReactNode;
+  label: string;
+  active: boolean;
+  onClick: () => void;
+  right?: React.ReactNode;
 }) {
   return (
     <div
-      onClick={onClick}
       className="hover-ghost"
       style={{
-        position: 'relative',
         display: 'flex',
         alignItems: 'center',
-        gap: 11,
-        padding: '8px 11px',
         borderRadius: 9,
-        cursor: 'pointer',
-        fontSize: 14,
-        color: active ? 'var(--text)' : 'var(--muted)',
         background: active ? 'var(--panel-2)' : 'transparent',
-        fontWeight: active ? 600 : 500,
       }}
     >
-      <span
+      <button
+        onClick={onClick}
+        aria-current={active ? 'page' : undefined}
         style={{
-          position: 'absolute',
-          left: -12,
-          top: 8,
-          bottom: 8,
-          width: 3,
-          borderRadius: '0 3px 3px 0',
-          background: active ? 'var(--accent)' : 'transparent',
+          flex: 1,
+          position: 'relative',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 11,
+          padding: '8px 11px',
+          background: 'transparent',
+          border: 'none',
+          borderRadius: 9,
+          cursor: 'pointer',
+          fontSize: 14,
+          color: active ? 'var(--text)' : 'var(--muted)',
+          fontWeight: active ? 600 : 500,
+          textAlign: 'left',
         }}
-      />
-      {icon}
-      <span style={{ flex: 1 }}>{label}</span>
+      >
+        <span
+          style={{
+            position: 'absolute',
+            left: -12,
+            top: 8,
+            bottom: 8,
+            width: 3,
+            borderRadius: '0 3px 3px 0',
+            background: active ? 'var(--accent)' : 'transparent',
+          }}
+        />
+        {icon}
+        <span style={{ flex: 1 }}>{label}</span>
+      </button>
       {right}
     </div>
-  )
+  );
 }
 
 function SubNav({ items }: { items: string[] }) {
@@ -602,14 +646,12 @@ function SubNav({ items }: { items: string[] }) {
       {items.map((label) => (
         <div
           key={label}
-          className="hover-ghost"
           style={{
             display: 'flex',
             alignItems: 'center',
             gap: 10,
             padding: '6px 11px 6px 38px',
             borderRadius: 8,
-            cursor: 'pointer',
             fontSize: 13,
             color: 'var(--muted)',
           }}
@@ -627,7 +669,7 @@ function SubNav({ items }: { items: string[] }) {
         </div>
       ))}
     </div>
-  )
+  );
 }
 
 function Centered({ children }: { children: React.ReactNode }) {
@@ -644,5 +686,5 @@ function Centered({ children }: { children: React.ReactNode }) {
     >
       {children}
     </div>
-  )
+  );
 }

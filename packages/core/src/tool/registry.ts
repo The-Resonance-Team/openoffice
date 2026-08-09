@@ -1,6 +1,6 @@
-import { tool } from "ai";
-import type { ToolDefinition } from "./types";
-import { emit } from "../events";
+import { tool } from 'ai';
+import type { ToolDefinition } from './types';
+import { emit } from '../events';
 
 export class ToolRegistry {
   private tools = new Map<string, ToolDefinition>();
@@ -26,7 +26,7 @@ export class ToolRegistry {
       out[name] = tool({
         description: def.description,
         inputSchema: def.parameters,
-        execute: (params: any) => def.execute(params, { sessionID: "" }),
+        execute: (params: any) => def.execute(params, { sessionID: '' }),
       });
     }
     return out;
@@ -39,9 +39,9 @@ export class ToolRegistry {
         description: def.description,
         inputSchema: def.parameters,
         execute: async (params: any) => {
-          emit("tool:start", { sessionID, tool: name, params });
+          emit('tool:start', { sessionID, tool: name, params });
           const result = await def.execute(params, { sessionID, cwd });
-          emit("tool:done", { sessionID, tool: name, result });
+          emit('tool:done', { sessionID, tool: name, result });
           return result;
         },
       });

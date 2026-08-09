@@ -14,80 +14,80 @@ Implement session state — conversations, messages, and the agent loop.
 
 ```ts
 interface Session {
-  id: string
-  agent: string          // "office" or "developer"
-  model: string          // "anthropic/claude-sonnet-4-20250514"
-  messages: Message[]
-  createdAt: number
-  updatedAt: number
+  id: string;
+  agent: string; // "office" or "developer"
+  model: string; // "anthropic/claude-sonnet-4-20250514"
+  messages: Message[];
+  createdAt: number;
+  updatedAt: number;
 }
 
 interface Message {
-  id: string
-  role: "user" | "assistant" | "tool"
-  content: string
-  toolCalls?: ToolCall[]
-  toolResults?: ToolResult[]
-  timestamp: number
+  id: string;
+  role: 'user' | 'assistant' | 'tool';
+  content: string;
+  toolCalls?: ToolCall[];
+  toolResults?: ToolResult[];
+  timestamp: number;
 }
 
 interface ToolCall {
-  id: string
-  name: string
-  params: any
+  id: string;
+  name: string;
+  params: any;
 }
 
 interface ToolResult {
-  callId: string
-  result: any
+  callId: string;
+  result: any;
 }
 ```
 
 ### Agent loop
 
 ```ts
-import { streamText } from "ai"
+import { streamText } from 'ai';
 
 async function runTurn(session: Session, userMessage: string): Promise<void> {
   // Add user message
   session.messages.push({
     id: crypto.randomUUID(),
-    role: "user",
+    role: 'user',
     content: userMessage,
     timestamp: Date.now(),
-  })
-  
+  });
+
   // Get available tools for this agent
-  const tools = registry.list() // filtered by agent later
-  
+  const tools = registry.list(); // filtered by agent later
+
   // Stream response
   const result = streamText({
     model: getModel(session.model),
-    messages: session.messages.map(m => ({
+    messages: session.messages.map((m) => ({
       role: m.role,
       content: m.content,
     })),
     tools: tools.map(toAITool),
     system: getSystemPrompt(session.agent),
-  })
-  
+  });
+
   // Process tool calls
   for await (const chunk of result.textStream) {
     // Emit token events for streaming UI
-    events.emit("llm:token", { sessionID: session.id, token: chunk })
+    events.emit('llm:token', { sessionID: session.id, token: chunk });
   }
-  
+
   // Collect final response
-  const response = await result
+  const response = await result;
   session.messages.push({
     id: crypto.randomUUID(),
-    role: "assistant",
+    role: 'assistant',
     content: response.text,
     toolCalls: response.toolCalls,
     timestamp: Date.now(),
-  })
-  
-  events.emit("session:message", { sessionID: session.id, message: session.messages.at(-1)! })
+  });
+
+  events.emit('session:message', { sessionID: session.id, message: session.messages.at(-1)! });
 }
 ```
 
@@ -96,19 +96,19 @@ async function runTurn(session: Session, userMessage: string): Promise<void> {
 v1: in-memory with JSON file persistence. No database yet.
 
 ```ts
-const sessionsDir = path.join(config.dataDir, "sessions")
+const sessionsDir = path.join(config.dataDir, 'sessions');
 
 async function saveSession(session: Session): Promise<void> {
   await fs.writeFile(
     path.join(sessionsDir, `${session.id}.json`),
-    JSON.stringify(session, null, 2)
-  )
+    JSON.stringify(session, null, 2),
+  );
 }
 
 async function loadSession(id: string): Promise<Session | null> {
-  const file = path.join(sessionsDir, `${id}.json`)
-  if (!fs.existsSync(file)) return null
-  return JSON.parse(await fs.readFile(file, "utf-8"))
+  const file = path.join(sessionsDir, `${id}.json`);
+  if (!fs.existsSync(file)) return null;
+  return JSON.parse(await fs.readFile(file, 'utf-8'));
 }
 ```
 

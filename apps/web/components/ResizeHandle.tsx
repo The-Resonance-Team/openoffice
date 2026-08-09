@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 export function ResizeHandle({
   side,
@@ -9,7 +9,7 @@ export function ResizeHandle({
   onDragStart,
   onDragEnd,
 }: {
-  side: "left" | "right";
+  side: 'left' | 'right';
   width: number;
   min: number;
   max: number;
@@ -28,23 +28,22 @@ export function ResizeHandle({
       if (frame) return;
       frame = requestAnimationFrame(() => {
         frame = 0;
-        const delta =
-          side === "left" ? ev.clientX - startX : startX - ev.clientX;
+        const delta = side === 'left' ? ev.clientX - startX : startX - ev.clientX;
         onResize(Math.min(max, Math.max(min, startWidth + delta)));
       });
     }
     function onMouseUp() {
       if (frame) cancelAnimationFrame(frame);
-      window.removeEventListener("mousemove", onMouseMove);
-      window.removeEventListener("mouseup", onMouseUp);
-      document.body.style.cursor = "";
-      document.body.style.userSelect = "";
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
       onDragEnd?.();
     }
-    window.addEventListener("mousemove", onMouseMove);
-    window.addEventListener("mouseup", onMouseUp);
-    document.body.style.cursor = "col-resize";
-    document.body.style.userSelect = "none";
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
   }
 
   return (
@@ -55,7 +54,7 @@ export function ResizeHandle({
       <div className="absolute inset-y-0 -left-[3px] w-[9px]" />
       <div
         className={`absolute left-0 w-[3px] rounded-full bg-transparent ${
-          side === "right" ? "inset-y-1 rounded-r-[18px]" : "inset-y-2"
+          side === 'right' ? 'inset-y-1 rounded-r-[18px]' : 'inset-y-2'
         }`}
       />
     </div>

@@ -16,26 +16,27 @@ JSON file per session: `~/.local/share/openoffice/history/{sessionID}.json`
 
 ```ts
 interface AcceptPoint {
-  filePath: string
-  timestamp: number
-  snapshotHash: string   // hash of the file state after accept
+  filePath: string;
+  timestamp: number;
+  snapshotHash: string; // hash of the file state after accept
 }
 
 interface VersionHistory {
-  sessionID: string
-  points: AcceptPoint[]
+  sessionID: string;
+  points: AcceptPoint[];
 }
 ```
 
 ### Recording
 
 On accept:
+
 ```ts
 function recordAcceptPoint(sessionID: string, filePath: string): void {
-  const hash = computeFileHash(filePath)  // hash after accept
-  const history = loadHistory(sessionID)
-  history.points.push({ filePath, timestamp: Date.now(), snapshotHash: hash })
-  saveHistory(sessionID, history)
+  const hash = computeFileHash(filePath); // hash after accept
+  const history = loadHistory(sessionID);
+  history.points.push({ filePath, timestamp: Date.now(), snapshotHash: hash });
+  saveHistory(sessionID, history);
 }
 ```
 

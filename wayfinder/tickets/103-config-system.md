@@ -19,27 +19,27 @@ Single config file: `openoffice.json` (or `openoffice.jsonc`) at project root.
   // LLM provider config
   "provider": {
     "anthropic": { "apiKey": "env:ANTHROPIC_API_KEY" },
-    "openai": { "apiKey": "env:OPENAI_API_KEY" }
+    "openai": { "apiKey": "env:OPENAI_API_KEY" },
   },
-  
+
   // Default model
   "model": "anthropic/claude-sonnet-4-20250514",
-  
+
   // Agent definitions
   "agent": {
     "office": {
       "description": "Office document assistant",
-      "tools": ["officecli", "read", "skill"]
-    }
+      "tools": ["officecli", "read", "skill"],
+    },
   },
-  
+
   // MCP servers
   "mcp": {},
-  
+
   // Office-specific
   "office": {
-    "managedDocumentsFolder": "~/Documents/OpenOffice"
-  }
+    "managedDocumentsFolder": "~/Documents/OpenOffice",
+  },
 }
 ```
 
@@ -53,27 +53,39 @@ Single config file: `openoffice.json` (or `openoffice.jsonc`) at project root.
 ### Implementation
 
 ```ts
-import { z } from "zod/v4"
+import { z } from 'zod/v4';
 
 const ConfigSchema = z.object({
   model: z.string().optional(),
   provider: z.record(z.string(), z.object({ apiKey: z.string() })).optional(),
-  agent: z.record(z.string(), z.object({
-    description: z.string().optional(),
-    tools: z.array(z.string()).optional(),
-    model: z.string().optional(),
-  })).optional(),
-  mcp: z.record(z.string(), z.object({
-    type: z.enum(["local", "remote"]),
-    command: z.array(z.string()).optional(),
-    url: z.string().optional(),
-  })).optional(),
-  office: z.object({
-    managedDocumentsFolder: z.string().optional(),
-  }).optional(),
-})
+  agent: z
+    .record(
+      z.string(),
+      z.object({
+        description: z.string().optional(),
+        tools: z.array(z.string()).optional(),
+        model: z.string().optional(),
+      }),
+    )
+    .optional(),
+  mcp: z
+    .record(
+      z.string(),
+      z.object({
+        type: z.enum(['local', 'remote']),
+        command: z.array(z.string()).optional(),
+        url: z.string().optional(),
+      }),
+    )
+    .optional(),
+  office: z
+    .object({
+      managedDocumentsFolder: z.string().optional(),
+    })
+    .optional(),
+});
 
-type Config = z.infer<typeof ConfigSchema>
+type Config = z.infer<typeof ConfigSchema>;
 ```
 
 Use Zod v4 for validation (already in opencode's dependency tree).

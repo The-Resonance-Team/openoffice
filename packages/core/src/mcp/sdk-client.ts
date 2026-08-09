@@ -1,7 +1,7 @@
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
-import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
-import type { McpClient, McpConfig } from "./manager";
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
+import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
+import type { McpClient, McpConfig } from './manager';
 
 const CONNECT_TIMEOUT_MS = 30_000;
 
@@ -16,13 +16,13 @@ export function normalizeMcpResult(result: unknown): string {
       r.content
         ?.map((c) => c.text)
         .filter(Boolean)
-        .join("\n") || "MCP tool returned an error"
+        .join('\n') || 'MCP tool returned an error',
     );
   }
   const text = r.content
-    ?.map((c) => (c.type === "text" ? c.text : ""))
+    ?.map((c) => (c.type === 'text' ? c.text : ''))
     .filter(Boolean)
-    .join("\n");
+    .join('\n');
   return text || JSON.stringify(result);
 }
 
@@ -32,7 +32,7 @@ export function normalizeMcpResult(result: unknown): string {
 // skip applies at boot; an explicit runtime enable overrides it.
 export function planMcpConnections(
   configured: Record<string, McpConfig> | undefined,
-  nativeToolNames: string[]
+  nativeToolNames: string[],
 ): {
   toConnect: Array<[string, McpConfig]>;
   skipped: string[];
@@ -62,16 +62,14 @@ export type McpResourceContent =
 
 export function normalizeMcpContents(contents: McpResourceContent[]): string {
   const text = contents
-    .map((c) => ("text" in c ? (c.text ?? "") : ""))
+    .map((c) => ('text' in c ? (c.text ?? '') : ''))
     .filter(Boolean)
-    .join("\n");
+    .join('\n');
   if (text) return text;
-  if (contents.some((c) => "blob" in c)) {
-    throw new Error(
-      "MCP resource returned binary content — text resources only"
-    );
+  if (contents.some((c) => 'blob' in c)) {
+    throw new Error('MCP resource returned binary content — text resources only');
   }
-  throw new Error("MCP resource returned no content");
+  throw new Error('MCP resource returned no content');
 }
 
 // ponytail: connect can hang on a dead server; a hard timeout is the ceiling.
@@ -88,7 +86,7 @@ const MAX_LIST_PAGES = 1_000;
 // Cursor-paginated list (tools/prompts/resources), opencode parity. Guards
 // against cursor cycles; caps at MAX_LIST_PAGES.
 async function paginate<T>(
-  list: (cursor?: string) => Promise<{ items: T[]; nextCursor?: string }>
+  list: (cursor?: string) => Promise<{ items: T[]; nextCursor?: string }>,
 ): Promise<T[]> {
   const items: T[] = [];
   const seen = new Set<string>();
@@ -98,19 +96,19 @@ async function paginate<T>(
     items.push(...result.items);
     cursor = result.nextCursor;
     if (!cursor) return items;
-    if (seen.has(cursor)) throw new Error("MCP list returned a cursor cycle");
+    if (seen.has(cursor)) throw new Error('MCP list returned a cursor cycle');
     seen.add(cursor);
   }
   throw new Error(`MCP list exceeded ${MAX_LIST_PAGES} pages`);
 }
 
 export function createSdkMcpClient(config: McpConfig): Promise<McpClient> {
-  const client = new Client({ name: "openoffice", version: "0.1.0" });
+  const client = new Client({ name: 'openoffice', version: '0.1.0' });
 
   const connect = async (): Promise<McpClient> => {
-    if (config.type === "local") {
+    if (config.type === 'local') {
       const [command, ...args] = config.command ?? [];
-      if (!command) throw new Error("local MCP server requires a command");
+      if (!command) throw new Error('local MCP server requires a command');
       const env: Record<string, string> = {};
       for (const [key, value] of Object.entries({
         ...process.env,
@@ -120,15 +118,13 @@ export function createSdkMcpClient(config: McpConfig): Promise<McpClient> {
       }
       await client.connect(new StdioClientTransport({ command, args, env }));
     } else {
-      if (!config.url) throw new Error("remote MCP server requires a url");
-      await client.connect(
-        new StreamableHTTPClientTransport(new URL(config.url))
-      );
+      if (!config.url) throw new Error('remote MCP server requires a url');
+      await client.connect(new StreamableHTTPClientTransport(new URL(config.url)));
     }
     // Capabilities are populated by the connect handshake, so read them after.
     const capabilities = client.getServerCapabilities();
     return {
-      name: "",
+      name: '',
       listTools: async () => {
         if (!capabilities?.tools) return [];
         const tools = await paginate(async (cursor) => {
@@ -137,7 +133,7 @@ export function createSdkMcpClient(config: McpConfig): Promise<McpClient> {
         });
         return tools.map((t) => ({
           name: t.name,
-          description: t.description ?? "",
+          description: t.description ?? '',
           inputSchema: t.inputSchema as unknown as Record<string, unknown>,
         }));
       },
@@ -146,9 +142,7 @@ export function createSdkMcpClient(config: McpConfig): Promise<McpClient> {
       listPrompts: async () => {
         if (!capabilities?.prompts) return [];
         const prompts = await paginate(async (cursor) => {
-          const page = await client.listPrompts(
-            cursor ? { cursor } : undefined
-          );
+          const page = await client.listPrompts(cursor ? { cursor } : undefined);
           return { items: page.prompts, nextCursor: page.nextCursor };
         });
         return prompts.map((p) => ({
@@ -159,9 +153,7 @@ export function createSdkMcpClient(config: McpConfig): Promise<McpClient> {
       listResources: async () => {
         if (!capabilities?.resources) return [];
         const resources = await paginate(async (cursor) => {
-          const page = await client.listResources(
-            cursor ? { cursor } : undefined
-          );
+          const page = await client.listResources(cursor ? { cursor } : undefined);
           return { items: page.resources, nextCursor: page.nextCursor };
         });
         return resources.map((r) => ({

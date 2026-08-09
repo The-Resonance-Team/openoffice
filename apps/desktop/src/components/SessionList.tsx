@@ -1,4 +1,4 @@
-import type { Session } from "../api/daemon";
+import type { Session } from '../api/daemon';
 
 interface Props {
   sessions: Session[];
@@ -9,7 +9,7 @@ interface Props {
 
 function relativeTime(ts: number): string {
   const diff = Date.now() - ts;
-  if (diff < 60_000) return "now";
+  if (diff < 60_000) return 'now';
   if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m`;
   if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h`;
   return new Date(ts).toLocaleDateString();
@@ -17,22 +17,20 @@ function relativeTime(ts: number): string {
 
 const preview = (s: Session): string => {
   const last = s.messages[s.messages.length - 1];
-  if (!last) return "New session";
+  if (!last) return 'New session';
   const text = last.parts
-    .filter((p) => p.type === "text")
+    .filter((p) => p.type === 'text')
     .map((p) => p.text)
-    .join("")
+    .join('')
     .trim();
-  return text || "…";
+  return text || '…';
 };
 
 export function SessionList({ sessions, activeId, onSelect, onNew }: Props) {
   return (
     <aside className="flex w-64 shrink-0 flex-col border-r border-zinc-800 bg-zinc-900">
       <div className="flex items-center justify-between border-b border-zinc-800 px-3 py-2">
-        <span className="text-sm font-semibold text-zinc-300">
-          OpenOffice Desktop
-        </span>
+        <span className="text-sm font-semibold text-zinc-300">OpenOffice Desktop</span>
         <button
           onClick={onNew}
           className="rounded px-2 py-1 text-xs font-medium text-emerald-400 hover:bg-zinc-800"
@@ -46,19 +44,17 @@ export function SessionList({ sessions, activeId, onSelect, onNew }: Props) {
             <button
               onClick={() => onSelect(s.id)}
               className={`block w-full px-3 py-2 text-left hover:bg-zinc-800 ${
-                s.id === activeId ? "bg-zinc-800" : ""
+                s.id === activeId ? 'bg-zinc-800' : ''
               }`}
             >
               <div className="flex items-center justify-between">
-                <span className="truncate text-sm text-zinc-200">
-                  {s.title || s.cwd}
-                </span>
+                <span className="truncate text-sm text-zinc-200">{s.title || s.cwd}</span>
                 <span className="ml-2 shrink-0 text-[10px] text-zinc-500">
                   {relativeTime(s.updatedAt)}
                 </span>
               </div>
               <p className="truncate text-xs text-zinc-500">
-                {s.endedAt ? "ended · " : ""}
+                {s.endedAt ? 'ended · ' : ''}
                 {preview(s)}
               </p>
             </button>

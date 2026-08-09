@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash } from 'node:crypto';
 import {
   copyFileSync,
   existsSync,
@@ -8,13 +8,13 @@ import {
   rmSync,
   rmdirSync,
   writeFileSync,
-} from "node:fs";
-import { dirname, extname, join } from "node:path";
-import type { HistoryStore } from "../history";
-import { LockManager } from "./lock";
+} from 'node:fs';
+import { dirname, extname, join } from 'node:path';
+import type { HistoryStore } from '../history';
+import { LockManager } from './lock';
 
 export function filePathHash(file: string): string {
-  return createHash("sha256").update(file).digest("hex");
+  return createHash('sha256').update(file).digest('hex');
 }
 
 export interface DraftMeta {
@@ -23,7 +23,7 @@ export interface DraftMeta {
   filePathHash: string;
   extension: string;
   createdAt: number;
-  status: "active" | "orphaned";
+  status: 'active' | 'orphaned';
 }
 
 export interface DraftManagerDeps {
@@ -31,9 +31,7 @@ export interface DraftManagerDeps {
   now?: () => number;
   staleAfterMs?: number;
   askUser?: (question: string, sessionID: string) => Promise<string>;
-  execOfficeCli: (
-    args: string[]
-  ) => Promise<{ stdout: string; exitCode: number }>;
+  execOfficeCli: (args: string[]) => Promise<{ stdout: string; exitCode: number }>;
   history: HistoryStore;
 }
 
@@ -41,7 +39,7 @@ export type ResolveResult = { path?: string; lockError?: string };
 
 export type AcceptResult = { ok: true } | { ok: false; error: string };
 
-export const LOCKED_ERROR = "File is being edited in another session";
+export const LOCKED_ERROR = 'File is being edited in another session';
 
 interface DraftRef {
   file: string;
@@ -64,14 +62,10 @@ export class DraftManager {
   }
 
   private draftDir(hash: string): string {
-    return join(this.deps.dataDir, "drafts", hash);
+    return join(this.deps.dataDir, 'drafts', hash);
   }
 
-  private draftFile(
-    hash: string,
-    sessionID: string,
-    extension: string
-  ): string {
+  private draftFile(hash: string, sessionID: string, extension: string): string {
     return join(this.draftDir(hash), `${sessionID}${extension}`);
   }
 
@@ -83,7 +77,7 @@ export class DraftManager {
     const path = this.metaPath(file);
     if (!existsSync(path)) return null;
     try {
-      return JSON.parse(readFileSync(path, "utf-8")) as DraftMeta;
+      return JSON.parse(readFileSync(path, 'utf-8')) as DraftMeta;
     } catch {
       return null;
     }
@@ -95,7 +89,7 @@ export class DraftManager {
 
   private async flush(file: string): Promise<boolean> {
     try {
-      const res = await this.deps.execOfficeCli(["close", file]);
+      const res = await this.deps.execOfficeCli(['close', file]);
       return res.exitCode === 0;
     } catch {
       return false;
@@ -107,11 +101,7 @@ export class DraftManager {
    * verbs (and open/create), the draft for reads once one exists, else the
    * real file. Locked-out sessions get { lockError }.
    */
-  async resolve(
-    file: string,
-    sessionID: string,
-    createsDraft: boolean
-  ): Promise<ResolveResult> {
+  async resolve(file: string, sessionID: string, createsDraft: boolean): Promise<ResolveResult> {
     const hash = filePathHash(file);
     const extension = extname(file).toLowerCase();
     const draftFile = this.draftFile(hash, sessionID, extension);
@@ -129,7 +119,7 @@ export class DraftManager {
           copyFileSync(file, draftFile);
         } else {
           mkdirSync(dirname(draftFile), { recursive: true });
-          writeFileSync(draftFile, "");
+          writeFileSync(draftFile, '');
         }
         this.writeMeta(
           {
@@ -138,9 +128,9 @@ export class DraftManager {
             filePathHash: hash,
             extension,
             createdAt: this.now(),
-            status: "active",
+            status: 'active',
           },
-          draftFile
+          draftFile,
         );
       } else {
         const acquired = this.locks.acquire(hash, sessionID);
@@ -158,7 +148,7 @@ export class DraftManager {
 
   async accept(sessionID: string, file: string): Promise<AcceptResult> {
     const draft = this.findDraft(file, sessionID);
-    if (!draft) return { ok: false, error: "No draft for this session" };
+    if (!draft) return { ok: false, error: 'No draft for this session' };
     return this.acceptDraft(draft);
   }
 
@@ -173,7 +163,7 @@ export class DraftManager {
       return;
     }
     try {
-      rmdirSync(join(this.deps.dataDir, "drafts"));
+      rmdirSync(join(this.deps.dataDir, 'drafts'));
     } catch {
       // other files' hash dirs remain
     }
@@ -190,18 +180,18 @@ export class DraftManager {
   async markOrphaned(sessionID: string, file: string): Promise<void> {
     const draft = this.findDraft(file, sessionID);
     if (!draft) return;
-    this.writeMeta({ ...draft.meta, status: "orphaned" }, draft.file);
+    this.writeMeta({ ...draft.meta, status: 'orphaned' }, draft.file);
     this.locks.release(draft.meta.filePathHash, sessionID);
   }
 
   /** Orphan every draft the session still holds (daemon session-end hook). */
   async orphanAll(sessionID: string): Promise<void> {
-    const draftsDir = join(this.deps.dataDir, "drafts");
+    const draftsDir = join(this.deps.dataDir, 'drafts');
     if (!existsSync(draftsDir)) return;
     for (const hash of readdirSync(draftsDir)) {
       const hashDir = join(draftsDir, hash);
       for (const entry of readdirSync(hashDir)) {
-        if (entry.endsWith(".meta.json")) continue;
+        if (entry.endsWith('.meta.json')) continue;
         const meta = this.readMeta(join(hashDir, entry));
         if (meta && meta.sessionID === sessionID) {
           await this.markOrphaned(sessionID, meta.realFilePath);
@@ -215,7 +205,7 @@ export class DraftManager {
     sessionID: string,
     file: string,
     bytes: Uint8Array,
-    extension: string
+    extension: string,
   ): Promise<AcceptResult> {
     const hash = filePathHash(file);
     const acquired = this.locks.acquire(hash, sessionID);
@@ -230,9 +220,9 @@ export class DraftManager {
         filePathHash: hash,
         extension,
         createdAt: this.now(),
-        status: "active",
+        status: 'active',
       },
-      draftFile
+      draftFile,
     );
     return { ok: true };
   }
@@ -244,7 +234,7 @@ export class DraftManager {
     if (!existsSync(dir)) return [];
     const refs: DraftRef[] = [];
     for (const entry of readdirSync(dir)) {
-      if (entry.endsWith(".meta.json")) continue;
+      if (entry.endsWith('.meta.json')) continue;
       const meta = this.readMeta(join(dir, entry));
       if (meta && meta.sessionID !== sessionID) {
         refs.push({ file: join(dir, entry), meta });
@@ -263,10 +253,10 @@ export class DraftManager {
     const dir = this.draftDir(hash);
     if (!existsSync(dir)) return;
     for (const entry of readdirSync(dir)) {
-      if (entry.endsWith(".meta.json")) continue;
+      if (entry.endsWith('.meta.json')) continue;
       const meta = this.readMeta(join(dir, entry));
       if (meta && meta.sessionID === sessionID) {
-        this.writeMeta({ ...meta, status: "orphaned" }, join(dir, entry));
+        this.writeMeta({ ...meta, status: 'orphaned' }, join(dir, entry));
       }
     }
   }
@@ -276,7 +266,7 @@ export class DraftManager {
     const dir = this.draftDir(hash);
     if (!existsSync(dir)) return null;
     for (const entry of readdirSync(dir)) {
-      if (entry.endsWith(".meta.json")) continue;
+      if (entry.endsWith('.meta.json')) continue;
       const meta = this.readMeta(join(dir, entry));
       if (meta && meta.sessionID === sessionID) {
         return { file: join(dir, entry), meta };
@@ -290,13 +280,13 @@ export class DraftManager {
     // Only drafts whose session no longer holds a fresh lock are recoverable;
     // a live session editing the file is the lock's job to block, not a prompt.
     const orphans = this.orphansFor(file, sessionID).filter(
-      (d) => !this.holdsFreshLock(d.meta.filePathHash, d.meta.sessionID)
+      (d) => !this.holdsFreshLock(d.meta.filePathHash, d.meta.sessionID),
     );
     for (const orphan of orphans) {
       const answer = await this.deps.askUser(
         `You had unreviewed edits from another session — accept or discard? ` +
           `(session ${orphan.meta.sessionID}, created ${new Date(orphan.meta.createdAt).toISOString()})`,
-        sessionID
+        sessionID,
       );
       if (/accept/i.test(answer)) {
         const result = await this.acceptDraft(orphan);
@@ -319,7 +309,7 @@ export class DraftManager {
       return { ok: false, error: LOCKED_ERROR };
     }
     if (!(await this.flush(draft.file))) {
-      return { ok: false, error: "Failed to flush the draft before accept" };
+      return { ok: false, error: 'Failed to flush the draft before accept' };
     }
     const real = draft.meta.realFilePath;
     mkdirSync(dirname(real), { recursive: true });
@@ -328,7 +318,7 @@ export class DraftManager {
     // resident saves its state on close, so closing after would clobber the
     // freshly accepted file. Closing a path with no resident is a no-op.
     try {
-      await this.deps.execOfficeCli(["close", real]);
+      await this.deps.execOfficeCli(['close', real]);
     } catch {
       // no resident for the path — nothing to close
     }
@@ -337,7 +327,7 @@ export class DraftManager {
       draft.meta.filePathHash,
       draft.meta.sessionID,
       readFileSync(draft.file),
-      draft.meta.extension
+      draft.meta.extension,
     );
     this.removeDraft(draft.file, draft.meta.filePathHash);
     this.locks.release(draft.meta.filePathHash, draft.meta.sessionID);

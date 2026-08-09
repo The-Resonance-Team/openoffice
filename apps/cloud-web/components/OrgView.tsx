@@ -1,38 +1,38 @@
-'use client'
+'use client';
 
-import { useState } from 'react'
-import { createInvite, type MemberProfile, type Role } from '@/lib/api'
-import { FieldLabel, Modal, ModalActions, textInputStyle } from '@/components/Modal'
-import { ComingSoon } from '@/components/ComingSoon'
-import { Toast } from '@/components/AccountView'
-import { initials } from '@/lib/initials'
+import { useState } from 'react';
+import { createInvite, type MemberProfile, type Role } from '@/lib/api';
+import { FieldLabel, Modal, ModalActions, textInputStyle } from '@/components/Modal';
+import { ComingSoon } from '@/components/ComingSoon';
+import { Toast } from '@/components/AccountView';
+import { initials } from '@/lib/initials';
 
 const card: React.CSSProperties = {
   background: 'var(--panel)',
   border: '1px solid var(--border)',
   borderRadius: 18,
   boxShadow: 'var(--shadow)',
-}
+};
 
 export function OrgView({ profile }: { profile: MemberProfile }) {
-  const { org } = profile
-  const [inviteOpen, setInviteOpen] = useState(false)
-  const [email, setEmail] = useState('')
-  const [role, setRole] = useState<Role>('MEMBER')
-  const [toast, setToast] = useState<string | null>(null)
+  const { org } = profile;
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [email, setEmail] = useState('');
+  const [role, setRole] = useState<Role>('MEMBER');
+  const [toast, setToast] = useState<string | null>(null);
 
   function showToast(t: string) {
-    setToast(t)
-    setTimeout(() => setToast(null), 2600)
+    setToast(t);
+    setTimeout(() => setToast(null), 2600);
   }
 
   async function submitInvite() {
-    if (!email) return
-    await createInvite(email, role)
-    showToast(`Invite sent to ${email}`)
-    setInviteOpen(false)
-    setEmail('')
-    setRole('MEMBER')
+    if (!email) return;
+    await createInvite(email, role);
+    showToast(`Invite sent to ${email}`);
+    setInviteOpen(false);
+    setEmail('');
+    setRole('MEMBER');
   }
 
   return (
@@ -199,6 +199,8 @@ export function OrgView({ profile }: { profile: MemberProfile }) {
           <input
             id="invite-email"
             name="invite-email"
+            type="email"
+            autoComplete="off"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="teammate@company.com"
@@ -208,6 +210,7 @@ export function OrgView({ profile }: { profile: MemberProfile }) {
           <select
             id="invite-role"
             name="invite-role"
+            aria-label="Role"
             value={role}
             onChange={(e) => setRole(e.target.value as Role)}
             style={{ ...textInputStyle, cursor: 'pointer' }}
@@ -226,7 +229,7 @@ export function OrgView({ profile }: { profile: MemberProfile }) {
 
       {toast && <Toast text={toast} />}
     </div>
-  )
+  );
 }
 
 function OrgStat({ value, label }: { value: string; label: string }) {
@@ -246,5 +249,5 @@ function OrgStat({ value, label }: { value: string; label: string }) {
         {label}
       </div>
     </div>
-  )
+  );
 }

@@ -1,8 +1,8 @@
-import { Global, Module, type Provider } from '@nestjs/common'
-import { ConfigService } from '@nestjs/config'
-import { JwtModule, type JwtSignOptions } from '@nestjs/jwt'
-import { PassportModule } from '@nestjs/passport'
-import { ApiKeysController, AuthController, InvitesController } from './controllers'
+import { Global, Module, type Provider } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { JwtModule, type JwtSignOptions } from '@nestjs/jwt';
+import { PassportModule } from '@nestjs/passport';
+import { ApiKeysController, AuthController, InvitesController } from './controllers';
 import {
   ApiKeyService,
   AuthService,
@@ -10,8 +10,8 @@ import {
   InviteService,
   MailerService,
   OAuthService,
-} from './services'
-import { ApiKeyStrategy, GithubStrategy, GoogleStrategy, JwtStrategy } from './strategies'
+} from './services';
+import { ApiKeyStrategy, GithubStrategy, GoogleStrategy, JwtStrategy } from './strategies';
 
 /**
  * Registers an OAuth strategy only when the provider's credentials are
@@ -29,12 +29,12 @@ function oauthStrategyProvider(
     provide: Strategy,
     inject: [ConfigService],
     useFactory: (config: ConfigService) => {
-      const clientId = config.get<string>(`${provider}.clientId`)
-      const clientSecret = config.get<string>(`${provider}.clientSecret`)
-      if (!clientId || !clientSecret) return null
-      return new Strategy(config)
+      const clientId = config.get<string>(`${provider}.clientId`);
+      const clientSecret = config.get<string>(`${provider}.clientSecret`);
+      if (!clientId || !clientSecret) return null;
+      return new Strategy(config);
     },
-  }
+  };
 }
 
 @Global()

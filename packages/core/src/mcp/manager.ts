@@ -1,8 +1,5 @@
-import type { ToolResult } from "../tool";
-import type {
-  McpServerStatus,
-  McpServerStatusInfo,
-} from "@openoffice/protocol";
+import type { ToolResult } from '../tool';
+import type { McpServerStatus, McpServerStatusInfo } from '@openoffice/protocol';
 
 export interface McpToolInfo {
   name: string;
@@ -33,7 +30,7 @@ export interface McpClient {
 }
 
 export interface McpConfig {
-  type: "local" | "remote";
+  type: 'local' | 'remote';
   command?: string[];
   url?: string;
   environment?: Record<string, string>;
@@ -45,10 +42,7 @@ export interface McpManagerDeps {
   connect(config: McpConfig): Promise<McpClient>;
 }
 
-export type {
-  McpServerStatus,
-  McpServerStatusInfo,
-} from "@openoffice/protocol";
+export type { McpServerStatus, McpServerStatusInfo } from '@openoffice/protocol';
 
 // Per-server runtime state: `enabled` is the intent (config or a runtime
 // toggle), `status` is the live transport state derived from it.
@@ -74,7 +68,7 @@ export class McpManager {
   }
 
   private markError(entry: McpServerEntry, e: unknown): void {
-    entry.status = "error";
+    entry.status = 'error';
     entry.error = messageOf(e);
   }
 
@@ -86,11 +80,7 @@ export class McpManager {
       config,
       enabled,
       status:
-        existing?.status === "connected"
-          ? "connected"
-          : enabled
-            ? "disconnected"
-            : "disabled",
+        existing?.status === 'connected' ? 'connected' : enabled ? 'disconnected' : 'disabled',
       note,
     });
   }
@@ -102,7 +92,7 @@ export class McpManager {
       client.name = name;
       this.clients.set(name, client);
       const entry = this.servers.get(name)!;
-      entry.status = "connected";
+      entry.status = 'connected';
       entry.error = undefined;
     } catch (e) {
       this.markError(this.servers.get(name)!, e);
@@ -115,21 +105,21 @@ export class McpManager {
     const entry = this.servers.get(name);
     if (!entry) {
       return {
-        status: "error",
+        status: 'error',
         error: `MCP server "${name}" is not configured`,
       };
     }
     entry.enabled = true;
     entry.error = undefined;
     if (this.clients.has(name)) {
-      entry.status = "connected";
+      entry.status = 'connected';
       return this.info(entry);
     }
     try {
       const client = await this.deps.connect(entry.config);
       client.name = name;
       this.clients.set(name, client);
-      entry.status = "connected";
+      entry.status = 'connected';
     } catch (e) {
       this.markError(entry, e);
     }
@@ -141,14 +131,14 @@ export class McpManager {
     const entry = this.servers.get(name);
     if (!entry) {
       return {
-        status: "error",
+        status: 'error',
         error: `MCP server "${name}" is not configured`,
       };
     }
     entry.enabled = false;
     entry.error = undefined;
     await this.disconnect(name);
-    entry.status = "disabled";
+    entry.status = 'disabled';
     return this.info(entry);
   }
 
@@ -162,8 +152,8 @@ export class McpManager {
       this.clients.delete(name);
     }
     const entry = this.servers.get(name);
-    if (entry && entry.status !== "disabled") {
-      entry.status = "disconnected";
+    if (entry && entry.status !== 'disabled') {
+      entry.status = 'disconnected';
     }
   }
 
@@ -173,7 +163,7 @@ export class McpManager {
     }
     this.clients.clear();
     for (const entry of this.servers.values()) {
-      if (entry.status !== "disabled") entry.status = "disconnected";
+      if (entry.status !== 'disabled') entry.status = 'disconnected';
     }
   }
 
@@ -199,7 +189,7 @@ export class McpManager {
    * transport) is dropped with an `error` status — the others are unaffected.
    */
   private async aggregate<T>(
-    extract: (client: McpClient) => Promise<T[]>
+    extract: (client: McpClient) => Promise<T[]>,
   ): Promise<Array<T & { clientName: string }>> {
     const all: Array<T & { clientName: string }> = [];
     for (const [clientName, client] of this.clients) {
@@ -221,15 +211,11 @@ export class McpManager {
     return this.aggregate((client) => client.listTools());
   }
 
-  async listAllPrompts(): Promise<
-    Array<McpPromptInfo & { clientName: string }>
-  > {
+  async listAllPrompts(): Promise<Array<McpPromptInfo & { clientName: string }>> {
     return this.aggregate((client) => client.listPrompts());
   }
 
-  async listAllResources(): Promise<
-    Array<McpResourceInfo & { clientName: string }>
-  > {
+  async listAllResources(): Promise<Array<McpResourceInfo & { clientName: string }>> {
     return this.aggregate((client) => client.listResources());
   }
 
@@ -243,7 +229,7 @@ export class McpManager {
       return {
         success: false,
         error: `MCP server "${clientName}" not connected`,
-        code: "MCP_NOT_CONNECTED",
+        code: 'MCP_NOT_CONNECTED',
       };
     }
     try {
@@ -252,8 +238,8 @@ export class McpManager {
     } catch (e: any) {
       return {
         success: false,
-        error: e.message ?? "MCP resource read failed",
-        code: "MCP_RESOURCE_ERROR",
+        error: e.message ?? 'MCP resource read failed',
+        code: 'MCP_RESOURCE_ERROR',
       };
     }
   }
@@ -261,28 +247,28 @@ export class McpManager {
   async callTool(
     clientName: string,
     toolName: string,
-    args: Record<string, unknown>
+    args: Record<string, unknown>,
   ): Promise<ToolResult> {
     const client = this.clients.get(clientName);
     if (!client) {
       return {
         success: false,
         error: `MCP server "${clientName}" not connected`,
-        code: "MCP_NOT_CONNECTED",
+        code: 'MCP_NOT_CONNECTED',
       };
     }
     try {
       const result = await client.callTool(toolName, args);
       return {
         success: true,
-        output: typeof result === "string" ? result : JSON.stringify(result),
+        output: typeof result === 'string' ? result : JSON.stringify(result),
         data: result,
       };
     } catch (e: any) {
       return {
         success: false,
-        error: e.message ?? "MCP tool call failed",
-        code: "MCP_TOOL_ERROR",
+        error: e.message ?? 'MCP tool call failed',
+        code: 'MCP_TOOL_ERROR',
       };
     }
   }

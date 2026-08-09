@@ -1,17 +1,17 @@
-import { extname } from "node:path";
-import { z } from "zod";
-import type { ToolDefinition } from "../types";
+import { extname } from 'node:path';
+import { z } from 'zod';
+import type { ToolDefinition } from '../types';
 
 const LEGACY_MAP: Record<string, string> = {
-  ".doc": "docx",
-  ".dot": "docx",
-  ".xls": "xlsx",
-  ".xlt": "xlsx",
-  ".ppt": "pptx",
-  ".pot": "pptx",
+  '.doc': 'docx',
+  '.dot': 'docx',
+  '.xls': 'xlsx',
+  '.xlt': 'xlsx',
+  '.ppt': 'pptx',
+  '.pot': 'pptx',
 };
 
-const FORMATS = ["docx", "xlsx", "pptx"] as const;
+const FORMATS = ['docx', 'xlsx', 'pptx'] as const;
 const MODERN = new Set<string>(FORMATS.map((f) => `.${f}`));
 
 export interface ConvertDeps {
@@ -21,17 +21,15 @@ export interface ConvertDeps {
 
 export function createConvertTool(deps: ConvertDeps): ToolDefinition {
   return {
-    name: "convert",
+    name: 'convert',
     description:
-      "Convert a legacy Office file (.doc/.dot/.xls/.xlt/.ppt/.pot) to the modern OpenXML format (.docx/.xlsx/.pptx). Asks the user for confirmation before converting.",
+      'Convert a legacy Office file (.doc/.dot/.xls/.xlt/.ppt/.pot) to the modern OpenXML format (.docx/.xlsx/.pptx). Asks the user for confirmation before converting.',
     parameters: z.object({
-      file: z.string().describe("Path to the legacy Office file"),
+      file: z.string().describe('Path to the legacy Office file'),
       format: z
         .enum(FORMATS)
         .optional()
-        .describe(
-          "Target format (docx, xlsx, pptx). Inferred from the file extension if omitted."
-        ),
+        .describe('Target format (docx, xlsx, pptx). Inferred from the file extension if omitted.'),
     }),
     execute: async (params) => {
       const sourceExt = extname(params.file).toLowerCase();
@@ -40,7 +38,7 @@ export function createConvertTool(deps: ConvertDeps): ToolDefinition {
         return {
           success: false,
           error: `"${params.file}" is already a modern Office format; nothing to convert`,
-          code: "NOT_LEGACY",
+          code: 'NOT_LEGACY',
         };
       }
 
@@ -48,29 +46,27 @@ export function createConvertTool(deps: ConvertDeps): ToolDefinition {
       if (!target) {
         return {
           success: false,
-          error: `Unsupported source format "${sourceExt}". Convert from: ${Object.keys(LEGACY_MAP).join(", ")}`,
-          code: "UNSUPPORTED_SOURCE_FORMAT",
+          error: `Unsupported source format "${sourceExt}". Convert from: ${Object.keys(LEGACY_MAP).join(', ')}`,
+          code: 'UNSUPPORTED_SOURCE_FORMAT',
         };
       }
 
       try {
-        const answer = (
-          await deps.askUser(`Convert ${params.file} to .${target}? (y/N)`)
-        )
+        const answer = (await deps.askUser(`Convert ${params.file} to .${target}? (y/N)`))
           .trim()
           .toLowerCase();
-        if (answer !== "y" && answer !== "yes") {
+        if (answer !== 'y' && answer !== 'yes') {
           return {
             success: false,
-            error: "Conversion cancelled by user",
-            code: "CANCELLED",
+            error: 'Conversion cancelled by user',
+            code: 'CANCELLED',
           };
         }
       } catch (e: any) {
         return {
           success: false,
-          error: e.message ?? "Failed to ask user",
-          code: "QUESTION_ERROR",
+          error: e.message ?? 'Failed to ask user',
+          code: 'QUESTION_ERROR',
         };
       }
 
@@ -80,8 +76,8 @@ export function createConvertTool(deps: ConvertDeps): ToolDefinition {
       } catch (e: any) {
         return {
           success: false,
-          error: e.message ?? "Conversion failed",
-          code: "CONVERT_ERROR",
+          error: e.message ?? 'Conversion failed',
+          code: 'CONVERT_ERROR',
         };
       }
     },

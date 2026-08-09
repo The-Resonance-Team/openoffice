@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState } from 'react';
 
 interface Props {
   question: string;
@@ -6,7 +6,7 @@ interface Props {
 }
 
 export function AskCard({ question, onSubmit }: Props) {
-  const [answer, setAnswer] = useState("");
+  const [answer, setAnswer] = useState('');
   const isDraftQuestion = /accept or discard/i.test(question);
 
   const submit = (value: string) => {
@@ -21,7 +21,7 @@ export function AskCard({ question, onSubmit }: Props) {
         <input
           value={answer}
           onChange={(e) => setAnswer(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && submit(answer)}
+          onKeyDown={(e) => e.key === 'Enter' && submit(answer)}
           autoFocus
           placeholder="Answer…"
           className="min-w-0 flex-1 rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1 text-sm text-zinc-100 outline-none placeholder:text-zinc-600 focus:border-amber-700"
@@ -36,13 +36,13 @@ export function AskCard({ question, onSubmit }: Props) {
       {isDraftQuestion && (
         <div className="mt-2 flex gap-2">
           <button
-            onClick={() => submit("accept")}
+            onClick={() => submit('accept')}
             className="rounded border border-emerald-700 px-2 py-0.5 text-xs text-emerald-400 hover:bg-emerald-950"
           >
             Accept
           </button>
           <button
-            onClick={() => submit("discard")}
+            onClick={() => submit('discard')}
             className="rounded border border-red-800 px-2 py-0.5 text-xs text-red-400 hover:bg-red-950"
           >
             Discard

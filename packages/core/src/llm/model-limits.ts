@@ -16,8 +16,8 @@ export interface Model {
 }
 
 export function splitModel(model: string): [string, string] {
-  const idx = model.indexOf("/");
-  if (idx < 0) return ["", model];
+  const idx = model.indexOf('/');
+  if (idx < 0) return ['', model];
   return [model.slice(0, idx), model.slice(idx + 1)];
 }
 
@@ -25,21 +25,19 @@ const DEFAULT_CONTEXT = 128_000;
 const DEFAULT_OUTPUT = 8_192;
 
 const CATALOG: [string, number, number?][] = [
-  ["anthropic/claude", 200_000, 64_000],
-  ["openai/gpt-5", 400_000, 64_000],
-  ["openai/o4-mini", 200_000, 64_000],
-  ["openai/gpt-4.1", 1_047_576, 32_768],
-  ["openai/gpt-4o", 128_000, 16_384],
-  ["google/gemini", 1_000_000, 64_000],
-  ["openrouter/llama-3.3-70b", 128_000, 8_192],
+  ['anthropic/claude', 200_000, 64_000],
+  ['openai/gpt-5', 400_000, 64_000],
+  ['openai/o4-mini', 200_000, 64_000],
+  ['openai/gpt-4.1', 1_047_576, 32_768],
+  ['openai/gpt-4o', 128_000, 16_384],
+  ['google/gemini', 1_000_000, 64_000],
+  ['openrouter/llama-3.3-70b', 128_000, 8_192],
 ];
 
 export function getModel(model: string): Model {
   const [providerID, modelID] = splitModel(model);
   const match = CATALOG.find(([prefix]) => model.startsWith(prefix));
-  const [context, output] = match
-    ? [match[1], match[2]]
-    : [DEFAULT_CONTEXT, DEFAULT_OUTPUT];
+  const [context, output] = match ? [match[1], match[2]] : [DEFAULT_CONTEXT, DEFAULT_OUTPUT];
   return {
     id: model,
     providerID,

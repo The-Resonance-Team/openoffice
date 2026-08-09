@@ -1,4 +1,4 @@
-import { APICallError } from "ai";
+import { APICallError } from 'ai';
 
 // Retry policy mirrors opencode's (packages/opencode/src/session/retry.ts):
 // exponential backoff 2s x 2^(attempt-1), Retry-After honored, retry only
@@ -31,8 +31,8 @@ export type StreamLike = {
 export interface RetryStream<T extends StreamLike> {
   textStream: AsyncIterable<string>;
   text: Promise<string>;
-  responseMessages: Promise<Awaited<T["responseMessages"]>>;
-  usage: Promise<Awaited<T["usage"]>>;
+  responseMessages: Promise<Awaited<T['responseMessages']>>;
+  usage: Promise<Awaited<T['usage']>>;
 }
 
 function cap(ms: number) {
@@ -48,15 +48,12 @@ function headerNum(headers: Record<string, string> | undefined, name: string) {
 
 // Wait time for a given attempt. Honors Retry-After headers when the error
 // carries response headers; otherwise plain exponential backoff.
-export function retryDelay(
-  attempt: number,
-  headers?: Record<string, string>
-): number {
+export function retryDelay(attempt: number, headers?: Record<string, string>): number {
   if (headers) {
-    const retryAfterMs = headerNum(headers, "retry-after-ms");
+    const retryAfterMs = headerNum(headers, 'retry-after-ms');
     if (retryAfterMs !== undefined) return cap(retryAfterMs);
 
-    const retryAfter = headers["retry-after"];
+    const retryAfter = headers['retry-after'];
     if (retryAfter !== undefined) {
       const seconds = Number.parseFloat(retryAfter);
       if (!Number.isNaN(seconds)) return cap(Math.ceil(seconds * 1000));
@@ -64,16 +61,14 @@ export function retryDelay(
       if (!Number.isNaN(parsed) && parsed > 0) return cap(Math.ceil(parsed));
     }
 
-    return cap(
-      RETRY_INITIAL_DELAY * Math.pow(RETRY_BACKOFF_FACTOR, attempt - 1)
-    );
+    return cap(RETRY_INITIAL_DELAY * Math.pow(RETRY_BACKOFF_FACTOR, attempt - 1));
   }
 
   return cap(
     Math.min(
       RETRY_INITIAL_DELAY * Math.pow(RETRY_BACKOFF_FACTOR, attempt - 1),
-      RETRY_MAX_DELAY_NO_HEADERS
-    )
+      RETRY_MAX_DELAY_NO_HEADERS,
+    ),
   );
 }
 
@@ -101,14 +96,14 @@ export function classifyRetryable(error: unknown): Classification {
   const message = error instanceof Error ? error.message : String(error);
   const lower = message.toLowerCase();
   const TEXT_PATTERNS = [
-    "rate increased too quickly",
-    "rate limit",
-    "too many requests",
-    "fetch failed",
-    "socket hang up",
-    "network error",
-    "ecoconnrefused",
-    "ecoconnreset",
+    'rate increased too quickly',
+    'rate limit',
+    'too many requests',
+    'fetch failed',
+    'socket hang up',
+    'network error',
+    'ecoconnrefused',
+    'ecoconnreset',
   ];
   if (TEXT_PATTERNS.some((pattern) => lower.includes(pattern))) {
     return { retry: true, message };
@@ -120,29 +115,28 @@ export function classifyRetryable(error: unknown): Classification {
   } catch {
     json = null;
   }
-  if (json && typeof json === "object") {
+  if (json && typeof json === 'object') {
     const body = json as {
       type?: string;
       code?: string;
       error?: { type?: string; code?: string };
     };
-    if (body.type === "error" && body.error?.type === "too_many_requests") {
-      return { retry: true, message: "Too Many Requests" };
+    if (body.type === 'error' && body.error?.type === 'too_many_requests') {
+      return { retry: true, message: 'Too Many Requests' };
     }
-    const code = body.code ?? body.error?.code ?? "";
-    if (code.includes("exhausted") || code.includes("unavailable")) {
-      return { retry: true, message: "Provider is overloaded" };
+    const code = body.code ?? body.error?.code ?? '';
+    if (code.includes('exhausted') || code.includes('unavailable')) {
+      return { retry: true, message: 'Provider is overloaded' };
     }
-    if (code.includes("rate_limit")) {
-      return { retry: true, message: "Rate Limited" };
+    if (code.includes('rate_limit')) {
+      return { retry: true, message: 'Rate Limited' };
     }
   }
 
   return { retry: false, message };
 }
 
-const defaultSleep = (ms: number) =>
-  new Promise<void>((resolve) => setTimeout(resolve, ms));
+const defaultSleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 // Re-runs the whole stream on retryable failures, mirroring opencode's
 // Effect.retry around the full stream consumption: any retryable error —
@@ -151,7 +145,7 @@ const defaultSleep = (ms: number) =>
 // the interrupted run (loop.ts resets its accumulator on onRetry).
 export function streamWithRetry<T extends StreamLike>(
   create: () => T,
-  options: RetryOptions = {}
+  options: RetryOptions = {},
 ): RetryStream<T> {
   const maxAttempts = options.maxAttempts ?? 3;
   const sleep = options.sleep ?? defaultSleep;
@@ -174,7 +168,7 @@ export function streamWithRetry<T extends StreamLike>(
   } catch (error) {
     first = { error };
   }
-  if (first && "error" in first) {
+  if (first && 'error' in first) {
     const classification = classifyRetryable(first.error);
     if (!classification.retry || maxAttempts <= 1) {
       throw first.error;
@@ -187,7 +181,7 @@ export function streamWithRetry<T extends StreamLike>(
       let result: T | null = null;
       let error: unknown = null;
       if (attempt === 1 && first) {
-        if ("result" in first) result = first.result;
+        if ('result' in first) result = first.result;
         else error = first.error;
       } else {
         try {
@@ -241,12 +235,10 @@ export function streamWithRetry<T extends StreamLike>(
   // through the for-await throw; the sibling promises must not add unhandled
   // rejection noise on top. Awaiting them still rejects normally.
   const text = done.then((result) => result.text);
-  const responseMessages = done.then(
-    (result) => result.responseMessages
-  ) as Promise<Awaited<T["responseMessages"]>>;
-  const usage = done.then((result) => result.usage) as Promise<
-    Awaited<T["usage"]>
+  const responseMessages = done.then((result) => result.responseMessages) as Promise<
+    Awaited<T['responseMessages']>
   >;
+  const usage = done.then((result) => result.usage) as Promise<Awaited<T['usage']>>;
   text.catch(() => {});
   responseMessages.catch(() => {});
   usage.catch(() => {});

@@ -1,5 +1,5 @@
-import Link from 'next/link'
-import { docHref } from '@/lib/docs'
+import Link from 'next/link';
+import { docHref } from '@/lib/docs';
 
 export function PublicFooter() {
   return (
@@ -26,5 +26,5 @@ export function PublicFooter() {
       </Link>
       <span style={{ marginLeft: 'auto' }}>English ⌄</span>
     </footer>
-  )
+  );
 }

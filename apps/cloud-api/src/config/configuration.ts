@@ -1,4 +1,4 @@
-import { z } from 'zod'
+import { z } from 'zod';
 
 // Environment contract, validated once at bootstrap (ConfigModule.forRoot).
 // Defaults cover local dev + unit tests; production overrides via .env.
@@ -27,20 +27,20 @@ const envSchema = z.object({
   GITHUB_CLIENT_SECRET: z.string().optional(),
   // Public base URL of the API, used for OAuth callback URLs.
   PUBLIC_URL: z.string().url().default('http://localhost:3001'),
-})
+});
 
-export type Env = z.infer<typeof envSchema>
+export type Env = z.infer<typeof envSchema>;
 
 /** ConfigModule validate fn — throws with every invalid key named. */
 export function validateEnv(env: Record<string, unknown>): Env {
-  const parsed = envSchema.safeParse(env)
+  const parsed = envSchema.safeParse(env);
   if (!parsed.success) {
     const issues = parsed.error.issues
       .map((issue) => `${issue.path.join('.')}: ${issue.message}`)
-      .join(', ')
-    throw new Error(`Invalid environment: ${issues}`)
+      .join(', ');
+    throw new Error(`Invalid environment: ${issues}`);
   }
-  return parsed.data
+  return parsed.data;
 }
 
 export default function configuration() {
@@ -74,5 +74,5 @@ export default function configuration() {
       clientSecret: process.env.GITHUB_CLIENT_SECRET,
     },
     swaggerEnabled: (process.env.SWAGGER_ENABLED ?? 'false') === 'true',
-  }
+  };
 }

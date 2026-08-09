@@ -1,57 +1,57 @@
-'use client'
+'use client';
 
-import { useMemo, useState } from 'react'
+import { useMemo, useState } from 'react';
 
-type SessionStatus = 'running' | 'review' | 'done' | 'archived'
+type SessionStatus = 'running' | 'review' | 'done' | 'archived';
 
 interface Session {
-  id: string
-  title: string
-  projectId: string
-  branch: string
-  model: string
-  msgs: number
-  status: SessionStatus
-  updated: string
+  id: string;
+  title: string;
+  projectId: string;
+  branch: string;
+  model: string;
+  msgs: number;
+  status: SessionStatus;
+  updated: string;
 }
 
 interface Project {
-  id: string
-  name: string
-  sessions: number
-  updated: string
-  branch: string
-  tint: string
+  id: string;
+  name: string;
+  sessions: number;
+  updated: string;
+  branch: string;
+  tint: string;
 }
 
 interface StatusFilter {
-  label: string
-  count: number
-  dot: string
-  border: string
-  bg: string
-  color: string
+  label: string;
+  count: number;
+  dot: string;
+  border: string;
+  bg: string;
+  color: string;
 }
 
 interface GroupedSession {
-  name: string
-  tint: string
-  count: string
-  items: SessionRow[]
+  name: string;
+  tint: string;
+  count: string;
+  items: SessionRow[];
 }
 
 interface SessionRow {
-  title: string
-  branch: string
-  model: string
-  msgs: number
-  updated: string
-  status: SessionStatus
-  statusColor: string
-  statusBg: string
-  statusBorder: string
-  dot: string
-  dotGlow: string
+  title: string;
+  branch: string;
+  model: string;
+  msgs: number;
+  updated: string;
+  status: SessionStatus;
+  statusColor: string;
+  statusBg: string;
+  statusBorder: string;
+  dot: string;
+  dotGlow: string;
 }
 
 const statusMeta: Record<SessionStatus, { c: string; g: string }> = {
@@ -59,7 +59,7 @@ const statusMeta: Record<SessionStatus, { c: string; g: string }> = {
   review: { c: 'var(--amber)', g: '#e0a13a33' },
   done: { c: 'var(--dim)', g: 'transparent' },
   archived: { c: 'var(--faint)', g: 'transparent' },
-}
+};
 
 // Mock data — replace with cloud-api endpoints when available
 const mockProjects: Project[] = [
@@ -95,7 +95,7 @@ const mockProjects: Project[] = [
     branch: 'Onboarding.docx',
     tint: '#9b6bed',
   },
-]
+];
 
 const mockSessions: Session[] = [
   {
@@ -158,71 +158,70 @@ const mockSessions: Session[] = [
     status: 'done',
     updated: 'yesterday',
   },
-]
+];
+
+// Static derivations of the mock data — computed once at module level
+// (5.3/hoisting) instead of per render or per mount.
+const sessionCounts: Record<string, number> = {
+  All: mockSessions.length,
+  Running: 0,
+  Review: 0,
+  Done: 0,
+  Archived: 0,
+};
+mockSessions.forEach((s) => {
+  const key = s.status[0].toUpperCase() + s.status.slice(1);
+  if (sessionCounts[key] !== undefined) sessionCounts[key]++;
+});
+
+const projectCards = mockProjects.map((p) => ({ ...p, border: 'var(--border)' }));
 
 export function DashboardHome({ userName = 'there' }: { userName?: string }) {
-  const [filter, setFilter] = useState('All')
-  const [search, setSearch] = useState('')
+  const [filter, setFilter] = useState('All');
+  const [search, setSearch] = useState('');
 
   const filteredSessions = useMemo(() => {
-    let sessions = mockSessions
-    if (filter !== 'All') sessions = sessions.filter((s) => s.status === filter.toLowerCase())
+    let sessions = mockSessions;
+    if (filter !== 'All') sessions = sessions.filter((s) => s.status === filter.toLowerCase());
     if (search) {
-      const q = search.toLowerCase()
+      const q = search.toLowerCase();
       sessions = sessions.filter(
         (s) => s.title.toLowerCase().includes(q) || s.branch.toLowerCase().includes(q),
-      )
+      );
     }
-    return sessions
-  }, [filter, search])
-
-  const counts = useMemo(() => {
-    const c: Record<string, number> = {
-      All: mockSessions.length,
-      Running: 0,
-      Review: 0,
-      Done: 0,
-      Archived: 0,
-    }
-    mockSessions.forEach((s) => {
-      const key = s.status[0].toUpperCase() + s.status.slice(1)
-      if (c[key] !== undefined) c[key]++
-    })
-    return c
-  }, [])
+    return sessions;
+  }, [filter, search]);
 
   const statusFilters: StatusFilter[] = ['All', 'Running', 'Review', 'Done', 'Archived'].map(
     (f) => {
-      const active = filter === f
-      const statusKey = f.toLowerCase() as SessionStatus
-      const dotColor = f === 'All' ? 'var(--faint)' : (statusMeta[statusKey]?.c ?? 'var(--faint)')
+      const active = filter === f;
+      const statusKey = f.toLowerCase() as SessionStatus;
+      const dotColor = f === 'All' ? 'var(--faint)' : (statusMeta[statusKey]?.c ?? 'var(--faint)');
       return {
         label: f,
-        count: counts[f],
+        count: sessionCounts[f],
         dot: dotColor,
         border: active ? 'var(--accent)' : 'var(--border)',
         bg: active ? 'var(--accent-soft)' : 'transparent',
         color: active ? 'var(--text)' : 'var(--dim)',
-      }
+      };
     },
-  )
-
-  const projectCards = mockProjects.map((p) => ({ ...p, border: 'var(--border)' }))
+  );
 
   const groupedSessions: GroupedSession[] = useMemo(() => {
-    const groups: Record<string, Session[]> = {}
+    const groups: Record<string, Session[]> = {};
     filteredSessions.forEach((s) => {
-      ;(groups[s.projectId] ??= []).push(s)
-    })
-    const projById = Object.fromEntries(mockProjects.map((p) => [p.id, p]))
+      (groups[s.projectId] ??= []).push(s);
+    });
+    const projById = Object.fromEntries(mockProjects.map((p) => [p.id, p]));
     return Object.keys(groups).map((pid) => {
-      const p = projById[pid]
+      const p = projById[pid];
       return {
         name: p?.name ?? pid,
         tint: p?.tint ?? 'var(--faint)',
         count: groups[pid].length + ' sessions',
         items: groups[pid].map((x) => {
-          const m = statusMeta[x.status]
+          const m = statusMeta[x.status];
           return {
             title: x.title,
             branch: x.branch,
@@ -235,14 +234,14 @@ export function DashboardHome({ userName = 'there' }: { userName?: string }) {
             statusBorder: m.c === 'var(--dim)' ? 'var(--border)' : m.c,
             dot: m.c,
             dotGlow: m.g,
-          }
+          };
         }),
-      }
-    })
-  }, [filteredSessions])
+      };
+    });
+  }, [filteredSessions]);
 
-  const greeting = `Welcome back, ${userName}`
-  const noResults = filteredSessions.length === 0
+  const greeting = `Welcome back, ${userName}`;
+  const noResults = filteredSessions.length === 0;
 
   return (
     <div
@@ -305,13 +304,14 @@ export function DashboardHome({ userName = 'there' }: { userName?: string }) {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search sessions, projects, branches…"
+            aria-label="Search sessions"
+            autoComplete="off"
             style={{
               flex: 1,
               background: 'transparent',
               border: 'none',
               color: 'var(--text)',
               fontSize: 13,
-              outline: 'none',
             }}
           />
           <span
@@ -330,9 +330,10 @@ export function DashboardHome({ userName = 'there' }: { userName?: string }) {
 
       <div style={{ display: 'flex', gap: 7, marginBottom: 26, flexWrap: 'wrap' }}>
         {statusFilters.map((f) => (
-          <div
+          <button
             key={f.label}
             onClick={() => setFilter(f.label)}
+            aria-pressed={filter === f.label}
             className="hover-ghost"
             style={{
               display: 'flex',
@@ -350,7 +351,7 @@ export function DashboardHome({ userName = 'there' }: { userName?: string }) {
             <span style={{ width: 6, height: 6, borderRadius: '50%', background: f.dot }} />
             {f.label}
             <span style={{ color: 'var(--faint)' }}>{f.count}</span>
-          </div>
+          </button>
         ))}
       </div>
 
@@ -365,13 +366,11 @@ export function DashboardHome({ userName = 'there' }: { userName?: string }) {
         {projectCards.map((p) => (
           <div
             key={p.id}
-            className="hover-card"
             style={{
               border: `1px solid ${p.border}`,
               background: 'var(--panel)',
               borderRadius: 11,
               padding: '15px 16px',
-              cursor: 'pointer',
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -408,14 +407,12 @@ export function DashboardHome({ userName = 'there' }: { userName?: string }) {
             {g.items.map((s, i) => (
               <div
                 key={i}
-                className="hover-row"
                 style={{
                   display: 'flex',
                   alignItems: 'center',
                   gap: 14,
                   padding: '12px 14px',
                   borderRadius: 9,
-                  cursor: 'pointer',
                   border: '1px solid transparent',
                 }}
               >
@@ -488,5 +485,5 @@ export function DashboardHome({ userName = 'there' }: { userName?: string }) {
         </div>
       )}
     </div>
-  )
+  );
 }

@@ -17,17 +17,17 @@ After a mutating officecli command completes:
 ```ts
 async function generatePreview(sessionID: string, filePath: string, draftPath: string) {
   // Flush draft to disk
-  execFileSync("officecli", ["close", draftPath], { timeout: 10000 })
-  
+  execFileSync('officecli', ['close', draftPath], { timeout: 10000 });
+
   // Screenshot "after" (draft)
-  const afterPng = path.join(dataDir, "preview", sessionID, `${simpleHash(filePath)}-after.png`)
-  execFileSync("officecli", ["view", draftPath, "screenshot", "-o", afterPng], { timeout: 30000 })
-  
+  const afterPng = path.join(dataDir, 'preview', sessionID, `${simpleHash(filePath)}-after.png`);
+  execFileSync('officecli', ['view', draftPath, 'screenshot', '-o', afterPng], { timeout: 30000 });
+
   // Screenshot "before" (real file — untouched)
-  const beforePng = path.join(dataDir, "preview", sessionID, `${simpleHash(filePath)}-before.png`)
-  execFileSync("officecli", ["view", filePath, "screenshot", "-o", beforePng], { timeout: 30000 })
-  
-  return { before: beforePng, after: afterPng }
+  const beforePng = path.join(dataDir, 'preview', sessionID, `${simpleHash(filePath)}-before.png`);
+  execFileSync('officecli', ['view', filePath, 'screenshot', '-o', beforePng], { timeout: 30000 });
+
+  return { before: beforePng, after: afterPng };
 }
 ```
 

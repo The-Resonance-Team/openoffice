@@ -1,6 +1,6 @@
-'use client'
+'use client';
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react';
 import {
   createApiKey,
   listApiKeys,
@@ -9,25 +9,37 @@ import {
   revokeApiKey,
   type DaemonApiKey,
   type MemberProfile,
-} from '@/lib/api'
-import { FieldLabel, Modal, ModalActions, textInputStyle } from '@/components/Modal'
-import { ComingSoon } from '@/components/ComingSoon'
-import { initials } from '@/lib/initials'
+} from '@/lib/api';
+import { FieldLabel, Modal, ModalActions, textInputStyle } from '@/components/Modal';
+import { ComingSoon } from '@/components/ComingSoon';
+import { initials } from '@/lib/initials';
 
 const card: React.CSSProperties = {
   background: 'var(--panel)',
   border: '1px solid var(--border)',
   borderRadius: 18,
   boxShadow: 'var(--shadow)',
-}
+};
+
+const btnStyle: React.CSSProperties = {
+  flex: 'none',
+  background: 'var(--accent-grad)',
+  color: '#fff',
+  border: 'none',
+  borderRadius: 9,
+  padding: '8px 14px',
+  fontSize: 13,
+  fontWeight: 600,
+  boxShadow: '0 6px 15px -8px rgba(236,48,19,.6)',
+};
 
 export function AccountView({ profile }: { profile: MemberProfile }) {
-  const { user, member, org } = profile
-  const [toast, setToast] = useState<string | null>(null)
+  const { user, member, org } = profile;
+  const [toast, setToast] = useState<string | null>(null);
 
   function showToast(t: string) {
-    setToast(t)
-    setTimeout(() => setToast(null), 2600)
+    setToast(t);
+    setTimeout(() => setToast(null), 2600);
   }
 
   return (
@@ -119,15 +131,23 @@ export function AccountView({ profile }: { profile: MemberProfile }) {
                       }}
                     >
                       Unverified{' '}
-                      <span
+                      <button
                         onClick={async () => {
-                          await resendVerification(user.email)
-                          showToast('Verification email sent')
+                          await resendVerification(user.email);
+                          showToast('Verification email sent');
                         }}
-                        style={{ cursor: 'pointer', textDecoration: 'underline' }}
+                        style={{
+                          cursor: 'pointer',
+                          textDecoration: 'underline',
+                          background: 'none',
+                          border: 'none',
+                          padding: 0,
+                          font: 'inherit',
+                          color: 'inherit',
+                        }}
                       >
                         Resend
-                      </span>
+                      </button>
                     </span>
                   )}
                 </div>
@@ -269,7 +289,7 @@ export function AccountView({ profile }: { profile: MemberProfile }) {
 
       {toast && <Toast text={toast} />}
     </div>
-  )
+  );
 }
 
 function Stat({ label, value, color }: { label: string; value: string; color?: string }) {
@@ -297,7 +317,7 @@ function Stat({ label, value, color }: { label: string; value: string; color?: s
         {value}
       </div>
     </div>
-  )
+  );
 }
 
 export function SectionHeader({
@@ -305,9 +325,9 @@ export function SectionHeader({
   subtitle,
   action,
 }: {
-  title: string
-  subtitle: string
-  action?: React.ReactNode
+  title: string;
+  subtitle: string;
+  action?: React.ReactNode;
 }) {
   return (
     <div
@@ -325,12 +345,13 @@ export function SectionHeader({
       </div>
       {action}
     </div>
-  )
+  );
 }
 
 export function Toast({ text }: { text: string }) {
   return (
     <div
+      role="status"
       className="fade-up"
       style={{
         position: 'fixed',
@@ -353,7 +374,7 @@ export function Toast({ text }: { text: string }) {
       <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--green)' }} />
       {text}
     </div>
-  )
+  );
 }
 
 const KeyIcon = (
@@ -372,42 +393,30 @@ const KeyIcon = (
     <path d="M17 5l2.5 2.5" />
     <path d="M14.5 7.5 17 10" />
   </svg>
-)
+);
 
 function ApiKeysSection({ showToast }: { showToast: (t: string) => void }) {
-  const [keys, setKeys] = useState<DaemonApiKey[] | null>(null)
-  const [modal, setModal] = useState<'create' | 'created' | null>(null)
-  const [name, setName] = useState('')
-  const [fullKey, setFullKey] = useState('')
+  const [keys, setKeys] = useState<DaemonApiKey[] | null>(null);
+  const [modal, setModal] = useState<'create' | 'created' | null>(null);
+  const [name, setName] = useState('');
+  const [fullKey, setFullKey] = useState('');
 
   useEffect(() => {
-    listApiKeys().then((r) => setKeys(r.keys))
-  }, [])
+    listApiKeys().then((r) => setKeys(r.keys));
+  }, []);
 
   async function submitCreate() {
-    const { key } = await createApiKey(name || 'New key')
-    setFullKey(key)
-    setModal('created')
-    setName('')
-    listApiKeys().then((r) => setKeys(r.keys))
+    const { key } = await createApiKey(name || 'New key');
+    setFullKey(key);
+    setModal('created');
+    setName('');
+    listApiKeys().then((r) => setKeys(r.keys));
   }
 
   async function revoke(id: string) {
-    await revokeApiKey(id)
-    setKeys((k) => k?.filter((x) => x.id !== id) ?? null)
-    showToast('API key revoked')
-  }
-
-  const btnStyle: React.CSSProperties = {
-    flex: 'none',
-    background: 'var(--accent-grad)',
-    color: '#fff',
-    border: 'none',
-    borderRadius: 9,
-    padding: '8px 14px',
-    fontSize: 13,
-    fontWeight: 600,
-    boxShadow: '0 6px 15px -8px rgba(236,48,19,.6)',
+    await revokeApiKey(id);
+    setKeys((k) => k?.filter((x) => x.id !== id) ?? null);
+    showToast('API key revoked');
   }
 
   return (
@@ -486,30 +495,45 @@ function ApiKeysSection({ showToast }: { showToast: (t: string) => void }) {
                   }}
                 >
                   {k.keyPrefix}…
-                  <span
+                  <button
                     onClick={() => showToast('Key prefix copied')}
+                    aria-label="Copy key prefix"
                     title="Copy"
-                    style={{ cursor: 'pointer', opacity: 0.7 }}
+                    style={{
+                      cursor: 'pointer',
+                      opacity: 0.7,
+                      background: 'none',
+                      border: 'none',
+                      padding: 0,
+                      font: 'inherit',
+                      color: 'inherit',
+                    }}
                   >
                     ⧉
-                  </span>
+                  </button>
                 </div>
               </div>
               <span style={{ fontSize: 12.5, color: 'var(--faint)', flex: 'none' }}>
                 {new Date(k.createdAt).toLocaleDateString()}
               </span>
-              <span
-                onClick={() => revoke(k.id)}
+              <button
+                onClick={() => {
+                  if (!window.confirm(`Revoke API key "${k.name}"?`)) return;
+                  revoke(k.id);
+                }}
                 style={{
                   fontSize: 12.5,
                   color: 'var(--accent)',
                   cursor: 'pointer',
                   fontWeight: 600,
                   flex: 'none',
+                  background: 'none',
+                  border: 'none',
+                  padding: 0,
                 }}
               >
                 Revoke
-              </span>
+              </button>
             </div>
           ))}
         </div>
@@ -521,6 +545,7 @@ function ApiKeysSection({ showToast }: { showToast: (t: string) => void }) {
           <input
             id="key-name"
             name="key-name"
+            autoComplete="off"
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="e.g. Production daemon"
@@ -561,20 +586,28 @@ function ApiKeysSection({ showToast }: { showToast: (t: string) => void }) {
             >
               {fullKey}
             </span>
-            <span
+            <button
               onClick={() => {
-                navigator.clipboard.writeText(fullKey)
-                showToast('Key copied to clipboard')
+                navigator.clipboard.writeText(fullKey);
+                showToast('Key copied to clipboard');
               }}
+              aria-label="Copy key"
               title="Copy"
-              style={{ cursor: 'pointer', color: 'var(--faint)' }}
+              style={{
+                cursor: 'pointer',
+                color: 'var(--faint)',
+                background: 'none',
+                border: 'none',
+                padding: 0,
+                font: 'inherit',
+              }}
             >
               ⧉
-            </span>
+            </button>
           </div>
           <ModalActions cta="Done" onSubmit={() => setModal(null)} />
         </Modal>
       )}
     </section>
-  )
+  );
 }

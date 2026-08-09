@@ -1,14 +1,14 @@
-import { getDataDir, readDaemonInfo, isAlive, spawnDaemon } from "./daemon";
-import { loadAuthConfig, authHeaders } from "./auth";
-import type { Session } from "@openoffice/schema";
+import { getDataDir, readDaemonInfo, isAlive, spawnDaemon } from './daemon';
+import { loadAuthConfig, authHeaders } from './auth';
+import type { Session } from '@openoffice/schema';
 import type {
   DaemonClient,
   StreamHandlers,
   UpdateStatus,
   McpServerStatusInfo,
-} from "@openoffice/protocol";
+} from '@openoffice/protocol';
 
-export type { StreamHandlers, UpdateStatus } from "@openoffice/protocol";
+export type { StreamHandlers, UpdateStatus } from '@openoffice/protocol';
 
 export async function connectClient(): Promise<OpenOfficeClient> {
   const dataDir = getDataDir();
@@ -25,19 +25,16 @@ export class OpenOfficeClient implements DaemonClient {
 
   constructor(
     private baseUrl: string,
-    auth?: ReturnType<typeof loadAuthConfig>
+    auth?: ReturnType<typeof loadAuthConfig>,
   ) {
     this.auth = auth ?? loadAuthConfig();
   }
 
-  private async request<T>(
-    path: string,
-    init?: RequestInit
-  ): Promise<{ status: number; data: T }> {
+  private async request<T>(path: string, init?: RequestInit): Promise<{ status: number; data: T }> {
     const res = await fetch(`${this.baseUrl}${path}`, {
       ...init,
       headers: {
-        "content-type": "application/json",
+        'content-type': 'application/json',
         ...authHeaders(this.auth),
         ...((init?.headers as Record<string, string>) ?? {}),
       },
@@ -49,8 +46,8 @@ export class OpenOfficeClient implements DaemonClient {
   }
 
   async createSession(cwd: string): Promise<Session> {
-    const { data } = await this.request<Session>("/api/sessions", {
-      method: "POST",
+    const { data } = await this.request<Session>('/api/sessions', {
+      method: 'POST',
       body: JSON.stringify({ cwd }),
     });
     return data;
@@ -62,50 +59,50 @@ export class OpenOfficeClient implements DaemonClient {
   }
 
   async turn(id: string, message: string): Promise<{ text: string }> {
-    const { data } = await this.request<{ text: string }>(
-      `/api/sessions/${id}/turn`,
-      { method: "POST", body: JSON.stringify({ message }) }
-    );
+    const { data } = await this.request<{ text: string }>(`/api/sessions/${id}/turn`, {
+      method: 'POST',
+      body: JSON.stringify({ message }),
+    });
     return data;
   }
 
   async accept(id: string, filePath: string): Promise<void> {
     await this.request(`/api/sessions/${id}/accept`, {
-      method: "POST",
+      method: 'POST',
       body: JSON.stringify({ filePath }),
     });
   }
 
   async undo(id: string, filePath: string): Promise<void> {
     await this.request(`/api/sessions/${id}/undo`, {
-      method: "POST",
+      method: 'POST',
       body: JSON.stringify({ filePath }),
     });
   }
 
   async revert(id: string, filePath: string, timestamp: number): Promise<void> {
     await this.request(`/api/sessions/${id}/revert`, {
-      method: "POST",
+      method: 'POST',
       body: JSON.stringify({ filePath, timestamp }),
     });
   }
 
   async askAnswer(id: string, promptID: string, answer: string): Promise<void> {
     await this.request(`/api/sessions/${id}/ask-answer`, {
-      method: "POST",
+      method: 'POST',
       body: JSON.stringify({ promptID, answer }),
     });
   }
 
   async endSession(id: string): Promise<void> {
-    await this.request(`/api/sessions/${id}/end`, { method: "POST" });
+    await this.request(`/api/sessions/${id}/end`, { method: 'POST' });
   }
 
   async share(id: string): Promise<{ url: string }> {
     const { status, data } = await this.request<{
       url?: string;
       error?: string;
-    }>(`/api/sessions/${id}/share`, { method: "POST" });
+    }>(`/api/sessions/${id}/share`, { method: 'POST' });
     if (status !== 200 || !data.url) {
       throw new Error(data.error ?? `share failed (${status})`);
     }
@@ -113,10 +110,9 @@ export class OpenOfficeClient implements DaemonClient {
   }
 
   async unshare(id: string): Promise<void> {
-    const { status, data } = await this.request<{ error?: string }>(
-      `/api/sessions/${id}/unshare`,
-      { method: "POST" }
-    );
+    const { status, data } = await this.request<{ error?: string }>(`/api/sessions/${id}/unshare`, {
+      method: 'POST',
+    });
     if (status !== 200) {
       throw new Error(data.error ?? `unshare failed (${status})`);
     }
@@ -136,22 +132,23 @@ export class OpenOfficeClient implements DaemonClient {
   }
 
   async mcpStatus(): Promise<Record<string, McpServerStatusInfo>> {
-    const { status, data } =
-      await this.request<Record<string, McpServerStatusInfo>>(`/api/mcp`);
+    const { status, data } = await this.request<Record<string, McpServerStatusInfo>>(`/api/mcp`);
     return status === 200 ? data : {};
   }
 
   async mcpEnable(name: string): Promise<McpServerStatusInfo> {
-    const { data } = await this.request<
-      McpServerStatusInfo & { error?: string }
-    >(`/api/mcp/${name}/enable`, { method: "POST" });
+    const { data } = await this.request<McpServerStatusInfo & { error?: string }>(
+      `/api/mcp/${name}/enable`,
+      { method: 'POST' },
+    );
     return data;
   }
 
   async mcpDisable(name: string): Promise<McpServerStatusInfo> {
-    const { data } = await this.request<
-      McpServerStatusInfo & { error?: string }
-    >(`/api/mcp/${name}/disable`, { method: "POST" });
+    const { data } = await this.request<McpServerStatusInfo & { error?: string }>(
+      `/api/mcp/${name}/disable`,
+      { method: 'POST' },
+    );
     return data;
   }
 
@@ -178,18 +175,16 @@ export class OpenOfficeClient implements DaemonClient {
           if (!res.ok) throw new Error(`stream failed: ${res.status}`);
           const reader = res.body!.getReader();
           const decoder = new TextDecoder();
-          let buf = "";
+          let buf = '';
           for (;;) {
             const { done, value } = await reader.read();
             if (done) break;
             buf += decoder.decode(value, { stream: true });
             let idx: number;
-            while ((idx = buf.indexOf("\n\n")) >= 0) {
+            while ((idx = buf.indexOf('\n\n')) >= 0) {
               const raw = buf.slice(0, idx);
               buf = buf.slice(idx + 2);
-              const dataLine = raw
-                .split("\n")
-                .find((l) => l.startsWith("data: "));
+              const dataLine = raw.split('\n').find((l) => l.startsWith('data: '));
               if (!dataLine) continue;
               let event: any;
               try {
@@ -198,31 +193,31 @@ export class OpenOfficeClient implements DaemonClient {
                 continue;
               }
               switch (event.type) {
-                case "token":
+                case 'token':
                   handlers.token?.(event.token);
                   break;
-                case "done":
+                case 'done':
                   handlers.done?.(event.response);
                   break;
-                case "toolStart":
+                case 'toolStart':
                   handlers.toolStart?.(event.tool, event.params);
                   break;
-                case "toolDone":
+                case 'toolDone':
                   handlers.toolDone?.(event.tool, event.result);
                   break;
-                case "message":
+                case 'message':
                   handlers.message?.(event.role, event.content);
                   break;
-                case "ask":
+                case 'ask':
                   await handlers.ask?.(event.promptID, event.question);
                   break;
-                case "todoUpdated":
+                case 'todoUpdated':
                   handlers.todoUpdated?.(event.todos);
                   break;
-                case "stepLimit":
+                case 'stepLimit':
                   handlers.stepLimit?.(event.maxSteps);
                   break;
-                case "sessionEnd":
+                case 'sessionEnd':
                   handlers.sessionEnd?.();
                   break;
               }

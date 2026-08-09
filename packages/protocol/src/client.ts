@@ -2,7 +2,7 @@
 // The fetch implementation lives in packages/server (it also owns daemon
 // spawn/auth plumbing); clients (CLI, web) depend only on this surface.
 
-import type { Session, Todo } from "@openoffice/schema";
+import type { Session, Todo } from '@openoffice/schema';
 
 export interface StreamHandlers {
   token?: (token: string) => void;
@@ -25,8 +25,7 @@ export interface UpdateStatus {
 
 // Per-server MCP runtime state, as reported by GET /api/mcp. "enabled" is the
 // configured/runtime intent; status is the live transport state.
-export type McpServerStatus =
-  "connected" | "disconnected" | "disabled" | "error";
+export type McpServerStatus = 'connected' | 'disconnected' | 'disabled' | 'error';
 
 export interface McpServerStatusInfo {
   status: McpServerStatus;

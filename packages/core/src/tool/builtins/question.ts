@@ -1,5 +1,5 @@
-import { z } from "zod";
-import type { ToolDefinition } from "../types";
+import { z } from 'zod';
+import type { ToolDefinition } from '../types';
 
 export interface QuestionDeps {
   askUser: (question: string) => Promise<string>;
@@ -7,11 +7,11 @@ export interface QuestionDeps {
 
 export function createQuestionTool(deps: QuestionDeps): ToolDefinition {
   return {
-    name: "question",
+    name: 'question',
     description:
-      "Ask the user a question and wait for their response. Use this when you need clarification or input from the user.",
+      'Ask the user a question and wait for their response. Use this when you need clarification or input from the user.',
     parameters: z.object({
-      question: z.string().describe("The question to ask the user"),
+      question: z.string().describe('The question to ask the user'),
     }),
     execute: async (params) => {
       try {
@@ -20,8 +20,8 @@ export function createQuestionTool(deps: QuestionDeps): ToolDefinition {
       } catch (e: any) {
         return {
           success: false,
-          error: e.message ?? "Failed to get answer",
-          code: "QUESTION_ERROR",
+          error: e.message ?? 'Failed to get answer',
+          code: 'QUESTION_ERROR',
         };
       }
     },

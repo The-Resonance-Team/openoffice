@@ -1,8 +1,8 @@
-import { useUiStore } from "@/lib/store";
-import { slides } from "@/lib/mock";
+import { useUiStore } from '@/lib/store';
+import { slides } from '@/lib/mock';
 
 function SlideInner({ raw }: { raw: (typeof slides)[number] }) {
-  if (raw.k === "title") {
+  if (raw.k === 'title') {
     return (
       <div className="flex h-full flex-col justify-center px-[12%]">
         <div className="mb-4 text-[12px] font-bold uppercase tracking-[.16em] text-accent">
@@ -15,24 +15,15 @@ function SlideInner({ raw }: { raw: (typeof slides)[number] }) {
       </div>
     );
   }
-  if (raw.k === "kpi") {
+  if (raw.k === 'kpi') {
     return (
       <div className="flex h-full flex-col justify-center px-[9%]">
-        <div className="mb-[26px] text-[26px] font-extrabold text-[#1b1b1b]">
-          {raw.t}
-        </div>
+        <div className="mb-[26px] text-[26px] font-extrabold text-[#1b1b1b]">{raw.t}</div>
         <div className="flex gap-5">
           {raw.kpis.map((k) => (
-            <div
-              key={k[1]}
-              className="flex-1 border-t-[3px] border-accent pt-3"
-            >
-              <div className="text-[38px] font-extrabold leading-none text-[#1b1b1b]">
-                {k[0]}
-              </div>
-              <div className="mt-2 text-[14px] font-semibold text-[#333]">
-                {k[1]}
-              </div>
+            <div key={k[1]} className="flex-1 border-t-[3px] border-accent pt-3">
+              <div className="text-[38px] font-extrabold leading-none text-[#1b1b1b]">{k[0]}</div>
+              <div className="mt-2 text-[14px] font-semibold text-[#333]">{k[1]}</div>
               <div className="mt-[3px] text-[13px] text-accent">{k[2]}</div>
             </div>
           ))}
@@ -40,28 +31,20 @@ function SlideInner({ raw }: { raw: (typeof slides)[number] }) {
       </div>
     );
   }
-  if (raw.k === "chart") {
+  if (raw.k === 'chart') {
     const mx = Math.max(...raw.bars.map((b) => b[1]));
     return (
       <div className="flex h-full flex-col px-[9%] pb-[7%] pt-[8%]">
-        <div className="mb-5 text-[26px] font-extrabold text-[#1b1b1b]">
-          {raw.t}
-        </div>
+        <div className="mb-5 text-[26px] font-extrabold text-[#1b1b1b]">{raw.t}</div>
         <div className="flex flex-1 items-end gap-[22px] border-b-2 border-[#1b1b1b]">
           {raw.bars.map((b, i) => (
-            <div
-              key={b[0]}
-              className="flex h-full flex-1 flex-col items-center justify-end"
-            >
-              <div className="mb-[6px] text-[13px] font-bold text-[#1b1b1b]">
-                {b[1]}
-              </div>
+            <div key={b[0]} className="flex h-full flex-1 flex-col items-center justify-end">
+              <div className="mb-[6px] text-[13px] font-bold text-[#1b1b1b]">{b[1]}</div>
               <div
                 className="w-full rounded-t"
                 style={{
                   height: `${Math.round((b[1] / mx) * 100)}%`,
-                  background:
-                    i === raw.bars.length - 1 ? "var(--n3)" : "var(--accent)",
+                  background: i === raw.bars.length - 1 ? 'var(--n3)' : 'var(--accent)',
                 }}
               />
             </div>
@@ -69,10 +52,7 @@ function SlideInner({ raw }: { raw: (typeof slides)[number] }) {
         </div>
         <div className="mt-2 flex gap-[22px]">
           {raw.bars.map((b) => (
-            <div
-              key={b[0]}
-              className="flex-1 text-center text-[12.5px] text-[#555]"
-            >
+            <div key={b[0]} className="flex-1 text-center text-[12.5px] text-[#555]">
               {b[0]}
             </div>
           ))}
@@ -80,19 +60,14 @@ function SlideInner({ raw }: { raw: (typeof slides)[number] }) {
       </div>
     );
   }
-  if (raw.k === "agenda") {
+  if (raw.k === 'agenda') {
     return (
       <div className="flex h-full flex-col justify-center px-[10%]">
-        <div className="mb-5 text-[26px] font-extrabold text-[#1b1b1b]">
-          {raw.t}
-        </div>
+        <div className="mb-5 text-[26px] font-extrabold text-[#1b1b1b]">{raw.t}</div>
         {raw.items.map((x, i) => (
-          <div
-            key={x}
-            className="flex items-center gap-[14px] border-b border-[#e2e2e2] py-[9px]"
-          >
+          <div key={x} className="flex items-center gap-[14px] border-b border-[#e2e2e2] py-[9px]">
             <span className="w-[26px] text-[15px] font-extrabold text-accent">
-              {String(i + 1).padStart(2, "0")}
+              {String(i + 1).padStart(2, '0')}
             </span>
             <span className="text-[17px] text-[#1b1b1b]">{x}</span>
           </div>
@@ -100,7 +75,7 @@ function SlideInner({ raw }: { raw: (typeof slides)[number] }) {
       </div>
     );
   }
-  if (raw.k === "quote") {
+  if (raw.k === 'quote') {
     return (
       <div className="flex h-full flex-col justify-center px-[11%]">
         <div className="font-serif text-[30px] font-semibold leading-[1.28] text-[#1b1b1b]">
@@ -112,9 +87,7 @@ function SlideInner({ raw }: { raw: (typeof slides)[number] }) {
   }
   return (
     <div className="flex h-full flex-col justify-center bg-accent px-[11%]">
-      <div className="text-[44px] font-extrabold leading-none text-white">
-        {raw.t}
-      </div>
+      <div className="text-[44px] font-extrabold leading-none text-white">{raw.t}</div>
       <div className="mt-[14px] text-[18px] text-white/90">{raw.s}</div>
     </div>
   );
@@ -136,9 +109,9 @@ export function PptxBody() {
       <div className="oo-scroll flex flex-none gap-[9px] overflow-x-auto p-[12px_16px]">
         {slides.map((sl, i) => {
           const label =
-            sl.k === "title" || sl.k === "closing" || sl.k === "quote"
+            sl.k === 'title' || sl.k === 'closing' || sl.k === 'quote'
               ? sl.t.length > 26
-                ? sl.t.slice(0, 24) + "…"
+                ? sl.t.slice(0, 24) + '…'
                 : sl.t
               : sl.t;
           return (
@@ -147,8 +120,8 @@ export function PptxBody() {
               type="button"
               onClick={() => setSlide(i)}
               className={
-                "relative flex h-[63px] w-[112px] flex-none items-center justify-center overflow-hidden rounded-md border bg-white p-0 " +
-                (i === activeSlide ? "border-2 border-accent" : "border-line2")
+                'relative flex h-[63px] w-[112px] flex-none items-center justify-center overflow-hidden rounded-md border bg-white p-0 ' +
+                (i === activeSlide ? 'border-2 border-accent' : 'border-line2')
               }
             >
               <span className="absolute left-[6px] top-[3px] text-[9px] font-bold text-[#999]">

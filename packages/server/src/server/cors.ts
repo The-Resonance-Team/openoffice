@@ -1,4 +1,4 @@
-import { cors } from "hono/cors";
+import { cors } from 'hono/cors';
 
 /**
  * Browser clients (apps/web) talk to the daemon directly on 127.0.0.1, which
@@ -7,18 +7,18 @@ import { cors } from "hono/cors";
  * permissive default would hand every site a way to drive the daemon.
  */
 export function loadCorsOrigins(): string[] {
-  const raw = process.env.OPENOFFICE_SERVER_CORS_ORIGIN ?? "";
+  const raw = process.env.OPENOFFICE_SERVER_CORS_ORIGIN ?? '';
   return raw
-    .split(",")
+    .split(',')
     .map((o) => o.trim())
-    .filter((o) => o.length > 0 && o !== "*");
+    .filter((o) => o.length > 0 && o !== '*');
 }
 
 export function createCorsMiddleware(origins: string[]) {
   return cors({
     origin: origins,
-    allowHeaders: ["Content-Type", "Authorization"],
-    allowMethods: ["GET", "POST", "OPTIONS"],
+    allowHeaders: ['Content-Type', 'Authorization'],
+    allowMethods: ['GET', 'POST', 'OPTIONS'],
     maxAge: 600,
   });
 }

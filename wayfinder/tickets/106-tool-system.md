@@ -13,45 +13,44 @@ Implement the tool system — how tools are defined, registered, and executed by
 ### Tool definition
 
 ```ts
-import { z } from "zod/v4"
+import { z } from 'zod/v4';
 
 interface ToolDefinition {
-  name: string
-  description: string
-  parameters: z.ZodType<any>
-  execute: (params: any) => Promise<ToolResult>
+  name: string;
+  description: string;
+  parameters: z.ZodType<any>;
+  execute: (params: any) => Promise<ToolResult>;
 }
 
-type ToolResult = 
-  | { success: true; output: string; data?: any }
-  | { success: false; error: string; code?: string }
+type ToolResult =
+  { success: true; output: string; data?: any } | { success: false; error: string; code?: string };
 ```
 
 ### Tool registry
 
 ```ts
 class ToolRegistry {
-  private tools = new Map<string, ToolDefinition>()
-  
+  private tools = new Map<string, ToolDefinition>();
+
   register(tool: ToolDefinition): void {
-    this.tools.set(tool.name, tool)
+    this.tools.set(tool.name, tool);
   }
-  
+
   get(name: string): ToolDefinition | undefined {
-    return this.tools.get(name)
+    return this.tools.get(name);
   }
-  
+
   list(): ToolDefinition[] {
-    return Array.from(this.tools.values())
+    return Array.from(this.tools.values());
   }
-  
+
   // Filter tools by agent permissions
   filter(allowedTools: string[]): ToolDefinition[] {
-    return this.list().filter(t => allowedTools.includes(t.name))
+    return this.list().filter((t) => allowedTools.includes(t.name));
   }
 }
 
-export const registry = new ToolRegistry()
+export const registry = new ToolRegistry();
 ```
 
 ### LLM integration
@@ -59,18 +58,18 @@ export const registry = new ToolRegistry()
 Convert tool definitions to Vercel AI SDK format:
 
 ```ts
-import { tool } from "ai"
+import { tool } from 'ai';
 
 function toAITool(def: ToolDefinition) {
   return tool({
     description: def.description,
     parameters: def.parameters,
     execute: async (params) => {
-      const result = await def.execute(params)
-      if (!result.success) throw new Error(result.error)
-      return result.output
-    }
-  })
+      const result = await def.execute(params);
+      if (!result.success) throw new Error(result.error);
+      return result.output;
+    },
+  });
 }
 ```
 

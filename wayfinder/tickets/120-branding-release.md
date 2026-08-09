@@ -20,11 +20,13 @@ Final branding, packaging, and release preparation.
 ### Packaging
 
 **CLI binary**:
+
 ```bash
 bun build src/index.ts --compile --outfile bin/openoffice
 ```
 
 **Desktop app**:
+
 ```bash
 bunx electron-builder  # builds DMG/NSIS/AppImage
 ```

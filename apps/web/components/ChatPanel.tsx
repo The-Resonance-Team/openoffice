@@ -1,9 +1,9 @@
-"use client";
+'use client';
 
-import { useUiStore } from "@/lib/store";
-import type { ChatMessage } from "@/lib/use-session";
-import { Composer } from "./Composer";
-import { Icon, IconFill } from "@/lib/icons";
+import { useUiStore } from '@/lib/store';
+import type { ChatMessage } from '@/lib/use-session';
+import { Composer } from './Composer';
+import { Icon, IconFill } from '@/lib/icons';
 
 export function ChatPanel({
   messages,
@@ -22,17 +22,14 @@ export function ChatPanel({
   const rightRegion = useUiStore((s) => s.rightRegion);
   const toggleSidebar = useUiStore((s) => s.toggleSidebar);
 
-  const sidebarBtnColor =
-    !viewerOpen && rightRegion === "sidebar" ? "text-ink" : "text-muted";
+  const sidebarBtnColor = !viewerOpen && rightRegion === 'sidebar' ? 'text-ink' : 'text-muted';
 
   return (
     <section className="flex min-w-0 flex-1 flex-col bg-bg">
       <header className="relative flex flex-none items-center gap-[10px] px-4 pb-3 pt-2">
         <div className="flex-1" />
         <button className="flex max-w-full items-center gap-[7px] rounded-lg px-3 py-[7px] text-ink hover:bg-panel2">
-          <span className="oo-el text-[14.5px] font-semibold">
-            Q3 board report &amp; model
-          </span>
+          <span className="oo-el text-[14.5px] font-semibold">Q3 board report &amp; model</span>
           <span className="text-faint">
             <Icon name="chevronDown" size={16} />
           </span>
@@ -57,7 +54,7 @@ export function ChatPanel({
             </div>
           )}
           {messages.map((m, i) =>
-            m.role === "user" ? (
+            m.role === 'user' ? (
               <div key={i} className="flex justify-end">
                 <div className="max-w-[80%] rounded-[18px] rounded-br-[6px] border border-line bg-panel px-[17px] py-[13px] text-[15px] leading-[1.6]">
                   {m.content}
@@ -68,7 +65,7 @@ export function ChatPanel({
                 <div
                   className="mt-[2px] grid h-7 w-7 flex-none place-items-center rounded-lg text-white"
                   style={{
-                    background: "linear-gradient(135deg,#ff7a5e,#c21f07)",
+                    background: 'linear-gradient(135deg,#ff7a5e,#c21f07)',
                   }}
                 >
                   <IconFill name="sparkles" size={15} />
@@ -77,14 +74,14 @@ export function ChatPanel({
                   {m.content}
                 </div>
               </div>
-            )
+            ),
           )}
           {streaming && (
             <div className="flex gap-[14px]">
               <div
                 className="mt-[2px] grid h-7 w-7 flex-none place-items-center rounded-lg text-white"
                 style={{
-                  background: "linear-gradient(135deg,#ff7a5e,#c21f07)",
+                  background: 'linear-gradient(135deg,#ff7a5e,#c21f07)',
                 }}
               >
                 <IconFill name="sparkles" size={15} />

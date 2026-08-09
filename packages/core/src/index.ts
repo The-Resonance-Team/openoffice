@@ -2,30 +2,25 @@
 // this surface only. Domains inside stay deep modules: intra-package imports
 // reach domains only through their root entry files, never subfolder internals.
 
-export type { Agent } from "./agent";
-export { AgentRegistry, evaluate, fromConfig, merge } from "./agent";
-export type { Ruleset, Rule, Action } from "./agent";
+export type { Agent } from './agent';
+export { AgentRegistry, evaluate, fromConfig, merge } from './agent';
+export type { Ruleset, Rule, Action } from './agent';
 
-export { CredentialStore } from "./auth/store";
-export type { ApiCredential } from "./auth/store";
-export { login } from "./auth/login";
+export { CredentialStore } from './auth/store';
+export type { ApiCredential } from './auth/store';
+export { login } from './auth/login';
 
-export {
-  ConfigSchema,
-  resolveConfig,
-  collectEnvValues,
-  shareMode,
-} from "./config";
-export type { Config, ResolveOptions, ShareMode } from "./config";
+export { ConfigSchema, resolveConfig, collectEnvValues, shareMode } from './config';
+export type { Config, ResolveOptions, ShareMode } from './config';
 export {
   stripJsonc,
   applyEnvOverrides,
   findProjectConfig,
   loadConfigFiles,
   mergeLayers,
-} from "./config/loader";
+} from './config/loader';
 
-export { DraftManager, filePathHash, LOCKED_ERROR, LockManager } from "./draft";
+export { DraftManager, filePathHash, LOCKED_ERROR, LockManager } from './draft';
 export type {
   DraftMeta,
   DraftManagerDeps,
@@ -33,16 +28,16 @@ export type {
   AcceptResult,
   LockInfo,
   AcquireResult,
-} from "./draft";
+} from './draft';
 
-export { on, emit, setSensitiveValues } from "./events";
-export type { EventMap } from "./events";
+export { on, emit, setSensitiveValues } from './events';
+export type { EventMap } from './events';
 
-export { HistoryStore } from "./history";
-export type { AcceptPoint } from "./history";
+export { HistoryStore } from './history';
+export type { AcceptPoint } from './history';
 
-export { ShareStore } from "./share";
-export { shareViewerPage } from "./share";
+export { ShareStore } from './share';
+export { shareViewerPage } from './share';
 
 export {
   resolveModel,
@@ -55,14 +50,8 @@ export {
   splitModel,
   maxOutputTokens,
   discoverLocalModels,
-} from "./llm";
-export type {
-  ChatOptions,
-  CompleteOptions,
-  Model,
-  ModelLimits,
-  DiscoveredModel,
-} from "./llm";
+} from './llm';
+export type { ChatOptions, CompleteOptions, Model, ModelLimits, DiscoveredModel } from './llm';
 
 export {
   McpManager,
@@ -70,7 +59,7 @@ export {
   planMcpConnections,
   normalizeMcpResult,
   normalizeMcpContents,
-} from "./mcp";
+} from './mcp';
 export type {
   McpClient,
   McpConfig,
@@ -81,7 +70,7 @@ export type {
   McpServerStatus,
   McpServerStatusInfo,
   McpResourceContent,
-} from "./mcp";
+} from './mcp';
 
 export {
   createOfficeCliTool,
@@ -90,8 +79,8 @@ export {
   parseError,
   checkInstalled,
   resetCache,
-} from "./office";
-export type { OfficeCliDeps } from "./office";
+} from './office';
+export type { OfficeCliDeps } from './office';
 
 export {
   SessionStore,
@@ -113,7 +102,7 @@ export {
   PRUNE_MINIMUM,
   PRUNE_PROTECT,
   SUMMARY_OUTPUT_TOKENS,
-} from "./session";
+} from './session';
 export type {
   Session,
   RunTurnOptions,
@@ -130,15 +119,10 @@ export type {
   ModelRef,
   TokenUsage,
   ToolState,
-} from "./session";
+} from './session';
 
-export {
-  loadSkill,
-  listSkills,
-  formatSkillList,
-  createSkillTool,
-} from "./skills";
-export type { Skill } from "./skills";
+export { loadSkill, listSkills, formatSkillList, createSkillTool } from './skills';
+export type { Skill } from './skills';
 
 export {
   ToolRegistry,
@@ -150,11 +134,5 @@ export {
   createQuestionTool,
   createConvertTool,
   createTodoTool,
-} from "./tool";
-export type {
-  ToolDefinition,
-  ToolResult,
-  ReadDeps,
-  QuestionDeps,
-  ConvertDeps,
-} from "./tool";
+} from './tool';
+export type { ToolDefinition, ToolResult, ReadDeps, QuestionDeps, ConvertDeps } from './tool';

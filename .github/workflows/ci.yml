@@ -70,7 +70,7 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun run turbo run build --filter=web
         env:
-          NEXT_PUBLIC_OPENOFFICE_SERVER_PORT: "9999"
+          NEXT_PUBLIC_OPENOFFICE_SERVER_PORT: '9999'
 
   unit:
     runs-on: self-hosted
@@ -115,7 +115,7 @@ jobs:
           POSTGRES_PASSWORD: openoffice
           POSTGRES_DB: openoffice_cloud
         ports:
-          - "5435:5432"
+          - '5435:5432'
         options: >-
           --health-cmd "pg_isready -U openoffice -d openoffice_cloud"
           --health-interval 5s

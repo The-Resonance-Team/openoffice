@@ -1,24 +1,24 @@
-'use client'
+'use client';
 
-import { useState } from 'react'
-import { Toast } from '@/components/AccountView'
+import { useState } from 'react';
+import { Toast } from '@/components/AccountView';
 
 const card: React.CSSProperties = {
   background: 'var(--panel)',
   border: '1px solid var(--border)',
   borderRadius: 18,
   boxShadow: 'var(--shadow)',
-}
+};
 
 export function SettingsView() {
-  const [notif, setNotif] = useState(true)
-  const [updates, setUpdates] = useState(false)
-  const [role, setRole] = useState('Owner')
-  const [toast, setToast] = useState<string | null>(null)
+  const [notif, setNotif] = useState(true);
+  const [updates, setUpdates] = useState(false);
+  const [role, setRole] = useState('Owner');
+  const [toast, setToast] = useState<string | null>(null);
 
   function showToast(t: string) {
-    setToast(t)
-    setTimeout(() => setToast(null), 2600)
+    setToast(t);
+    setTimeout(() => setToast(null), 2600);
   }
 
   return (
@@ -54,10 +54,10 @@ export function SettingsView() {
           detail="Session, security and billing alerts."
           bottom
         >
-          <Toggle on={notif} onToggle={() => setNotif((n) => !n)} />
+          <Toggle on={notif} onToggle={() => setNotif((n) => !n)} label="Email notifications" />
         </SettingRow>
         <SettingRow title="Product updates" detail="Occasional news about what's new." bottom>
-          <Toggle on={updates} onToggle={() => setUpdates((u) => !u)} />
+          <Toggle on={updates} onToggle={() => setUpdates((u) => !u)} label="Product updates" />
         </SettingRow>
         <SettingRow
           title="Two-factor authentication"
@@ -105,6 +105,7 @@ export function SettingsView() {
         <select
           value={role}
           onChange={(e) => setRole(e.target.value)}
+          aria-label="View as role"
           style={{
             flex: 'none',
             background: 'var(--bg)',
@@ -113,7 +114,6 @@ export function SettingsView() {
             borderRadius: 8,
             padding: '8px 11px',
             fontSize: 13,
-            outline: 'none',
             cursor: 'pointer',
           }}
         >
@@ -164,7 +164,7 @@ export function SettingsView() {
 
       {toast && <Toast text={toast} />}
     </div>
-  )
+  );
 }
 
 function SettingRow({
@@ -173,10 +173,10 @@ function SettingRow({
   bottom,
   children,
 }: {
-  title: string
-  detail: string
-  bottom?: boolean
-  children: React.ReactNode
+  title: string;
+  detail: string;
+  bottom?: boolean;
+  children: React.ReactNode;
 }) {
   return (
     <div
@@ -194,12 +194,15 @@ function SettingRow({
       </div>
       {children}
     </div>
-  )
+  );
 }
 
-function Toggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
+function Toggle({ on, onToggle, label }: { on: boolean; onToggle: () => void; label: string }) {
   return (
     <button
+      role="switch"
+      aria-checked={on}
+      aria-label={label}
       onClick={onToggle}
       style={{
         width: 42,
@@ -223,5 +226,5 @@ function Toggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
         }}
       />
     </button>
-  )
+  );
 }

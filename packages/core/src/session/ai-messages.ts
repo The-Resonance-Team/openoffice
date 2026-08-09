@@ -3,8 +3,8 @@
 // `convertToModelMessages`; we emit ModelMessage directly (openoffice stores
 // parts and hands ModelMessages to the AI SDK).
 
-import type { ModelMessage, TextPart, ToolCallPart, ToolResultPart } from "ai";
-import type { CompactionPart, Part, ToolPart, WithParts } from "./parts";
+import type { ModelMessage, TextPart, ToolCallPart, ToolResultPart } from 'ai';
+import type { CompactionPart, Part, ToolPart, WithParts } from './parts';
 
 const TOOL_OUTPUT_MAX_CHARS = 2_000;
 
@@ -16,11 +16,10 @@ export function truncateToolOutput(text: string, maxChars?: number): string {
 
 // ponytail: narrow union matching @ai-sdk/provider-utils' ToolResultOutput,
 // limited to the variants the parts model produces; not re-exported by `ai`.
-type ToolResultOutput =
-  { type: "text"; value: string } | { type: "error-text"; value: string };
+type ToolResultOutput = { type: 'text'; value: string } | { type: 'error-text'; value: string };
 
 function input(value: string | Record<string, unknown>): unknown {
-  if (typeof value !== "string") return value;
+  if (typeof value !== 'string') return value;
   try {
     return JSON.parse(value);
   } catch {
@@ -28,13 +27,10 @@ function input(value: string | Record<string, unknown>): unknown {
   }
 }
 
-function toolResultPart(
-  part: ToolPart,
-  output: ToolResultOutput
-): ToolResultPart {
+function toolResultPart(part: ToolPart, output: ToolResultOutput): ToolResultPart {
   return {
-    type: "tool-result",
-    toolCallId: part.callID ?? "",
+    type: 'tool-result',
+    toolCallId: part.callID ?? '',
     toolName: part.tool,
     output,
   };
@@ -46,7 +42,7 @@ export interface ToModelMessagesOptions {
 
 export function toModelMessages(
   messages: WithParts[],
-  options: ToModelMessagesOptions = {}
+  options: ToModelMessagesOptions = {},
 ): ModelMessage[] {
   const maxChars = options.toolOutputMaxChars ?? TOOL_OUTPUT_MAX_CHARS;
   const result: ModelMessage[] = [];
@@ -54,54 +50,53 @@ export function toModelMessages(
   for (const msg of messages) {
     if (msg.parts.length === 0) continue;
 
-    if (msg.info.role === "user") {
+    if (msg.info.role === 'user') {
       const content: TextPart[] = [];
       for (const part of msg.parts) {
-        if (part.type === "text" && part.text !== "") {
-          content.push({ type: "text", text: part.text });
+        if (part.type === 'text' && part.text !== '') {
+          content.push({ type: 'text', text: part.text });
         }
-        if (part.type === "compaction") {
-          content.push({ type: "text", text: "What did we do so far?" });
+        if (part.type === 'compaction') {
+          content.push({ type: 'text', text: 'What did we do so far?' });
         }
       }
-      if (content.length > 0) result.push({ role: "user", content });
+      if (content.length > 0) result.push({ role: 'user', content });
       continue;
     }
 
-    if (msg.info.role === "assistant") {
+    if (msg.info.role === 'assistant') {
       if (msg.info.error) continue;
       const content: Array<TextPart | ToolCallPart> = [];
       const toolResults: ToolResultPart[] = [];
       for (const part of msg.parts) {
-        if (part.type === "text") {
-          content.push({ type: "text", text: part.text });
+        if (part.type === 'text') {
+          content.push({ type: 'text', text: part.text });
         }
-        if (part.type === "tool") {
+        if (part.type === 'tool') {
           content.push({
-            type: "tool-call",
-            toolCallId: part.callID ?? "",
+            type: 'tool-call',
+            toolCallId: part.callID ?? '',
             toolName: part.tool,
             input: input(part.state.input),
           });
-          if (part.state.status === "completed") {
+          if (part.state.status === 'completed') {
             const value = part.state.time?.compacted
-              ? "[Old tool result content cleared]"
+              ? '[Old tool result content cleared]'
               : truncateToolOutput(part.state.output, maxChars);
-            toolResults.push(toolResultPart(part, { type: "text", value }));
-          } else if (part.state.status === "error") {
+            toolResults.push(toolResultPart(part, { type: 'text', value }));
+          } else if (part.state.status === 'error') {
             toolResults.push(
               toolResultPart(part, {
-                type: "error-text",
+                type: 'error-text',
                 value: part.state.error.message,
-              })
+              }),
             );
           }
         }
       }
       if (content.length > 0) {
-        result.push({ role: "assistant", content });
-        for (const r of toolResults)
-          result.push({ role: "tool", content: [r] });
+        result.push({ role: 'assistant', content });
+        for (const r of toolResults) result.push({ role: 'tool', content: [r] });
       }
     }
   }
@@ -117,18 +112,17 @@ export function toModelMessages(
 export function filterCompacted(msgs: WithParts[]): WithParts[] {
   const compactionIndex = msgs.findLastIndex(
     (msg) =>
-      msg.info.role === "user" &&
+      msg.info.role === 'user' &&
       msg.parts.some(
         (part): part is CompactionPart =>
-          part.type === "compaction" && part.tail_start_id !== undefined
-      )
+          part.type === 'compaction' && part.tail_start_id !== undefined,
+      ),
   );
   if (compactionIndex < 0) return msgs;
 
   const compaction = msgs[compactionIndex];
   const part = compaction.parts.find(
-    (p): p is CompactionPart =>
-      p.type === "compaction" && p.tail_start_id !== undefined
+    (p): p is CompactionPart => p.type === 'compaction' && p.tail_start_id !== undefined,
   );
   const tail = part?.tail_start_id;
   if (!tail) return msgs;
@@ -136,9 +130,9 @@ export function filterCompacted(msgs: WithParts[]): WithParts[] {
   const summaryIndex = msgs.findIndex(
     (msg, index) =>
       index > compactionIndex &&
-      msg.info.role === "assistant" &&
+      msg.info.role === 'assistant' &&
       msg.info.summary &&
-      msg.info.parentID === compaction.info.id
+      msg.info.parentID === compaction.info.id,
   );
   if (summaryIndex < 0) return msgs;
 

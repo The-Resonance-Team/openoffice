@@ -1,15 +1,16 @@
-import type { Metadata } from 'next'
-import Link from 'next/link'
+import type { Metadata } from 'next';
+import Link from 'next/link';
 
 export const metadata: Metadata = {
   title: 'openoffice — Get office work done with agents you can watch',
   description:
     'Draft decks, reconcile spreadsheets, summarize contracts and clear the inbox — while every step streams live and every change waits for your approval.',
-}
+};
 
 export default function LandingPage() {
   return (
     <main
+      id="main"
       style={{
         flex: 1,
         display: 'flex',
@@ -189,5 +190,5 @@ export default function LandingPage() {
         </div>
       </div>
     </main>
-  )
+  );
 }

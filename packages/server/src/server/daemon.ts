@@ -1,11 +1,11 @@
-import { execFileSync, spawn } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { homedir } from "node:os";
-import { basename, dirname, join } from "node:path";
-import { exiftool } from "exiftool-vendored";
-import { randomUUID } from "node:crypto";
-import { toMarkdown } from "@firecrawl/anydoc";
-import { readPdf } from "../read-pdf";
+import { execFileSync, spawn } from 'node:child_process';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { basename, dirname, join } from 'node:path';
+import { exiftool } from 'exiftool-vendored';
+import { randomUUID } from 'node:crypto';
+import { toMarkdown } from '@firecrawl/anydoc';
+import { readPdf } from '../read-pdf';
 import {
   resolveConfig,
   SessionStore,
@@ -38,22 +38,17 @@ import {
   findProjectConfig,
   loadConfigFiles,
   mergeLayers,
-} from "@openoffice/core";
-import {
-  AskChannel,
-  createApp,
-  endSession,
-  type SessionRuntime,
-} from "./index";
-import { checkForUpdate } from "../update";
-import { VERSION } from "../version";
-import { loadAuthConfig, authRequired } from "./auth";
-import { loadCorsOrigins } from "./cors";
-import { readDocumentSearchData } from "../document-search";
+} from '@openoffice/core';
+import { AskChannel, createApp, endSession, type SessionRuntime } from './index';
+import { checkForUpdate } from '../update';
+import { VERSION } from '../version';
+import { loadAuthConfig, authRequired } from './auth';
+import { loadCorsOrigins } from './cors';
+import { readDocumentSearchData } from '../document-search';
 
-import { getDataDir } from "../data-dir";
+import { getDataDir } from '../data-dir';
 
-export { getDataDir } from "../data-dir";
+export { getDataDir } from '../data-dir';
 
 interface DaemonInfo {
   pid: number;
@@ -61,14 +56,14 @@ interface DaemonInfo {
 }
 
 function daemonInfoPath(dataDir: string): string {
-  return join(dataDir, "daemon.json");
+  return join(dataDir, 'daemon.json');
 }
 
 export function readDaemonInfo(dataDir: string): DaemonInfo | null {
   const path = daemonInfoPath(dataDir);
   if (!existsSync(path)) return null;
   try {
-    return JSON.parse(readFileSync(path, "utf-8")) as DaemonInfo;
+    return JSON.parse(readFileSync(path, 'utf-8')) as DaemonInfo;
   } catch {
     return null;
   }
@@ -86,9 +81,9 @@ export function isAlive(pid: number): boolean {
 /** Spawn a detached daemon and wait until its port file appears. */
 export async function spawnDaemon(dataDir = getDataDir()): Promise<DaemonInfo> {
   const entry = process.argv[1];
-  spawn(process.execPath, [entry, "serve"], {
+  spawn(process.execPath, [entry, 'serve'], {
     detached: true,
-    stdio: "ignore",
+    stdio: 'ignore',
     cwd: process.cwd(),
   }).unref();
 
@@ -97,7 +92,7 @@ export async function spawnDaemon(dataDir = getDataDir()): Promise<DaemonInfo> {
     const info = readDaemonInfo(dataDir);
     if (info && isAlive(info.pid)) return info;
   }
-  throw new Error("daemon did not start");
+  throw new Error('daemon did not start');
 }
 
 export interface DaemonHandle {
@@ -110,14 +105,14 @@ const DEFAULT_SWEEP_INTERVAL_MS = 60 * 60 * 1000; // hourly; the threshold itsel
 export async function startDaemon(
   options: {
     sweepIntervalMs?: number;
-  } = {}
+  } = {},
 ): Promise<DaemonHandle> {
   const { sweepIntervalMs = DEFAULT_SWEEP_INTERVAL_MS } = options;
   const dataDir = getDataDir();
   mkdirSync(dataDir, { recursive: true });
 
   const config = resolveConfig();
-  const store = new SessionStore(join(dataDir, "openoffice.db"));
+  const store = new SessionStore(join(dataDir, 'openoffice.db'));
   const history = new HistoryStore(dataDir);
   const askChannel = new AskChannel();
   const shareStore = new ShareStore(store.db);
@@ -128,26 +123,24 @@ export async function startDaemon(
     askUser: (question, sessionID) => askChannel.ask(sessionID, question),
     execOfficeCli: async (args) => {
       try {
-        const stdout = execFileSync("officecli", args, {
-          encoding: "utf-8",
+        const stdout = execFileSync('officecli', args, {
+          encoding: 'utf-8',
           timeout: 30000,
         });
         return { stdout, exitCode: 0 };
       } catch (e: any) {
-        return { stdout: e.stdout ?? "", exitCode: e.status ?? 1 };
+        return { stdout: e.stdout ?? '', exitCode: e.status ?? 1 };
       }
     },
   });
 
   // Daemon-global runtime pieces: skills dir, agents, MCP connections.
   const agentRegistry = new AgentRegistry();
-  const skillsDir = join(process.cwd(), "skills");
+  const skillsDir = join(process.cwd(), 'skills');
   const mcp = new McpManager({ connect: createSdkMcpClient });
   const readDocument = (file: string) => toMarkdown(file);
-  const readMetadata = (file: string) =>
-    exiftool.read(file) as Promise<Record<string, unknown>>;
-  const readSearchData = (file: string) =>
-    readDocumentSearchData(file, readMetadata);
+  const readMetadata = (file: string) => exiftool.read(file) as Promise<Record<string, unknown>>;
+  const readSearchData = (file: string) => readDocumentSearchData(file, readMetadata);
 
   const baseTools: ToolDefinition[] = [
     createDefaultOfficeCliTool({ draftManager }),
@@ -176,27 +169,24 @@ export async function startDaemon(
   const convertDeps = {
     convertFile: async (file: string, format: string) => {
       const dir = dirname(file);
-      execFileSync(
-        "soffice",
-        ["--headless", "--convert-to", format, "--outdir", dir, file],
-        { encoding: "utf-8", timeout: 60000 }
-      );
-      return join(dir, `${basename(file).replace(/\.[^.]+$/, "")}.${format}`);
+      execFileSync('soffice', ['--headless', '--convert-to', format, '--outdir', dir, file], {
+        encoding: 'utf-8',
+        timeout: 60000,
+      });
+      return join(dir, `${basename(file).replace(/\.[^.]+$/, '')}.${format}`);
     },
   };
 
   const { toConnect, skipped, disabled } = planMcpConnections(
     config.mcp,
-    baseTools.map((t) => t.name)
+    baseTools.map((t) => t.name),
   );
   for (const name of skipped) {
     const cfg = config.mcp?.[name];
     if (cfg) {
-      mcp.declare(name, cfg, "provided natively, use the built-in tool");
+      mcp.declare(name, cfg, 'provided natively, use the built-in tool');
     }
-    console.warn(
-      `MCP server "${name}" skipped: provided natively, use the built-in tool`
-    );
+    console.warn(`MCP server "${name}" skipped: provided natively, use the built-in tool`);
   }
   for (const name of disabled) {
     const cfg = config.mcp?.[name];
@@ -207,9 +197,7 @@ export async function startDaemon(
       await mcp.connect(name, mcpConfig);
     } catch (e) {
       // connect() records the error status; the daemon keeps serving the rest.
-      console.warn(
-        `MCP server "${name}" failed to connect: ${e instanceof Error ? e.message : e}`
-      );
+      console.warn(`MCP server "${name}" failed to connect: ${e instanceof Error ? e.message : e}`);
     }
   }
   for (const tool of await mcp.listAllTools()) {
@@ -217,12 +205,12 @@ export async function startDaemon(
       name: mcp.toolName(tool.clientName, tool.name),
       description: tool.description,
       // ponytail: MCP inputSchema is JSON Schema; AI SDK tool() accepts it directly
-      parameters: tool.inputSchema as unknown as ToolDefinition["parameters"],
+      parameters: tool.inputSchema as unknown as ToolDefinition['parameters'],
       execute: (args) => mcp.callTool(tool.clientName, tool.name, args),
     });
   }
 
-  const defaultModel = config.model ?? "anthropic/claude-sonnet-4-20250514";
+  const defaultModel = config.model ?? 'anthropic/claude-sonnet-4-20250514';
   const maxSteps = config.maxSteps ?? 50;
   const defaultAgent = agentRegistry.getDefault();
 
@@ -232,27 +220,24 @@ export async function startDaemon(
     if (cached) return cached;
 
     const registry = new ToolRegistry();
-    const filtered = agentRegistry.filterTools(
-      baseTools,
-      defaultAgent.permission
-    );
+    const filtered = agentRegistry.filterTools(baseTools, defaultAgent.permission);
     for (const tool of filtered) registry.register(tool);
     registry.register(
       createQuestionTool({
         askUser: (q) => askChannel.ask(session.id, q),
-      })
+      }),
     );
     registry.register(
       createConvertTool({
         askUser: (q) => askChannel.ask(session.id, q),
         ...convertDeps,
-      })
+      }),
     );
     registry.register(
       createTodoTool({
         getTodos: (sessionID) => store.getTodos(sessionID),
         setTodos: (sessionID, todos) => store.setTodos(sessionID, todos),
-      })
+      }),
     );
 
     const runtime: SessionRuntime = {
@@ -272,7 +257,7 @@ export async function startDaemon(
   const corsOrigins = loadCorsOrigins();
   if (corsOrigins.length > 0 && !authRequired(authConfig)) {
     console.warn(
-      `warning: CORS is enabled for ${corsOrigins.join(", ")} but no OPENOFFICE_SERVER_PASSWORD is set — those origins can drive this daemon unauthenticated.`
+      `warning: CORS is enabled for ${corsOrigins.join(', ')} but no OPENOFFICE_SERVER_PASSWORD is set — those origins can drive this daemon unauthenticated.`,
     );
   }
 
@@ -292,7 +277,7 @@ export async function startDaemon(
         id: randomUUID(),
         agent: defaultAgent.name,
         model: defaultModel,
-        title: "",
+        title: '',
         cwd,
         messages: [],
         createdAt: now,
@@ -300,12 +285,7 @@ export async function startDaemon(
       };
     },
     buildRuntime,
-    runTurn: (
-      session: Session,
-      message: string,
-      runtime: SessionRuntime,
-      s: SessionStore
-    ) =>
+    runTurn: (session: Session, message: string, runtime: SessionRuntime, s: SessionStore) =>
       runTurn({
         session,
         userMessage: message,
@@ -328,24 +308,22 @@ export async function startDaemon(
 
   // Collect sensitive values from env:-resolved config for event redaction.
   const env = process.env;
-  const globalPath = join(homedir(), ".config", "openoffice", "config.json");
+  const globalPath = join(homedir(), '.config', 'openoffice', 'config.json');
   const projectPath = findProjectConfig(process.cwd());
   const layers = loadConfigFiles(globalPath, projectPath);
   const rawConfig = mergeLayers([{}, ...layers]);
   const sensitiveSet = collectEnvValues(applyEnvOverrides(rawConfig, env), env);
   // Also collect stored credentials from auth.json.
   try {
-    const { CredentialStore } = await import("@openoffice/core");
+    const { CredentialStore } = await import('@openoffice/core');
     const store = new CredentialStore();
     for (const provider of store.list()) {
       const cred = store.get(provider);
       if (!cred) continue;
-      if (cred.type === "api" && cred.key.length >= 8)
-        sensitiveSet.add(cred.key);
-      if (cred.type === "oauth") {
+      if (cred.type === 'api' && cred.key.length >= 8) sensitiveSet.add(cred.key);
+      if (cred.type === 'oauth') {
         if (cred.access.length >= 8) sensitiveSet.add(cred.access);
-        if (cred.refresh && cred.refresh.length >= 8)
-          sensitiveSet.add(cred.refresh);
+        if (cred.refresh && cred.refresh.length >= 8) sensitiveSet.add(cred.refresh);
       }
     }
   } catch {
@@ -356,15 +334,12 @@ export async function startDaemon(
   // 0 lets the OS pick and the port file is the source of truth; a browser
   // client cannot read that file, so it needs a fixed port it can be told.
   const server = Bun.serve({
-    hostname: "127.0.0.1",
+    hostname: '127.0.0.1',
     fetch: app.fetch,
     port: Number(process.env.OPENOFFICE_SERVER_PORT ?? 0) || 0,
   });
 
-  writeFileSync(
-    daemonInfoPath(dataDir),
-    JSON.stringify({ pid: process.pid, port: server.port! })
-  );
+  writeFileSync(daemonInfoPath(dataDir), JSON.stringify({ pid: process.pid, port: server.port! }));
 
   // Daemon exit: orphan every live session's drafts (they are abandoned by definition).
   const sweep = async () => {
@@ -372,11 +347,11 @@ export async function startDaemon(
       await draftManager.orphanAll(session.id);
     }
   };
-  process.on("SIGTERM", async () => {
+  process.on('SIGTERM', async () => {
     await sweep();
     process.exit(0);
   });
-  process.on("SIGINT", async () => {
+  process.on('SIGINT', async () => {
     await sweep();
     process.exit(0);
   });

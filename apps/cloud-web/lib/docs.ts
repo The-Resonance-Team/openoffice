@@ -3,29 +3,29 @@
 // docs ever need authoring outside the build.
 
 export interface DocBlock {
-  h: string
-  p: string
+  h: string;
+  p: string;
 }
 
 export interface Release {
-  date: string
-  dateShort: string
-  version: string
-  tag: 'New' | 'Improved' | 'Fixed'
-  h: string
-  p: string
+  date: string;
+  dateShort: string;
+  version: string;
+  tag: 'New' | 'Improved' | 'Fixed';
+  h: string;
+  p: string;
 }
 
-export type DocSection = 'Getting Started' | 'Working with agents' | 'Reference'
+export type DocSection = 'Getting Started' | 'Working with agents' | 'Reference';
 
 export interface Doc {
-  id: string
-  section: DocSection
-  title: string
-  lede: string
-  changelog?: boolean
-  blocks?: DocBlock[]
-  releases?: Release[]
+  id: string;
+  section: DocSection;
+  title: string;
+  lede: string;
+  changelog?: boolean;
+  blocks?: DocBlock[];
+  releases?: Release[];
 }
 
 export const DOCS: Doc[] = [
@@ -230,26 +230,26 @@ export const DOCS: Doc[] = [
       },
     ],
   },
-]
+];
 
-export const DOC_SECTIONS: DocSection[] = ['Getting Started', 'Working with agents', 'Reference']
+export const DOC_SECTIONS: DocSection[] = ['Getting Started', 'Working with agents', 'Reference'];
 
 export function docHref(id: string): string {
-  if (id === 'changelog') return '/changelog'
-  if (id === 'docs') return '/docs'
-  return `/docs/${id}`
+  if (id === 'changelog') return '/changelog';
+  if (id === 'docs') return '/docs';
+  return `/docs/${id}`;
 }
 
 export function findDoc(id: string): Doc | undefined {
-  return DOCS.find((d) => d.id === id)
+  return DOCS.find((d) => d.id === id);
 }
 
 const TAG_STYLE: Record<Release['tag'], { color: string; bg: string }> = {
   New: { color: 'var(--green)', bg: '#26c1651f' },
   Improved: { color: 'var(--accent)', bg: 'var(--accent-soft)' },
   Fixed: { color: 'var(--amber)', bg: '#e0a13a1f' },
-}
+};
 
 export function tagStyle(tag: Release['tag']) {
-  return TAG_STYLE[tag]
+  return TAG_STYLE[tag];
 }

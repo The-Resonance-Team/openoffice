@@ -1,12 +1,12 @@
-'use client'
+'use client';
 
-import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 
 export function PublicHeader() {
-  const pathname = usePathname()
-  const isDocs = pathname?.startsWith('/docs')
-  const isChangelog = pathname?.startsWith('/changelog')
+  const pathname = usePathname();
+  const isDocs = pathname?.startsWith('/docs');
+  const isChangelog = pathname?.startsWith('/changelog');
 
   return (
     <header
@@ -82,5 +82,5 @@ export function PublicHeader() {
         </Link>
       </div>
     </header>
-  )
+  );
 }

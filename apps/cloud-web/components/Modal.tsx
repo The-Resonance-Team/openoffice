@@ -1,12 +1,57 @@
+'use client';
+
+import { useEffect, useEffectEvent, useRef } from 'react';
+
 export function Modal({
   title,
   children,
   onClose,
 }: {
-  title: string
-  children: React.ReactNode
-  onClose: () => void
+  title: string;
+  children: React.ReactNode;
+  onClose: () => void;
 }) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  // 8.3/8.4: keep the effect subscribed once — parents pass fresh inline
+  // onClose closures on every render, which would re-run the focus trap and
+  // body-overflow toggle (and refocus the panel) on each keystroke.
+  const onCloseEvent = useEffectEvent(onClose);
+
+  useEffect(() => {
+    const panel = panelRef.current;
+    const prev = document.activeElement as HTMLElement | null;
+    document.body.style.overflow = 'hidden';
+    panel?.focus();
+
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        onCloseEvent();
+        return;
+      }
+      if (e.key !== 'Tab' || !panel) return;
+      const focusable = panel.querySelectorAll<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+      );
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    }
+
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = '';
+      prev?.focus();
+    };
+  }, []);
+
   return (
     <div
       style={{
@@ -17,10 +62,12 @@ export function Modal({
         alignItems: 'center',
         justifyContent: 'center',
         padding: 24,
+        overscrollBehavior: 'contain',
       }}
     >
       <div
         onClick={onClose}
+        aria-hidden="true"
         style={{
           position: 'absolute',
           inset: 0,
@@ -29,6 +76,11 @@ export function Modal({
         }}
       />
       <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        tabIndex={-1}
         className="fade-up"
         style={{
           position: 'relative',
@@ -47,7 +99,7 @@ export function Modal({
         {children}
       </div>
     </div>
-  )
+  );
 }
 
 export function FieldLabel({ htmlFor, children }: { htmlFor: string; children: React.ReactNode }) {
@@ -66,7 +118,7 @@ export function FieldLabel({ htmlFor, children }: { htmlFor: string; children: R
     >
       {children}
     </label>
-  )
+  );
 }
 
 export const textInputStyle: React.CSSProperties = {
@@ -77,7 +129,7 @@ export const textInputStyle: React.CSSProperties = {
   borderRadius: 8,
   padding: '10px 12px',
   fontSize: 14,
-}
+};
 
 export function ModalActions({
   onCancel,
@@ -85,10 +137,10 @@ export function ModalActions({
   onSubmit,
   disabled,
 }: {
-  onCancel?: () => void
-  cta: string
-  onSubmit: () => void
-  disabled?: boolean
+  onCancel?: () => void;
+  cta: string;
+  onSubmit: () => void;
+  disabled?: boolean;
 }) {
   return (
     <div style={{ display: 'flex', gap: 9, justifyContent: 'flex-end', marginTop: 22 }}>
@@ -128,5 +180,5 @@ export function ModalActions({
         {cta}
       </button>
     </div>
-  )
+  );
 }

@@ -1,66 +1,64 @@
-'use client'
+'use client';
 
-import { useEffect, useRef, useState } from 'react'
-import Link from 'next/link'
-import { DOCS, DOC_SECTIONS, docHref, tagStyle, type Doc } from '@/lib/docs'
+import { useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
+import { DOCS, DOC_SECTIONS, docHref, tagStyle, type Doc } from '@/lib/docs';
 
 export function DocsShell({ doc }: { doc: Doc }) {
-  const [query, setQuery] = useState('')
-  const isChangelogPage = !!doc.changelog
-  const q = query.trim().toLowerCase()
+  const [query, setQuery] = useState('');
+  const isChangelogPage = !!doc.changelog;
+  const q = query.trim().toLowerCase();
 
-  const navGroups = DOC_SECTIONS.map((section) => ({
-    section,
-    items: DOCS.filter((d) => d.section === section && (!q || d.title.toLowerCase().includes(q))),
-  })).filter((g) => g.items.length)
+  const navGroups = useMemo(
+    () =>
+      DOC_SECTIONS.map((section) => ({
+        section,
+        items: DOCS.filter(
+          (d) => d.section === section && (!q || d.title.toLowerCase().includes(q)),
+        ),
+      })).filter((g) => g.items.length),
+    [q],
+  );
 
-  const idx = DOCS.findIndex((d) => d.id === doc.id)
-  const prev = idx > 0 ? DOCS[idx - 1] : null
-  const next = idx >= 0 && idx < DOCS.length - 1 ? DOCS[idx + 1] : null
+  const idx = DOCS.findIndex((d) => d.id === doc.id);
+  const prev = idx > 0 ? DOCS[idx - 1] : null;
+  const next = idx >= 0 && idx < DOCS.length - 1 ? DOCS[idx + 1] : null;
 
   const tocItems = isChangelogPage
     ? (doc.releases ?? []).map((rl, i) => ({
         label: `${rl.version}  ·  ${rl.dateShort}`,
         id: `doc-sec-${i}`,
       }))
-    : (doc.blocks ?? []).map((b, i) => ({ label: b.h, id: `doc-sec-${i}` }))
+    : (doc.blocks ?? []).map((b, i) => ({ label: b.h, id: `doc-sec-${i}` }));
 
-  const secIds = tocItems.map((t) => t.id)
-  const [activeSec, setActiveSec] = useState<string | null>(null)
-  const rafRef = useRef<number | null>(null)
+  const secIds = tocItems.map((t) => t.id);
+  const [activeSec, setActiveSec] = useState<string | null>(null);
+  const rafRef = useRef<number | null>(null);
 
   useEffect(() => {
-    if (!secIds.length) return
+    if (!secIds.length) return;
     function onScroll() {
-      if (rafRef.current != null) return
+      if (rafRef.current != null) return;
       rafRef.current = requestAnimationFrame(() => {
-        rafRef.current = null
-        const y = window.scrollY + 100
-        let cur = secIds[0]
+        rafRef.current = null;
+        const y = window.scrollY + 100;
+        let cur = secIds[0];
         for (const id of secIds) {
-          const el = document.getElementById(id)
-          if (el && el.getBoundingClientRect().top + window.scrollY <= y) cur = id
+          const el = document.getElementById(id);
+          if (el && el.getBoundingClientRect().top + window.scrollY <= y) cur = id;
         }
-        setActiveSec((prev) => (prev === cur ? prev : cur))
-      })
+        setActiveSec((prev) => (prev === cur ? prev : cur));
+      });
     }
-    window.addEventListener('scroll', onScroll, { passive: true })
+    window.addEventListener('scroll', onScroll, { passive: true });
     return () => {
-      window.removeEventListener('scroll', onScroll)
-      if (rafRef.current != null) cancelAnimationFrame(rafRef.current)
-    }
+      window.removeEventListener('scroll', onScroll);
+      if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [doc.id])
+  }, [doc.id]);
 
-  const activeSecId = activeSec ?? secIds[0]
-
-  function scrollToDoc(id: string) {
-    const el = document.getElementById(id)
-    if (!el) return
-    const y = el.getBoundingClientRect().top + window.scrollY - 84
-    window.scrollTo({ top: y, behavior: 'smooth' })
-    setActiveSec(id)
-  }
+  const activeSecId = activeSec ?? secIds[0];
 
   return (
     <div
@@ -101,6 +99,7 @@ export function DocsShell({ doc }: { doc: Doc }) {
           <input
             name="docs-search"
             aria-label="Search docs"
+            autoComplete="off"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search docs"
@@ -112,7 +111,6 @@ export function DocsShell({ doc }: { doc: Doc }) {
               borderRadius: 8,
               padding: '8px 11px 8px 32px',
               fontSize: 12.5,
-              outline: 'none',
             }}
           />
         </div>
@@ -133,7 +131,7 @@ export function DocsShell({ doc }: { doc: Doc }) {
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                 {grp.items.map((it) => {
-                  const active = it.id === doc.id
+                  const active = it.id === doc.id;
                   return (
                     <Link
                       key={it.id}
@@ -152,7 +150,7 @@ export function DocsShell({ doc }: { doc: Doc }) {
                     >
                       {it.title}
                     </Link>
-                  )
+                  );
                 })}
               </div>
             </div>
@@ -160,7 +158,7 @@ export function DocsShell({ doc }: { doc: Doc }) {
         </nav>
       </aside>
 
-      <main style={{ minWidth: 0, padding: '46px 54px 72px' }}>
+      <main id="main" style={{ minWidth: 0, padding: '46px 54px 72px' }}>
         <div style={{ maxWidth: 720 }}>
           <div
             style={{
@@ -217,7 +215,7 @@ export function DocsShell({ doc }: { doc: Doc }) {
           {isChangelogPage && (
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               {(doc.releases ?? []).map((rl, i) => {
-                const style = tagStyle(rl.tag)
+                const style = tagStyle(rl.tag);
                 return (
                   <div
                     key={i}
@@ -292,7 +290,7 @@ export function DocsShell({ doc }: { doc: Doc }) {
                       {rl.p}
                     </div>
                   </div>
-                )
+                );
               })}
             </div>
           )}
@@ -371,16 +369,12 @@ export function DocsShell({ doc }: { doc: Doc }) {
           }}
         >
           {tocItems.map((t) => {
-            const active = t.id === activeSecId
+            const active = t.id === activeSecId;
             return (
               <a
                 key={t.id}
                 href={`#${t.id}`}
                 className="doc-toc-link"
-                onClick={(e) => {
-                  e.preventDefault()
-                  scrollToDoc(t.id)
-                }}
                 style={{
                   cursor: 'pointer',
                   fontSize: 12.5,
@@ -393,10 +387,10 @@ export function DocsShell({ doc }: { doc: Doc }) {
               >
                 {t.label}
               </a>
-            )
+            );
           })}
         </div>
       </aside>
     </div>
-  )
+  );
 }

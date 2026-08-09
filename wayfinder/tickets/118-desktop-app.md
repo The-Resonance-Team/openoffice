@@ -26,50 +26,51 @@ Renderer Process
 ### What to build
 
 **Main process** (`src/main/index.ts`):
-```ts
-import { app, BrowserWindow, ipcMain, dialog } from "electron"
-import { spawn } from "child_process"
 
-let mainWindow: BrowserWindow
+```ts
+import { app, BrowserWindow, ipcMain, dialog } from 'electron';
+import { spawn } from 'child_process';
+
+let mainWindow: BrowserWindow;
 
 app.whenReady().then(() => {
   // Start openoffice server
-  const server = spawn("node", ["dist/server.js"], { stdio: "pipe" })
-  
+  const server = spawn('node', ['dist/server.js'], { stdio: 'pipe' });
+
   // Create window
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
-    webPreferences: { preload: path.join(__dirname, "preload.js") }
-  })
-  
-  mainWindow.loadURL("http://localhost:3000")
-})
+    webPreferences: { preload: path.join(__dirname, 'preload.js') },
+  });
+
+  mainWindow.loadURL('http://localhost:3000');
+});
 ```
 
 **File associations**:
+
 ```ts
 // Register .docx/.xlsx/.pptx associations
-app.setAsDefaultProtocolClient("openoffice")
+app.setAsDefaultProtocolClient('openoffice');
 
 // Handle file open
-app.on("open-file", (event, path) => {
-  event.preventDefault()
-  mainWindow?.webContents.send("open-file", path)
-})
+app.on('open-file', (event, path) => {
+  event.preventDefault();
+  mainWindow?.webContents.send('open-file', path);
+});
 ```
 
 **IPC handlers**:
+
 ```ts
-ipcMain.handle("open-file-picker", async () => {
+ipcMain.handle('open-file-picker', async () => {
   const result = await dialog.showOpenDialog(mainWindow!, {
-    properties: ["openFile"],
-    filters: [
-      { name: "Office Documents", extensions: ["docx", "xlsx", "pptx"] }
-    ]
-  })
-  return result.filePaths[0] ?? null
-})
+    properties: ['openFile'],
+    filters: [{ name: 'Office Documents', extensions: ['docx', 'xlsx', 'pptx'] }],
+  });
+  return result.filePaths[0] ?? null;
+});
 ```
 
 ### Dependencies

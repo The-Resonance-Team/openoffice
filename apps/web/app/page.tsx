@@ -1,17 +1,17 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
-import { useUiStore } from "@/lib/store";
-import { useSession } from "@/lib/use-session";
-import { LeftRail } from "@/components/LeftRail";
-import { ChatPanel } from "@/components/ChatPanel";
-import { Sidebar } from "@/components/Sidebar";
-import { Viewer } from "@/components/Viewer";
-import { ProviderDialog } from "@/components/ProviderDialog";
-import { LoginDialog } from "@/components/LoginDialog";
-import { ResizeHandle } from "@/components/ResizeHandle";
-import { Icon } from "@/lib/icons";
+import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { useUiStore } from '@/lib/store';
+import { useSession } from '@/lib/use-session';
+import { LeftRail } from '@/components/LeftRail';
+import { ChatPanel } from '@/components/ChatPanel';
+import { Sidebar } from '@/components/Sidebar';
+import { Viewer } from '@/components/Viewer';
+import { ProviderDialog } from '@/components/ProviderDialog';
+import { LoginDialog } from '@/components/LoginDialog';
+import { ResizeHandle } from '@/components/ResizeHandle';
+import { Icon } from '@/lib/icons';
 
 const RIGHT_MIN = 300;
 const RIGHT_MAX = 900;
@@ -29,25 +29,17 @@ export default function Home() {
   const setSidebarWidth = useUiStore((s) => s.setSidebarWidth);
   const viewerWidth = useUiStore((s) => s.viewerWidth);
   const setViewerWidth = useUiStore((s) => s.setViewerWidth);
-  const {
-    sessionId,
-    messages,
-    streaming,
-    busy,
-    error,
-    send,
-    switchSession,
-    startSession,
-  } = useSession();
+  const { sessionId, messages, streaming, busy, error, send, switchSession, startSession } =
+    useSession();
   const queryClient = useQueryClient();
 
   async function handleNewSession() {
     await startSession();
-    queryClient.invalidateQueries({ queryKey: ["sessions"] });
+    queryClient.invalidateQueries({ queryKey: ['sessions'] });
   }
 
   const showViewer = viewerOpen;
-  const showSidebar = !viewerOpen && rightRegion === "sidebar";
+  const showSidebar = !viewerOpen && rightRegion === 'sidebar';
   const rightVisible = showViewer || showSidebar;
   const chatVisible = !(showViewer && viewerExpanded);
   const rightResizable = rightVisible && !(showViewer && viewerExpanded);
@@ -60,7 +52,7 @@ export default function Home() {
         className={`flex flex-none overflow-hidden transition-[width,opacity,padding] duration-300 ease-in-out`}
         style={
           leftRailOpen
-            ? { width: leftRailWidth + 8, padding: "8px 0 8px 8px", opacity: 1 }
+            ? { width: leftRailWidth + 8, padding: '8px 0 8px 8px', opacity: 1 }
             : { width: 0, padding: 0, opacity: 0 }
         }
       >
@@ -77,7 +69,7 @@ export default function Home() {
         title="Toggle panel"
         onClick={toggleLeftRail}
         className={`fixed left-2 top-3 z-40 grid h-[30px] w-[30px] flex-none place-items-center rounded-lg text-muted transition-opacity duration-300 ease-in-out hover:bg-panel2 hover:text-ink ${
-          leftRailOpen ? "pointer-events-none opacity-0" : "opacity-100"
+          leftRailOpen ? 'pointer-events-none opacity-0' : 'opacity-100'
         }`}
       >
         <Icon name="panelLeft" size={18} />
@@ -85,8 +77,8 @@ export default function Home() {
       <div className="flex min-w-0 flex-1 p-[8px_8px_8px_0]">
         <div
           className={`flex min-w-0 overflow-hidden ${
-            draggingRight ? "" : "transition-all duration-300 ease-in-out"
-          } ${chatVisible ? "flex-1 opacity-100" : "w-0 flex-none opacity-0"}`}
+            draggingRight ? '' : 'transition-all duration-300 ease-in-out'
+          } ${chatVisible ? 'flex-1 opacity-100' : 'w-0 flex-none opacity-0'}`}
         >
           <ChatPanel
             messages={messages}
@@ -109,30 +101,25 @@ export default function Home() {
             />
             <div
               className={`relative flex flex-col overflow-hidden ${
-                draggingRight
-                  ? ""
-                  : "transition-[width,opacity] duration-300 ease-in-out"
+                draggingRight ? '' : 'transition-[width,opacity] duration-300 ease-in-out'
               } ${
                 rightVisible
                   ? showViewer && viewerExpanded
-                    ? "min-w-0 flex-1 opacity-100"
-                    : "flex-none opacity-100"
-                  : "w-0 flex-none opacity-0"
+                    ? 'min-w-0 flex-1 opacity-100'
+                    : 'flex-none opacity-100'
+                  : 'w-0 flex-none opacity-0'
               }`}
               style={
-                rightVisible && !(showViewer && viewerExpanded)
-                  ? { width: rightWidth }
-                  : undefined
+                rightVisible && !(showViewer && viewerExpanded) ? { width: rightWidth } : undefined
               }
             >
               <div
                 className="pointer-events-none absolute inset-0 z-10 rounded-[18px] opacity-0 transition-opacity duration-200 group-hover/right:opacity-100"
                 style={{
-                  background:
-                    "linear-gradient(to right, var(--color-accent2) 0%, transparent 60%)",
-                  mask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
-                  maskComposite: "exclude",
-                  padding: "1px",
+                  background: 'linear-gradient(to right, var(--color-accent2) 0%, transparent 60%)',
+                  mask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
+                  maskComposite: 'exclude',
+                  padding: '1px',
                 }}
               />
               <div className="flex flex-1 flex-col overflow-hidden rounded-[18px] border border-line2 bg-panel shadow-2xl">

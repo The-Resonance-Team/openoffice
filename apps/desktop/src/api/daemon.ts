@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from '@tauri-apps/api/core';
 
 export interface DaemonConfig {
   port: number;
@@ -20,17 +20,17 @@ export interface Session {
 
 export interface Message {
   id?: string;
-  info: { role: "user" | "assistant"; time?: { created: number } };
+  info: { role: 'user' | 'assistant'; time?: { created: number } };
   parts: { type: string; text?: string; tool?: string }[];
 }
 
 export type StreamEvent =
-  | { type: "token"; token: string }
-  | { type: "done"; response: string }
-  | { type: "toolStart"; tool: string; params: unknown }
-  | { type: "toolDone"; tool: string; result: unknown }
-  | { type: "message"; role: string; content: string }
-  | { type: "ask"; promptID: string; question: string };
+  | { type: 'token'; token: string }
+  | { type: 'done'; response: string }
+  | { type: 'toolStart'; tool: string; params: unknown }
+  | { type: 'toolDone'; tool: string; result: unknown }
+  | { type: 'message'; role: string; content: string }
+  | { type: 'ask'; promptID: string; question: string };
 
 export interface StreamHandlers {
   token?: (token: string) => void;
@@ -43,18 +43,18 @@ export interface StreamHandlers {
 
 const textOf = (m: Message): string =>
   m.parts
-    .filter((p) => p.type === "text" && typeof p.text === "string")
+    .filter((p) => p.type === 'text' && typeof p.text === 'string')
     .map((p) => p.text)
-    .join("");
+    .join('');
 
 export class DaemonClient {
   private constructor(
     private base: string,
-    private auth: { username: string; password: string | null }
+    private auth: { username: string; password: string | null },
   ) {}
 
   static async connect(): Promise<DaemonClient> {
-    const cfg = await invoke<DaemonConfig>("daemon_start");
+    const cfg = await invoke<DaemonConfig>('daemon_start');
     return new DaemonClient(`http://127.0.0.1:${cfg.port}`, {
       username: cfg.username,
       password: cfg.password,
@@ -63,12 +63,9 @@ export class DaemonClient {
 
   private headers(init?: HeadersInit): HeadersInit {
     const headers = new Headers(init);
-    headers.set("content-type", "application/json");
+    headers.set('content-type', 'application/json');
     if (this.auth.password) {
-      headers.set(
-        "authorization",
-        `Basic ${btoa(`${this.auth.username}:${this.auth.password}`)}`
-      );
+      headers.set('authorization', `Basic ${btoa(`${this.auth.username}:${this.auth.password}`)}`);
     }
     return headers;
   }
@@ -88,12 +85,12 @@ export class DaemonClient {
   }
 
   listSessions(): Promise<Session[]> {
-    return this.request<Session[]>("/api/sessions");
+    return this.request<Session[]>('/api/sessions');
   }
 
   createSession(cwd?: string): Promise<Session> {
-    return this.request<Session>("/api/sessions", {
-      method: "POST",
+    return this.request<Session>('/api/sessions', {
+      method: 'POST',
       body: JSON.stringify(cwd ? { cwd } : {}),
     });
   }
@@ -104,34 +101,34 @@ export class DaemonClient {
 
   turn(id: string, message: string): Promise<{ text: string }> {
     return this.request(`/api/sessions/${id}/turn`, {
-      method: "POST",
+      method: 'POST',
       body: JSON.stringify({ message }),
     });
   }
 
   accept(id: string, filePath: string): Promise<void> {
     return this.request(`/api/sessions/${id}/accept`, {
-      method: "POST",
+      method: 'POST',
       body: JSON.stringify({ filePath }),
     });
   }
 
   undo(id: string, filePath: string): Promise<void> {
     return this.request(`/api/sessions/${id}/undo`, {
-      method: "POST",
+      method: 'POST',
       body: JSON.stringify({ filePath }),
     });
   }
 
   askAnswer(id: string, promptID: string, answer: string): Promise<void> {
     return this.request(`/api/sessions/${id}/ask-answer`, {
-      method: "POST",
+      method: 'POST',
       body: JSON.stringify({ promptID, answer }),
     });
   }
 
   endSession(id: string): Promise<void> {
-    return this.request(`/api/sessions/${id}/end`, { method: "POST" });
+    return this.request(`/api/sessions/${id}/end`, { method: 'POST' });
   }
 
   /** SSE subscription, reconnecting. Mirrors src/server/client.ts. */
@@ -154,18 +151,16 @@ export class DaemonClient {
           if (!res.ok) throw new Error(`stream failed: ${res.status}`);
           const reader = res.body!.getReader();
           const decoder = new TextDecoder();
-          let buf = "";
+          let buf = '';
           for (;;) {
             const { done, value } = await reader.read();
             if (done) break;
             buf += decoder.decode(value, { stream: true });
             let idx: number;
-            while ((idx = buf.indexOf("\n\n")) >= 0) {
+            while ((idx = buf.indexOf('\n\n')) >= 0) {
               const raw = buf.slice(0, idx);
               buf = buf.slice(idx + 2);
-              const dataLine = raw
-                .split("\n")
-                .find((l) => l.startsWith("data: "));
+              const dataLine = raw.split('\n').find((l) => l.startsWith('data: '));
               if (!dataLine) continue;
               let event: StreamEvent;
               try {
@@ -174,22 +169,22 @@ export class DaemonClient {
                 continue;
               }
               switch (event.type) {
-                case "token":
+                case 'token':
                   handlers.token?.(event.token);
                   break;
-                case "done":
+                case 'done':
                   handlers.done?.(event.response);
                   break;
-                case "toolStart":
+                case 'toolStart':
                   handlers.toolStart?.(event.tool, event.params);
                   break;
-                case "toolDone":
+                case 'toolDone':
                   handlers.toolDone?.(event.tool, event.result);
                   break;
-                case "message":
+                case 'message':
                   handlers.message?.(event.role, event.content);
                   break;
-                case "ask":
+                case 'ask':
                   handlers.ask?.(event.promptID, event.question);
                   break;
               }
