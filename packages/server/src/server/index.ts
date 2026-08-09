@@ -3,6 +3,7 @@ import { Hono, type Context } from "hono";
 import { streamSSE } from "hono/streaming";
 import { randomUUID } from "node:crypto";
 import { extname } from "node:path";
+import { AttachedClients } from "./attached";
 import {
   on,
   emit,
@@ -111,18 +112,24 @@ function textOf(message: WithParts): string {
 // The single session-end operation: every side effect of a session ending
 // lives here, so future end paths (heartbeat sweep, #39) call this instead
 // of re-implementing pieces and leaking a share or an orphaned draft.
+// Races (sweep vs /end) resolve atomically: markEnded is a null → set claim,
+// so exactly one caller runs the side-effects — the loser's orphanAll may
+// still have run (idempotent), but revoke + emit happen exactly once.
 export async function endSession(
   deps: ServerDeps,
   sessionID: string
 ): Promise<void> {
+  const session = deps.store.load(sessionID);
+  if (!session || session.endedAt) return;
   await deps.draftManager.orphanAll(sessionID);
-  deps.store.markEnded(sessionID, Date.now());
+  if (!deps.store.markEnded(sessionID, Date.now())) return;
   deps.shareStore.revoke(sessionID);
   emit("session:end", { sessionID });
 }
 
 export function createApp(deps: ServerDeps) {
   const app = new Hono();
+  const attached = new AttachedClients();
 
   // Cross-cutting middleware must be registered before any route: a Hono
   // route handler is terminal, so middleware added afterwards never runs.
@@ -240,6 +247,10 @@ export function createApp(deps: ServerDeps) {
   app.get("/api/sessions/:id/stream", (c) => {
     const sessionID = c.req.param("id");
     return streamSSE(c, async (stream) => {
+      // An open event stream is an attached client (ADR 0022). Attach after
+      // the stream exists: a request aborted before this callback runs never
+      // attached, so it cannot leak a count.
+      attached.attach(sessionID);
       const offs: (() => void)[] = [];
       const subscribe = <K extends keyof EventMap>(
         event: K,
@@ -275,8 +286,16 @@ export function createApp(deps: ServerDeps) {
       subscribe("session:ask", (d) =>
         write({ type: "ask", promptID: d.promptID, question: d.question })
       );
+      subscribe("session:end", () => write({ type: "sessionEnd" }));
+      subscribe("todo:updated", (d) =>
+        write({ type: "todoUpdated", todos: d.todos })
+      );
+      subscribe("session:step-limit", (d) =>
+        write({ type: "stepLimit", maxSteps: d.maxSteps })
+      );
 
       stream.onAbort(() => {
+        attached.detach(sessionID);
         for (const off of offs) off();
       });
       await new Promise(() => undefined);
@@ -344,7 +363,13 @@ export function createApp(deps: ServerDeps) {
   });
 
   app.post("/api/sessions/:id/end", async (c) => {
-    await endSession(deps, c.req.param("id"));
+    // Gated on the attached-client count (ADR 0022): with Sync multi-client
+    // attach, one client closing must not end the session for the others.
+    // Today's single-client CLI always sees count <= 1, so behavior is
+    // unchanged until multi-client attach exists.
+    if (attached.shouldEndOnExplicitEnd(c.req.param("id"))) {
+      await endSession(deps, c.req.param("id"));
+    }
     return c.json({ ok: true });
   });
 
@@ -495,5 +520,5 @@ export function createApp(deps: ServerDeps) {
     });
   }
 
-  return { app, askChannel: deps.askChannel };
+  return { app, attached, askChannel: deps.askChannel };
 }

@@ -16,6 +16,8 @@ const listeners: Listeners = {
   "session:compacted": new Set(),
   "session:ask": new Set(),
   "session:end": new Set(),
+  "todo:updated": new Set(),
+  "session:step-limit": new Set(),
 };
 
 let sensitiveValues = new Set<string>();

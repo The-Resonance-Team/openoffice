@@ -9,6 +9,7 @@ export const sessions = sqliteTable("sessions", {
   createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
   endedAt: integer("ended_at", { mode: "timestamp_ms" }),
+  lastActiveAt: integer("last_active_at", { mode: "timestamp_ms" }),
 });
 
 // Message rows: one per WithParts.info. Part payloads (text, tool state) live
@@ -56,4 +57,20 @@ export const parts = sqliteTable(
     index("idx_parts_message").on(t.messageId),
     index("idx_parts_session").on(t.sessionId),
   ]
+);
+
+// The agent's structured task list for a session: one row per Todo, ordered by
+// position. Written wholesale (delete + reinsert), never merged.
+export const sessionTodos = sqliteTable(
+  "session_todos",
+  {
+    sessionId: text("session_id")
+      .notNull()
+      .references(() => sessions.id, { onDelete: "cascade" }),
+    position: integer("position").notNull(),
+    content: text("content").notNull(),
+    status: text("status").notNull(),
+    priority: text("priority").notNull(),
+  },
+  (t) => [index("idx_todos_session").on(t.sessionId, t.position)]
 );

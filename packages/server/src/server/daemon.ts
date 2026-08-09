@@ -11,6 +11,7 @@ import {
   SessionStore,
   runTurn,
   buildSystemPrompt,
+  isStaleSession,
   type Session,
   HistoryStore,
   DraftManager,
@@ -22,6 +23,7 @@ import {
   createQuestionTool,
   createReadTool,
   createWriteTool,
+  createTodoTool,
   type ToolDefinition,
   AgentRegistry,
   createDefaultOfficeCliTool,
@@ -37,7 +39,12 @@ import {
   loadConfigFiles,
   mergeLayers,
 } from "@openoffice/core";
-import { AskChannel, createApp, type SessionRuntime } from "./index";
+import {
+  AskChannel,
+  createApp,
+  endSession,
+  type SessionRuntime,
+} from "./index";
 import { checkForUpdate } from "../update";
 import { VERSION } from "../version";
 import { loadAuthConfig, authRequired } from "./auth";
@@ -98,7 +105,14 @@ export interface DaemonHandle {
   stop: () => Promise<void>;
 }
 
-export async function startDaemon(): Promise<DaemonHandle> {
+const DEFAULT_SWEEP_INTERVAL_MS = 60 * 60 * 1000; // hourly; the threshold itself is 24h
+
+export async function startDaemon(
+  options: {
+    sweepIntervalMs?: number;
+  } = {}
+): Promise<DaemonHandle> {
+  const { sweepIntervalMs = DEFAULT_SWEEP_INTERVAL_MS } = options;
   const dataDir = getDataDir();
   mkdirSync(dataDir, { recursive: true });
 
@@ -209,6 +223,7 @@ export async function startDaemon(): Promise<DaemonHandle> {
   }
 
   const defaultModel = config.model ?? "anthropic/claude-sonnet-4-20250514";
+  const maxSteps = config.maxSteps ?? 50;
   const defaultAgent = agentRegistry.getDefault();
 
   const runtimeCache = new Map<string, SessionRuntime>();
@@ -233,6 +248,12 @@ export async function startDaemon(): Promise<DaemonHandle> {
         ...convertDeps,
       })
     );
+    registry.register(
+      createTodoTool({
+        getTodos: (sessionID) => store.getTodos(sessionID),
+        setTodos: (sessionID, todos) => store.setTodos(sessionID, todos),
+      })
+    );
 
     const runtime: SessionRuntime = {
       tools: registry,
@@ -255,7 +276,7 @@ export async function startDaemon(): Promise<DaemonHandle> {
     );
   }
 
-  const { app } = createApp({
+  const deps = {
     auth: authConfig,
     corsOrigins,
     store,
@@ -265,7 +286,7 @@ export async function startDaemon(): Promise<DaemonHandle> {
     shareStore,
     shareMode: shareMode(config),
     mcp,
-    createSession: (cwd) => {
+    createSession: (cwd: string) => {
       const now = Date.now();
       return {
         id: randomUUID(),
@@ -279,7 +300,12 @@ export async function startDaemon(): Promise<DaemonHandle> {
       };
     },
     buildRuntime,
-    runTurn: (session, message, runtime, s) =>
+    runTurn: (
+      session: Session,
+      message: string,
+      runtime: SessionRuntime,
+      s: SessionStore
+    ) =>
       runTurn({
         session,
         userMessage: message,
@@ -287,6 +313,7 @@ export async function startDaemon(): Promise<DaemonHandle> {
         agents: agentRegistry,
         tools: runtime.tools,
         system: runtime.system,
+        maxSteps,
         config,
       }),
     updateStatus: async () => {
@@ -295,7 +322,9 @@ export async function startDaemon(): Promise<DaemonHandle> {
       }
       return checkForUpdate(VERSION, dataDir);
     },
-  });
+  };
+
+  const { app, attached } = createApp(deps);
 
   // Collect sensitive values from env:-resolved config for event redaction.
   const env = process.env;
@@ -352,5 +381,27 @@ export async function startDaemon(): Promise<DaemonHandle> {
     process.exit(0);
   });
 
-  return { port: server.port!, stop: () => server.stop(true) };
+  // Heartbeat sweep (ADR 0022): a session whose heartbeat went stale — a
+  // crash/SIGKILL/lid-close never fires the CLI's /end — gets the same
+  // explicit-end treatment. Gated on zero attached clients; endSession is
+  // idempotent against the /end route racing us.
+  const sweepStale = async () => {
+    const now = Date.now();
+    for (const session of store.list()) {
+      if (session.endedAt) continue;
+      if (!isStaleSession(session, now)) continue;
+      if (attached.count(session.id) > 0) continue;
+      await endSession(deps, session.id);
+    }
+  };
+  void sweepStale();
+  const sweepTimer = setInterval(() => void sweepStale(), sweepIntervalMs);
+
+  return {
+    port: server.port!,
+    stop: () => {
+      clearInterval(sweepTimer);
+      return server.stop(true);
+    },
+  };
 }

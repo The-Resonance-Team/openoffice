@@ -2,6 +2,8 @@
 // to clients. The bus implementation (with redaction) lives in core; clients
 // compile against this surface.
 
+import type { Todo } from "@openoffice/schema";
+
 export type EventMap = {
   "llm:token": { sessionID: string; token: string };
   "llm:done": { sessionID: string; response: string };
@@ -18,4 +20,6 @@ export type EventMap = {
   "session:compacted": { sessionID: string };
   "session:ask": { sessionID: string; promptID: string; question: string };
   "session:end": { sessionID: string };
+  "todo:updated": { sessionID: string; todos: Todo[] };
+  "session:step-limit": { sessionID: string; maxSteps: number };
 };

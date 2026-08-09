@@ -216,6 +216,15 @@ export class OpenOfficeClient implements DaemonClient {
                 case "ask":
                   await handlers.ask?.(event.promptID, event.question);
                   break;
+                case "todoUpdated":
+                  handlers.todoUpdated?.(event.todos);
+                  break;
+                case "stepLimit":
+                  handlers.stepLimit?.(event.maxSteps);
+                  break;
+                case "sessionEnd":
+                  handlers.sessionEnd?.();
+                  break;
               }
             }
           }

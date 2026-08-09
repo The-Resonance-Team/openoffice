@@ -2,6 +2,7 @@ export type { Session } from "./types";
 export { SessionStore } from "./store";
 export { runTurn } from "./loop";
 export type { RunTurnOptions } from "./loop";
+export { isStaleSession, SESSION_STALE_AFTER_MS } from "./staleness";
 export { buildSystemPrompt } from "./system";
 export {
   create,

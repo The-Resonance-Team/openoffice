@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { runTurn } from "../loop";
 import { SessionStore } from "../store";
+import { on } from "../../events";
 import type { Session } from "../types";
 import type { ChatOptions } from "../../llm";
 
@@ -75,6 +76,7 @@ describe("runTurn persistence with foreign keys enforced", () => {
         },
       ],
       usage: { inputTokens: 10, outputTokens: 5 },
+      hitStepCap: () => false,
     });
 
     const { text } = await runTurn({
@@ -92,5 +94,178 @@ describe("runTurn persistence with foreign keys enforced", () => {
     const assistant = messages.find((m) => m.info.role === "assistant")!;
     expect(assistant.parts.some((p) => p.type === "tool")).toBe(true);
     expect(assistant.info.finish).toBe("done");
+  });
+
+  test("hitting the step cap forces a text-only summary pulling from the todo list", async () => {
+    const session = makeSession("s1");
+    store.save(session);
+    store.setTodos("s1", [
+      { content: "write the doc", status: "in_progress", priority: "high" },
+    ]);
+
+    let calls = 0;
+    const summaryOptions: ChatOptions = {} as ChatOptions;
+    const chatFn = (options: ChatOptions) => {
+      calls++;
+      if (calls === 1) {
+        return {
+          textStream: (async function* () {
+            yield "starting";
+          })(),
+          responseMessages: [{ role: "assistant", content: "starting" }],
+          usage: { inputTokens: 1, outputTokens: 1 },
+          hitStepCap: () => true,
+        };
+      }
+      Object.assign(summaryOptions, options);
+      return {
+        textStream: (async function* () {
+          yield "SUMMARY";
+        })(),
+        responseMessages: [{ role: "assistant", content: "SUMMARY" }],
+        usage: { inputTokens: 1, outputTokens: 1 },
+        hitStepCap: () => false,
+      };
+    };
+
+    const events: { sessionID: string; maxSteps: number }[] = [];
+    const off = on("session:step-limit", (d) => events.push(d));
+    let text: string;
+    try {
+      ({ text } = await runTurn({
+        session,
+        userMessage: "do it",
+        store,
+        agents: {},
+        config: {},
+        chatFn,
+        maxSteps: 10,
+      } as any));
+    } finally {
+      off();
+    }
+
+    expect(calls).toBe(2);
+    // Summary call: tools disabled, capped at one step, prompt appended last,
+    // accumulator-reset onRetry (a retried attempt re-yields from scratch).
+    expect(summaryOptions.tools).toBeUndefined();
+    expect(summaryOptions.maxSteps).toBe(1);
+    expect(typeof summaryOptions.onRetry).toBe("function");
+    const last = summaryOptions.messages![summaryOptions.messages!.length - 1];
+    expect(last.role).toBe("assistant");
+    expect(String(last.content)).toContain("MAXIMUM STEPS REACHED");
+    expect(String(last.content)).toContain("write the doc");
+
+    // The summary lands as the final assistant message, marked max-steps.
+    expect(text).toContain("SUMMARY");
+    const msgs = store.messages("s1");
+    const summary = msgs.find(
+      (m) =>
+        m.info.role === "assistant" &&
+        m.info.finish === "max-steps" &&
+        m.parts.some((p) => p.type === "text" && p.text === "SUMMARY")
+    );
+    expect(summary).toBeDefined();
+    expect((summary!.parts[0] as { text: string }).text).toBe("SUMMARY");
+
+    expect(events).toEqual([{ sessionID: "s1", maxSteps: 10 }]);
+  });
+
+  test("a failing summary call falls back to a local message", async () => {
+    const session = makeSession("s1");
+    store.save(session);
+
+    let calls = 0;
+    const chatFn = (_options: ChatOptions) => {
+      calls++;
+      if (calls === 1) {
+        return {
+          textStream: (async function* () {
+            yield "starting";
+          })(),
+          responseMessages: [{ role: "assistant", content: "starting" }],
+          usage: { inputTokens: 1, outputTokens: 1 },
+          hitStepCap: () => true,
+        };
+      }
+      throw new Error("summary failed");
+    };
+
+    const events: unknown[] = [];
+    const off = on("session:step-limit", (d) => events.push(d));
+    let text: string;
+    try {
+      ({ text } = await runTurn({
+        session,
+        userMessage: "do it",
+        store,
+        agents: {},
+        config: {},
+        chatFn,
+        maxSteps: 10,
+      } as any));
+    } finally {
+      off();
+    }
+
+    expect(text).toContain("Reached the step limit");
+    const msgs = store.messages("s1");
+    const summary = msgs.find(
+      (m) =>
+        m.info.role === "assistant" &&
+        m.info.finish === "max-steps" &&
+        m.parts.some(
+          (p) => p.type === "text" && p.text.includes("Reached the step limit")
+        )
+    );
+    expect(summary).toBeDefined();
+    expect(events).toHaveLength(1);
+  });
+
+  test("a summary stream that dies mid-way keeps its partial output", async () => {
+    const session = makeSession("s1");
+    store.save(session);
+
+    let calls = 0;
+    const chatFn = (_options: ChatOptions) => {
+      calls++;
+      if (calls === 1) {
+        return {
+          textStream: (async function* () {
+            yield "starting";
+          })(),
+          responseMessages: [{ role: "assistant", content: "starting" }],
+          usage: { inputTokens: 1, outputTokens: 1 },
+          hitStepCap: () => true,
+        };
+      }
+      return {
+        textStream: (async function* () {
+          yield "partial summary";
+          throw new Error("mid-stream failure after retries");
+        })(),
+        // The for-await throws first, so this sibling is never awaited — the
+        // catch mirrors retry.ts's own unhandled-rejection discipline.
+        responseMessages: Promise.reject(new Error("nope")).catch(
+          () => undefined
+        ),
+        usage: { inputTokens: 1, outputTokens: 1 },
+        hitStepCap: () => false,
+      };
+    };
+
+    const { text } = await runTurn({
+      session,
+      userMessage: "do it",
+      store,
+      agents: {},
+      config: {},
+      chatFn,
+      maxSteps: 10,
+    } as any);
+
+    // Real model output is kept; the local fallback only covers an empty summary.
+    expect(text).toContain("partial summary");
+    expect(text).not.toContain("Reached the step limit");
   });
 });

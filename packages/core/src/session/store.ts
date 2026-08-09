@@ -4,8 +4,13 @@ import { dirname } from "node:path";
 import { drizzle } from "drizzle-orm/bun-sqlite";
 import { eq, desc, sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
-import type { Session } from "./types";
-import { sessions, messages, parts } from "./schema";
+import type {
+  Session,
+  Todo,
+  TodoPriority,
+  TodoStatus,
+} from "@openoffice/schema";
+import { sessions, messages, parts, sessionTodos } from "./schema";
 import type {
   MessageInfo,
   Part,
@@ -172,9 +177,15 @@ export class SessionStore {
         "SELECT name FROM pragma_table_info('sessions') WHERE name = 'ended_at'"
       )
       .get();
-    if (!hasParent || !hasEndedAt) {
+    const hasLastActiveAt = sqlite
+      .query(
+        "SELECT name FROM pragma_table_info('sessions') WHERE name = 'last_active_at'"
+      )
+      .get();
+    if (!hasParent || !hasEndedAt || !hasLastActiveAt) {
       this.drizzle.run("DROP TABLE IF EXISTS parts");
       this.drizzle.run("DROP TABLE IF EXISTS messages");
+      this.drizzle.run("DROP TABLE IF EXISTS session_todos");
       this.drizzle.run("DROP TABLE IF EXISTS sessions");
     }
     this.drizzle.run(/* sql */ `
@@ -186,7 +197,8 @@ export class SessionStore {
         cwd TEXT NOT NULL DEFAULT '',
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL,
-        ended_at INTEGER
+        ended_at INTEGER,
+        last_active_at INTEGER
       )
     `);
     this.drizzle.run(/* sql */ `
@@ -219,6 +231,18 @@ export class SessionStore {
         timestamp INTEGER NOT NULL
       )
     `);
+    this.drizzle.run(/* sql */ `
+      CREATE TABLE IF NOT EXISTS session_todos (
+        session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+        position INTEGER NOT NULL,
+        content TEXT NOT NULL,
+        status TEXT NOT NULL,
+        priority TEXT NOT NULL
+      )
+    `);
+    this.drizzle.run(
+      /* sql */ "CREATE INDEX IF NOT EXISTS idx_todos_session ON session_todos(session_id, position)"
+    );
     this.drizzle.run(
       /* sql */ "CREATE INDEX IF NOT EXISTS idx_messages_session ON messages(session_id, seq)"
     );
@@ -242,6 +266,9 @@ export class SessionStore {
         createdAt: new Date(session.createdAt),
         updatedAt: new Date(session.updatedAt),
         endedAt: session.endedAt ? new Date(session.endedAt) : null,
+        lastActiveAt: session.lastActiveAt
+          ? new Date(session.lastActiveAt)
+          : null,
       })
       .onConflictDoUpdate({
         target: sessions.id,
@@ -256,12 +283,17 @@ export class SessionStore {
       .run();
   }
 
-  markEnded(id: string, endedAt: number): void {
-    this.drizzle
-      .update(sessions)
-      .set({ endedAt: new Date(endedAt) })
-      .where(eq(sessions.id, id))
-      .run();
+  /**
+   * Atomically claims the session end: only the first caller sees ended_at
+   * transition null → set. Returns whether this call won the claim.
+   */
+  markEnded(id: string, endedAt: number): boolean {
+    const result = this.sqlite
+      .query(
+        "UPDATE sessions SET ended_at = ? WHERE id = ? AND ended_at IS NULL"
+      )
+      .run(endedAt, id);
+    return result.changes > 0;
   }
 
   load(id: string): Session | null {
@@ -282,6 +314,7 @@ export class SessionStore {
       createdAt: row.createdAt.getTime(),
       updatedAt: row.updatedAt.getTime(),
       endedAt: row.endedAt ? row.endedAt.getTime() : undefined,
+      lastActiveAt: row.lastActiveAt ? row.lastActiveAt.getTime() : undefined,
     };
   }
 
@@ -301,6 +334,7 @@ export class SessionStore {
       createdAt: r.createdAt.getTime(),
       updatedAt: r.updatedAt.getTime(),
       endedAt: r.endedAt ? r.endedAt.getTime() : undefined,
+      lastActiveAt: r.lastActiveAt ? r.lastActiveAt.getTime() : undefined,
     }));
   }
 
@@ -385,10 +419,46 @@ export class SessionStore {
     return (row?.maxSeq ?? 0) + 1;
   }
 
+  /** The session's todo list, in position order. */
+  getTodos(sessionId: string): Todo[] {
+    const rows = this.drizzle
+      .select()
+      .from(sessionTodos)
+      .where(eq(sessionTodos.sessionId, sessionId))
+      .orderBy(sessionTodos.position)
+      .all();
+    return rows.map((row) => ({
+      content: row.content,
+      status: row.status as TodoStatus,
+      priority: row.priority as TodoPriority,
+    }));
+  }
+
+  /** Replace-on-write: deletes the session's todos, then inserts the new list. */
+  setTodos(sessionId: string, todos: Todo[]): void {
+    this.drizzle.transaction((tx) => {
+      tx.delete(sessionTodos)
+        .where(eq(sessionTodos.sessionId, sessionId))
+        .run();
+      todos.forEach((todo, position) => {
+        tx.insert(sessionTodos)
+          .values({
+            sessionId,
+            position,
+            content: todo.content,
+            status: todo.status,
+            priority: todo.priority,
+          })
+          .run();
+      });
+    });
+    this.touch(sessionId, Date.now());
+  }
+
   private touch(sessionId: string, at: number): void {
     this.drizzle
       .update(sessions)
-      .set({ updatedAt: new Date(at) })
+      .set({ updatedAt: new Date(at), lastActiveAt: new Date(at) })
       .where(eq(sessions.id, sessionId))
       .run();
   }

@@ -23,7 +23,7 @@ export interface MessageInfo {
   agent?: string;
   model?: ModelRef;
   summary?: boolean;
-  finish?: "done" | "error";
+  finish?: "done" | "error" | "max-steps";
   error?: { message: string };
   time: { created: number };
   tokens?: TokenUsage;
@@ -93,4 +93,15 @@ export interface Session {
   createdAt: number;
   updatedAt: number;
   endedAt?: number;
+  lastActiveAt?: number;
+}
+
+export type TodoStatus = "pending" | "in_progress" | "completed" | "cancelled";
+
+export type TodoPriority = "high" | "medium" | "low";
+
+export interface Todo {
+  content: string;
+  status: TodoStatus;
+  priority: TodoPriority;
 }
