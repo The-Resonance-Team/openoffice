@@ -23,48 +23,48 @@ Body: { filePath: string }
 ### Implementation
 
 ```ts
-import { Hono } from 'hono';
+import { Hono } from "hono"
 
-const app = new Hono();
+const app = new Hono()
 
-app.post('/api/sessions/:sessionID/accept', async (c) => {
-  const { sessionID } = c.req.param();
-  const { filePath } = await c.req.json();
-
-  const draftPath = getDraftPath(sessionID, filePath);
-  const meta = getDraftMeta(draftPath);
-
+app.post("/api/sessions/:sessionID/accept", async (c) => {
+  const { sessionID } = c.req.param()
+  const { filePath } = await c.req.json()
+  
+  const draftPath = getDraftPath(sessionID, filePath)
+  const meta = getDraftMeta(draftPath)
+  
   // 1. Flush
-  execFileSync('officecli', ['close', draftPath], { timeout: 10000 });
-
+  execFileSync("officecli", ["close", draftPath], { timeout: 10000 })
+  
   // 2. Copy draft to real file
-  fs.copyFileSync(draftPath, meta.realFilePath);
-
+  fs.copyFileSync(draftPath, meta.realFilePath)
+  
   // 3. Record in version history
-  recordAcceptPoint(sessionID, filePath);
-
+  recordAcceptPoint(sessionID, filePath)
+  
   // 4. Cleanup
-  fs.unlinkSync(draftPath);
-  fs.unlinkSync(draftPath + '.meta.json');
-  releaseLock(meta.filePathHash);
+  fs.unlinkSync(draftPath)
+  fs.unlinkSync(draftPath + ".meta.json")
+  releaseLock(meta.filePathHash)
+  
+  return c.json({ success: true })
+})
 
-  return c.json({ success: true });
-});
-
-app.post('/api/sessions/:sessionID/undo', async (c) => {
-  const { sessionID } = c.req.param();
-  const { filePath } = await c.req.json();
-
-  const draftPath = getDraftPath(sessionID, filePath);
-  const meta = getDraftMeta(draftPath);
-
+app.post("/api/sessions/:sessionID/undo", async (c) => {
+  const { sessionID } = c.req.param()
+  const { filePath } = await c.req.json()
+  
+  const draftPath = getDraftPath(sessionID, filePath)
+  const meta = getDraftMeta(draftPath)
+  
   // Discard draft — real file untouched
-  fs.unlinkSync(draftPath);
-  fs.unlinkSync(draftPath + '.meta.json');
-  releaseLock(meta.filePathHash);
-
-  return c.json({ success: true });
-});
+  fs.unlinkSync(draftPath)
+  fs.unlinkSync(draftPath + ".meta.json")
+  releaseLock(meta.filePathHash)
+  
+  return c.json({ success: true })
+})
 ```
 
 ### HTTP framework
@@ -78,7 +78,6 @@ bun add hono
 ### Why HTTP routes (not tool calls)
 
 Per locked decision 11:
-
 - Turn ends normally after tool call
 - Preview sits in transcript until user clicks
 - Model can't re-trigger or skip the decision

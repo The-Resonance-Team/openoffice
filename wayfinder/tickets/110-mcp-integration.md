@@ -20,44 +20,44 @@ Integrate MCP (Model Context Protocol) so openoffice can connect to external too
 ### Implementation
 
 ```ts
-import { Client } from '@modelcontextprotocol/sdk/client';
-import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio';
+import { Client } from "@modelcontextprotocol/sdk/client"
+import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio"
 
 class McpManager {
-  private clients = new Map<string, Client>();
-
+  private clients = new Map<string, Client>()
+  
   async connect(name: string, config: McpConfig): Promise<void> {
-    let transport;
-    if (config.type === 'local') {
+    let transport
+    if (config.type === "local") {
       transport = new StdioClientTransport({
         command: config.command[0],
         args: config.command.slice(1),
         env: config.environment,
-      });
+      })
     }
-
-    const client = new Client({ name: 'openoffice', version: '0.1.0' });
-    await client.connect(transport);
-    this.clients.set(name, client);
-
+    
+    const client = new Client({ name: "openoffice", version: "0.1.0" })
+    await client.connect(transport)
+    this.clients.set(name, client)
+    
     // Register MCP tools in tool registry
-    const { tools } = await client.listTools();
+    const { tools } = await client.listTools()
     for (const mcpTool of tools) {
       registry.register({
         name: `mcp.${name}.${mcpTool.name}`,
         description: mcpTool.description,
         parameters: mcpTool.inputSchema,
         execute: async (params) => {
-          const result = await client.callTool({ name: mcpTool.name, arguments: params });
-          return { success: true, output: JSON.stringify(result) };
-        },
-      });
+          const result = await client.callTool({ name: mcpTool.name, arguments: params })
+          return { success: true, output: JSON.stringify(result) }
+        }
+      })
     }
   }
-
+  
   async disconnectAll(): Promise<void> {
     for (const client of this.clients.values()) {
-      await client.close();
+      await client.close()
     }
   }
 }
@@ -66,7 +66,6 @@ class McpManager {
 ### Config
 
 From `openoffice.json`:
-
 ```json
 {
   "mcp": {

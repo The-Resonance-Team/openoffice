@@ -14,30 +14,26 @@ Define the agent system — which agents exist, what tools they have, what promp
 
 ```ts
 interface Agent {
-  name: string;
-  description: string;
-  tools: string[]; // tool names this agent can use
-  system: string; // system prompt
-  model?: string; // override default model
+  name: string
+  description: string
+  tools: string[]        // tool names this agent can use
+  system: string         // system prompt
+  model?: string         // override default model
 }
 ```
 
 ### Built-in agents
 
 **office** (default):
-
 ```ts
 const officeAgent: Agent = {
-  name: 'office',
-  description: 'Office document assistant — create, read, and edit Word/Excel/PowerPoint files',
+  name: "office",
+  description: "Office document assistant — create, read, and edit Word/Excel/PowerPoint files",
   tools: [
-    'officecli',
-    'read',
-    'write',
-    'glob',
-    'grep',
-    'question',
-    'skill',
+    "officecli",
+    "read", "write", "glob", "grep",
+    "question",
+    "skill",
     // MCP tools are added dynamically
   ],
   system: `You are an office document assistant. You help users create, read, and edit
@@ -47,44 +43,38 @@ When editing documents, you work on a draft copy. The user will see a preview
 of your changes and can accept or undo them.
 
 You do NOT write code or use terminal commands. You work with document content directly.`,
-};
+}
 ```
 
 **developer** (escape hatch):
-
 ```ts
 const developerAgent: Agent = {
-  name: 'developer',
-  description: 'Full development agent with coding tools',
+  name: "developer",
+  description: "Full development agent with coding tools",
   tools: [
-    'officecli',
-    'read',
-    'write',
-    'glob',
-    'grep',
-    'question',
-    'skill',
-    'bash',
-    'edit', // coding tools
+    "officecli",
+    "read", "write", "glob", "grep",
+    "question", "skill",
+    "bash", "edit",  // coding tools
   ],
   system: `You are a development assistant with full coding capabilities.`,
-};
+}
 ```
 
 ### Agent registry
 
 ```ts
 const agents = new Map<string, Agent>([
-  ['office', officeAgent],
-  ['developer', developerAgent],
-]);
+  ["office", officeAgent],
+  ["developer", developerAgent],
+])
 
 export function getAgent(name: string): Agent | undefined {
-  return agents.get(name);
+  return agents.get(name)
 }
 
 export function getDefaultAgent(): Agent {
-  return agents.get('office')!;
+  return agents.get("office")!
 }
 ```
 
@@ -94,9 +84,9 @@ export function getDefaultAgent(): Agent {
 function getSystemPrompt(agent: Agent): string {
   return [
     agent.system,
-    `Available tools: ${agent.tools.join(', ')}`,
+    `Available tools: ${agent.tools.join(", ")}`,
     // Add skill content if skill tool is available
-  ].join('\n\n');
+  ].join("\n\n")
 }
 ```
 

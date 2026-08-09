@@ -23,30 +23,30 @@ Simple typed event emitter — no framework needed:
 
 ```ts
 type Events = {
-  'llm:token': { sessionID: string; token: string };
-  'llm:done': { sessionID: string; response: Message };
-  'tool:start': { sessionID: string; tool: string; params: unknown };
-  'tool:done': { sessionID: string; tool: string; result: unknown };
-  'session:create': { sessionID: string };
-  'session:message': { sessionID: string; message: Message };
-  'session:end': { sessionID: string };
-};
+  "llm:token": { sessionID: string; token: string }
+  "llm:done": { sessionID: string; response: Message }
+  "tool:start": { sessionID: string; tool: string; params: unknown }
+  "tool:done": { sessionID: string; tool: string; result: unknown }
+  "session:create": { sessionID: string }
+  "session:message": { sessionID: string; message: Message }
+  "session:end": { sessionID: string }
+}
 
 class EventBus {
-  private listeners = new Map<string, Set<Function>>();
-
+  private listeners = new Map<string, Set<Function>>()
+  
   on<K extends keyof Events>(event: K, fn: (data: Events[K]) => void): () => void {
-    if (!this.listeners.has(event)) this.listeners.set(event, new Set());
-    this.listeners.get(event)!.add(fn);
-    return () => this.listeners.get(event)?.delete(fn);
+    if (!this.listeners.has(event)) this.listeners.set(event, new Set())
+    this.listeners.get(event)!.add(fn)
+    return () => this.listeners.get(event)?.delete(fn)
   }
-
+  
   emit<K extends keyof Events>(event: K, data: Events[K]): void {
-    this.listeners.get(event)?.forEach((fn) => fn(data));
+    this.listeners.get(event)?.forEach(fn => fn(data))
   }
 }
 
-export const events = new EventBus();
+export const events = new EventBus()
 ```
 
 ### What NOT to build

@@ -21,34 +21,34 @@ Integrate Vercel AI SDK for LLM calls, supporting multiple providers (Anthropic,
 ### Implementation
 
 ```ts
-import { generateText, streamText } from 'ai';
-import { anthropic } from '@ai-sdk/anthropic';
-import { openai } from '@ai-sdk/openai';
-import { google } from '@ai-sdk/google';
+import { generateText, streamText } from "ai"
+import { anthropic } from "@ai-sdk/anthropic"
+import { openai } from "@ai-sdk/openai"
+import { google } from "@ai-sdk/google"
 
-const providers = { anthropic, openai, google };
+const providers = { anthropic, openai, google }
 
 function getProvider(model: string): { provider: any; modelName: string } {
-  const [providerName, ...modelParts] = model.split('/');
-  const provider = providers[providerName as keyof typeof providers];
-  if (!provider) throw new Error(`Unknown provider: ${providerName}`);
-  return { provider, modelName: modelParts.join('/') };
+  const [providerName, ...modelParts] = model.split("/")
+  const provider = providers[providerName as keyof typeof providers]
+  if (!provider) throw new Error(`Unknown provider: ${providerName}`)
+  return { provider, modelName: modelParts.join("/") }
 }
 
 export async function chat(params: {
-  model: string;
-  messages: Message[];
-  tools?: ToolDefinition[];
-  system?: string;
+  model: string
+  messages: Message[]
+  tools?: ToolDefinition[]
+  system?: string
 }) {
-  const { provider, modelName } = getProvider(params.model);
-
+  const { provider, modelName } = getProvider(params.model)
+  
   return streamText({
     model: provider(modelName),
     messages: params.messages,
     tools: params.tools,
     system: params.system,
-  });
+  })
 }
 ```
 
@@ -61,7 +61,6 @@ bun add ai @ai-sdk/anthropic @ai-sdk/openai @ai-sdk/google
 ### Provider config
 
 From `openoffice.json`:
-
 ```json
 {
   "model": "anthropic/claude-sonnet-4-20250514",

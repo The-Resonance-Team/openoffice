@@ -13,7 +13,6 @@ How should the codebase be organized? opencode has34 packages — that's over-en
 ### Options
 
 **A. Single package (start here)**
-
 ```
 openoffice/
   src/
@@ -28,12 +27,10 @@ openoffice/
     office/       — officecli integration
     ui/           — shared UI components
 ```
-
 Pros: Simple, fast to iterate, no build complexity.
 Cons: Gets messy at ~10K lines.
 
 **B. Monorepo from day one**
-
 ```
 openoffice/
   packages/
@@ -47,12 +44,10 @@ openoffice/
     tui/          — terminal app
     desktop/      — electron app
 ```
-
 Pros: Clean separation, each package independently testable.
 Cons: Build complexity, package linking, version management.
 
 **C. Hybrid — core + apps**
-
 ```
 openoffice/
   packages/
@@ -60,7 +55,6 @@ openoffice/
     tui/          — terminal app
     desktop/      — electron app
 ```
-
 Pros: Core is reusable, apps are thin shells.
 Cons: Core becomes a god package.
 

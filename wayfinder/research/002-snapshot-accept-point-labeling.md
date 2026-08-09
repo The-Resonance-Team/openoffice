@@ -7,7 +7,6 @@
 `track()` returns a **string** — a git tree hash from `git write-tree`.
 
 Storage mechanism: a **shadow git repo** (not the project's `.git`). It:
-
 1. Initializes `git init` in a separate `gitdir` (under `.opencode/snapshot/`)
 2. Shares object DB with the source repo via `alternates` (avoids re-hashing large objects)
 3. Stages all changed files via `git add --all --sparse`
@@ -63,17 +62,17 @@ For each file in each patch, runs `git checkout <hash> -- <file>` to restore ind
 
 ```ts
 const Revert = Schema.Struct({
-  messageID: MessageID, // target message to revert to
-  partID: optional(PartID), // optional specific part
-  snapshot: optional(String), // tree hash for restore point
-  diff: optional(String), // unified diff text for display
-});
+  messageID: MessageID,        // target message to revert to
+  partID: optional(PartID),    // optional specific part
+  snapshot: optional(String),  // tree hash for restore point
+  diff: optional(String),      // unified diff text for display
+})
 
 const Info = Schema.Struct({
   // ... other fields ...
   revert: optional(Revert),
   metadata: optional(Metadata), // Record<string, any>
-});
+})
 ```
 
 ### `SessionV1.Part` (schema/v1/session.ts)
@@ -112,11 +111,11 @@ Key insight: revert uses `Patch` type from snapshot module (`{ hash, files }`) �
 // packages/schema/src/v1/session.ts
 export const PatchPart = Schema.Struct({
   ...partBase,
-  type: Schema.Literal('patch'),
+  type: Schema.Literal("patch"),
   hash: Schema.String,
   files: Schema.Array(Schema.String),
-  label: optional(Schema.String), // NEW: "accept" | undefined
-}).annotate({ identifier: 'PatchPart' });
+  label: optional(Schema.String),  // NEW: "accept" | undefined
+}).annotate({ identifier: "PatchPart" })
 ```
 
 ### Option B: Use `Session.metadata` for accept-point tracking
@@ -138,7 +137,7 @@ metadata: {
 
 ```ts
 metadata: {
-  acceptPoints: [{ messageID, partID, snapshot, timestamp }];
+  acceptPoints: [{ messageID, partID, snapshot, timestamp }]
 }
 ```
 
@@ -146,12 +145,12 @@ This is written by the accept handler (future code) and read by Version History 
 
 ### Minimal implementation surface
 
-| File                                         | Change                                                                                   |
-| -------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| `packages/schema/src/v1/session.ts`          | Add `label?: string` to `PatchPart`                                                      |
-| `packages/opencode/src/session/revert.ts`    | No change needed — ignores `label`                                                       |
-| `packages/opencode/src/session/processor.ts` | No change needed — creates `PatchPart` without label                                     |
-| Future: accept handler                       | Sets `label: "accept"` on the relevant `PatchPart` and writes to `metadata.acceptPoints` |
+| File | Change |
+|------|--------|
+| `packages/schema/src/v1/session.ts` | Add `label?: string` to `PatchPart` |
+| `packages/opencode/src/session/revert.ts` | No change needed — ignores `label` |
+| `packages/opencode/src/session/processor.ts` | No change needed — creates `PatchPart` without label |
+| Future: accept handler | Sets `label: "accept"` on the relevant `PatchPart` and writes to `metadata.acceptPoints` |
 
 ### `Snapshot.Patch` type (internal)
 
@@ -161,13 +160,13 @@ The internal `Snapshot.Patch` type (`{ hash, files }`) stays unchanged. It's a t
 
 ## Breaking-Change Risks
 
-| Risk                                  | Level    | Mitigation                                                                         |
-| ------------------------------------- | -------- | ---------------------------------------------------------------------------------- |
-| Adding `label` to `PatchPart` schema  | **Low**  | Optional field; existing consumers destructure `{ hash, files }` and ignore extras |
-| Database schema change                | **None** | Parts are stored as JSON in SQLite; new fields persist transparently               |
-| `revert.ts` consuming `PatchPart`     | **None** | It destructures `{ hash, files }` — extra fields are ignored                       |
-| `diffFull()` returning patch data     | **None** | Returns `FileDiff[]` from git, not from `PatchPart` records                        |
-| `Session.Patch` (session update type) | **None** | Unrelated — it's for updating session fields, not parts                            |
-| SDK/API consumers                     | **Low**  | SDK types are auto-generated from schema; adding optional field is non-breaking    |
+| Risk | Level | Mitigation |
+|------|-------|------------|
+| Adding `label` to `PatchPart` schema | **Low** | Optional field; existing consumers destructure `{ hash, files }` and ignore extras |
+| Database schema change | **None** | Parts are stored as JSON in SQLite; new fields persist transparently |
+| `revert.ts` consuming `PatchPart` | **None** | It destructures `{ hash, files }` — extra fields are ignored |
+| `diffFull()` returning patch data | **None** | Returns `FileDiff[]` from git, not from `PatchPart` records |
+| `Session.Patch` (session update type) | **None** | Unrelated — it's for updating session fields, not parts |
+| SDK/API consumers | **Low** | SDK types are auto-generated from schema; adding optional field is non-breaking |
 
 **No breaking changes.** The `label` field is optional and all existing consumers use structural typing or destructure known fields.
