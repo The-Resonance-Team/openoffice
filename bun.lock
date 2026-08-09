@@ -123,8 +123,8 @@
       "name": "openoffice-desktop",
       "version": "0.1.0",
       "dependencies": {
-        "@fontsource/archivo": "^5.2.5",
-        "@fontsource/source-serif-4": "^5.2.5",
+        "@fontsource/geist": "^5.2.5",
+        "@fontsource/geist-mono": "^5.2.5",
         "@openoffice/ui": "workspace:*",
         "@tailwindcss/vite": "^4.3.3",
         "@tanstack/react-query": "^5.101.4",
@@ -501,9 +501,9 @@
 
     "@firecrawl/pdf-inspector-win32-x64-msvc": ["@firecrawl/pdf-inspector-win32-x64-msvc@1.12.0", "", { "os": "win32", "cpu": "x64" }, "sha512-FeSrs6mAlY6nMq4qXWQDyd1ED1vwx99J7ZTs6ohFKlBCQ2i/64sFO9r0ZOsmddSq7cfxt4tCLSmXYLzRGF+tsQ=="],
 
-    "@fontsource/archivo": ["@fontsource/archivo@5.3.0", "", {}, "sha512-5DIMgPVJRi62OqdOVoogCFxP73EkNM/E0YVTSDIQlDEJfDbxqZduwM/YoNZwC9Sx1CDgpKinqf8ckRY1QNIecw=="],
+    "@fontsource/geist": ["@fontsource/geist@5.3.0", "", {}, "sha512-u03ftlfVwb05uijq2jGDJ03/HKGqMKaNFk7KOhkpBUex8+BhrAOfMs/XciJ2UUNUX9fEsZbZQld/RWMA2oFU7g=="],
 
-    "@fontsource/source-serif-4": ["@fontsource/source-serif-4@5.3.0", "", {}, "sha512-yQz8xmIgMzks8zQbpuca3UYtjxK798XCyQAGdDXmzBgvV7sdoK6d0YvE9F9kiYxORCEMRBgGZDZsSYcXj5KvwA=="],
+    "@fontsource/geist-mono": ["@fontsource/geist-mono@5.3.0", "", {}, "sha512-UtJ1BBBCVpMYdIcW7nEB45UAoAw5M53ZXs2t0ciPW+IokuAAIc56M8+kW5tXbRJCTpDw4XTtU7proT6NdQAHTg=="],
 
     "@hono/node-server": ["@hono/node-server@2.0.12", "", { "peerDependencies": { "hono": "^4" } }, "sha512-eWpQYr67tqJLeaSUl0Q+TquuYfUdTibpOJlUMV2FfUP7+KqCC5TufnwnlXL6mobZBJbGAYRd7ZvEBDCbLInjhg=="],
 

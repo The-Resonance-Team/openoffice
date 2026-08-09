@@ -41,8 +41,8 @@
   --color-n3: var(--n3);
   --color-n5: var(--n5);
   --color-n7: var(--n7);
-  --font-sans: var(--font-archivo);
-  --font-serif: var(--font-source-serif);
+  --font-sans: var(--font-geist);
+  --font-mono: var(--font-geist-mono);
 }
 
 @keyframes ooSpin {
@@ -75,7 +75,7 @@ body {
 body {
   background: var(--bg);
   color: var(--ink);
-  font-family: var(--font-archivo), system-ui, sans-serif;
+  font-family: var(--font-geist), system-ui, sans-serif;
   font-size: 14px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
