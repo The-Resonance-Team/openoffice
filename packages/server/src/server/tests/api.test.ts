@@ -372,6 +372,33 @@ describe("server API", () => {
     expect(decoder.decode(value)).toContain("Hello");
     reader.cancel();
   });
+
+  test("/end ends only when the caller is the last attached client, once", async () => {
+    const { app, attached } = makeApp();
+    const created = await post(app, "/api/sessions", { cwd: "/tmp" });
+    const id = created.json.id;
+    const { on } = await import("@openoffice/core");
+    let emits = 0;
+    const off = on("session:end", (d) => {
+      if (d.sessionID === id) emits++;
+    });
+
+    attached.attach(id);
+    attached.attach(id);
+    await post(app, `/api/sessions/${id}/end`);
+    expect(store.load(id)!.endedAt).toBeUndefined();
+    expect(emits).toBe(0);
+
+    attached.detach(id);
+    await post(app, `/api/sessions/${id}/end`);
+    expect(store.load(id)!.endedAt).toBeDefined();
+    expect(emits).toBe(1);
+
+    // Second end is a no-op (idempotent against sweep/end races).
+    await post(app, `/api/sessions/${id}/end`);
+    expect(emits).toBe(1);
+    off();
+  });
 });
 
 describe("MCP routes", () => {

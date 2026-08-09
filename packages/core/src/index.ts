@@ -96,6 +96,8 @@ export type { OfficeCliDeps } from "./office";
 export {
   SessionStore,
   runTurn,
+  isStaleSession,
+  SESSION_STALE_AFTER_MS,
   buildSystemPrompt,
   create,
   process,

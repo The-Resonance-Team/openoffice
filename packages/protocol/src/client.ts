@@ -2,7 +2,7 @@
 // The fetch implementation lives in packages/server (it also owns daemon
 // spawn/auth plumbing); clients (CLI, web) depend only on this surface.
 
-import type { Session } from "@openoffice/schema";
+import type { Session, Todo } from "@openoffice/schema";
 
 export interface StreamHandlers {
   token?: (token: string) => void;
@@ -11,6 +11,9 @@ export interface StreamHandlers {
   toolDone?: (tool: string, result: unknown) => void;
   message?: (role: string, content: string) => void;
   ask?: (promptID: string, question: string) => Promise<void> | void;
+  todoUpdated?: (todos: Todo[]) => void;
+  stepLimit?: (maxSteps: number) => void;
+  sessionEnd?: () => void;
 }
 
 export interface UpdateStatus {
