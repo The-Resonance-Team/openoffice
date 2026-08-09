@@ -1,0 +1,128 @@
+@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&display=swap');
+
+:root {
+  --bg: #1c1a18;
+  --panel: #252220;
+  --panel-2: #2c2926;
+  --hover: #302c29;
+  --border: rgba(243, 239, 233, 0.08);
+  --border-2: rgba(243, 239, 233, 0.12);
+  --text: #f3efe9;
+  --muted: rgba(243, 239, 233, 0.56);
+  --faint: rgba(243, 239, 233, 0.34);
+  --accent: #ec3013;
+  --accent-2: #ff6a4d;
+  --accent-grad: linear-gradient(135deg, #ec3013, #ff6a4d);
+  --accent-soft: rgba(236, 48, 19, 0.13);
+  --av-grad: linear-gradient(135deg, #ff7a5e, #c21f07);
+  --green: #6fae74;
+  --amber: #e0a13a;
+  --teal: #6fa8a0;
+  --shadow: 0 14px 34px -16px rgba(0, 0, 0, 0.6);
+  --shadow-lg: 0 30px 72px -22px rgba(0, 0, 0, 0.74);
+  --mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+body {
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  font-family:
+    'Archivo',
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    Helvetica,
+    Arial,
+    sans-serif;
+}
+input,
+button,
+textarea,
+select {
+  font-family: inherit;
+}
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: var(--accent) !important;
+}
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+a:hover {
+  color: var(--accent-2);
+}
+::selection {
+  background: rgba(236, 48, 19, 0.3);
+  color: #fff;
+}
+::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(243, 239, 233, 0.11);
+  border-radius: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+@keyframes fadeup {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes fadein {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.fade-up {
+  animation: fadeup 0.14s ease;
+}
+.fade-in {
+  animation: fadein 0.2s ease;
+}
+
+/* style-hover="{{ ghostHover }}" etc. in the design become real :hover rules */
+.hover-ghost:hover {
+  background: var(--panel-2);
+}
+.hover-card:hover {
+  border-color: var(--border-2);
+  background: var(--panel-2);
+}
+.hover-row:hover {
+  background: var(--panel-2);
+}
+.hover-btn:hover {
+  filter: brightness(1.08);
+}
+.hover-danger:hover {
+  background: var(--accent-soft);
+}
+
+button {
+  cursor: pointer;
+}
