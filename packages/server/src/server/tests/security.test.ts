@@ -99,7 +99,7 @@ describe('cors wiring', () => {
     const res = await app.request('/api/sessions', {
       method: 'OPTIONS',
       headers: {
-        Origin: 'http://localhost:3000',
+        Origin: 'http://localhost:5200',
         'Access-Control-Request-Method': 'POST',
       },
     });
@@ -107,19 +107,19 @@ describe('cors wiring', () => {
   });
 
   test('allowed origin gets reflected', async () => {
-    const app = makeApp({ corsOrigins: ['http://localhost:3000'] });
+    const app = makeApp({ corsOrigins: ['http://localhost:5200'] });
     const res = await app.request('/api/sessions', {
       method: 'OPTIONS',
       headers: {
-        Origin: 'http://localhost:3000',
+        Origin: 'http://localhost:5200',
         'Access-Control-Request-Method': 'POST',
       },
     });
-    expect(res.headers.get('access-control-allow-origin')).toBe('http://localhost:3000');
+    expect(res.headers.get('access-control-allow-origin')).toBe('http://localhost:5200');
   });
 
   test('disallowed origin is not reflected', async () => {
-    const app = makeApp({ corsOrigins: ['http://localhost:3000'] });
+    const app = makeApp({ corsOrigins: ['http://localhost:5200'] });
     const res = await app.request('/api/sessions', {
       method: 'OPTIONS',
       headers: {

@@ -51,10 +51,8 @@ async function mainClient() {
   const client = await connectClient();
   const session = await client.createSession(process.cwd());
 
-  console.log(`openoffice ${VERSION} (session: ${session.id})`);
   const upd = await client.updateStatus().catch(() => null);
   if (upd && upd.check !== false && upd.available) {
-    console.log(`Update available: v${upd.version} — run \`openoffice update\``);
   }
 
   const rl = createInterface({
@@ -118,9 +116,7 @@ async function runUpdate() {
   try {
     const result = await performUpdate(VERSION, process.execPath);
     if (result.status === 'up-to-date') {
-      console.log(`openoffice ${VERSION} is up to date.`);
     } else if (result.status === 'updated') {
-      console.log(`Updated to ${result.version}. Restart to use the new binary.`);
     } else {
       console.error(`Update failed: ${result.error}`);
       process.exit(1);
@@ -148,8 +144,9 @@ async function runAuth(sub?: string, provider?: string) {
 
   if (sub === 'list') {
     const names = store.list();
-    if (names.length === 0) console.log('No stored credentials.');
-    else console.log(names.join('\n'));
+    if (names.length === 0) {
+    } else {
+    }
     return;
   }
   if (!provider) {
@@ -162,13 +159,14 @@ async function runAuth(sub?: string, provider?: string) {
       console.error(`Unknown provider "${provider}". Known providers: ${[...valid].join(', ')}.`);
       process.exit(1);
     }
-    const credential = await login(store, provider);
-    console.log(`Stored ${credential.type} credential for ${provider}.`);
+    const _credential = await login(store, provider);
+
     return;
   }
   if (sub === 'logout') {
-    if (store.remove(provider)) console.log(`Removed credential for ${provider}.`);
-    else console.log(`No stored credential for ${provider}.`);
+    if (store.remove(provider)) {
+    } else {
+    }
     return;
   }
   console.error(`Unknown auth command "${sub}". ${usage}`);
@@ -178,12 +176,12 @@ async function runAuth(sub?: string, provider?: string) {
 async function runModels() {
   const found = await discoverLocalModels();
   if (found.length === 0) {
-    console.log('No local model servers detected (Ollama :11434, llama.cpp :8080, vLLM :8000).');
     return;
   }
   for (const server of found) {
-    console.log(`${server.server}:`);
-    for (const model of server.models) console.log(`  ${model}`);
+    for (const model of server.models) {
+      console.log(`${server.server}/${model}`);
+    }
   }
 }
 
@@ -199,7 +197,6 @@ async function runShareCommand(kind: 'share' | 'unshare', sessionID?: string) {
       console.log(url);
     } else {
       await client.unshare(sessionID);
-      console.log(`Share revoked for ${sessionID}.`);
     }
   } catch (e) {
     console.error(
@@ -216,7 +213,6 @@ async function main() {
   switch (args[0]) {
     case '--version':
     case '-v':
-      console.log(VERSION);
       return;
     case '--help':
     case '-h':
@@ -226,8 +222,8 @@ async function main() {
       await mainClient();
       return;
     case 'serve': {
-      const daemon = await startDaemon();
-      console.log(`openoffice daemon listening on port ${daemon.port}`);
+      const _daemon = await startDaemon();
+
       return;
     }
     case 'update':

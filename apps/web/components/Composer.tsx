@@ -1,9 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { useUiStore } from '@/lib';
-import { models } from '@/lib';
-import { Icon } from '@/lib';
+import { useUiStore, models, Icon } from '@/lib';
 
 export function Composer({ onSend }: { onSend: (text: string) => void }) {
   const [value, setValue] = useState('');

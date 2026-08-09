@@ -1,5 +1,4 @@
-import { useUiStore } from '@/lib';
-import { excel } from '@/lib';
+import { useUiStore, excel } from '@/lib';
 
 const totalRe = /total|gross profit|ebitda margin|ebitda|weighted/i;
 const letters = 'ABCDEFGHIJ'.split('');

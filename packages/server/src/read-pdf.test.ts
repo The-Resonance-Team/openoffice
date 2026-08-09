@@ -9,7 +9,6 @@ const REAL_PDF = join(import.meta.dir, '../test/fixtures/test-real.pdf');
 describe('readPdf integration — real PDF', () => {
   test('extracts Markdown from real PDF file', async () => {
     if (!existsSync(REAL_PDF)) {
-      console.log('SKIP: data/test-real.pdf not found');
       return;
     }
     try {
@@ -24,7 +23,6 @@ describe('readPdf integration — real PDF', () => {
 
   test('real PDF produces structured output (headings or paragraphs)', async () => {
     if (!existsSync(REAL_PDF)) {
-      console.log('SKIP: data/test-real.pdf not found');
       return;
     }
     try {

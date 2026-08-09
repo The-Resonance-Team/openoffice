@@ -2,9 +2,10 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { navPrimary, pinned } from '@/lib';
-import { Icon } from '@/lib';
 import {
+  navPrimary,
+  pinned,
+  Icon,
   getUpdateStatus,
   listSessions,
   deleteSession,

@@ -110,7 +110,7 @@ jobs:
           POSTGRES_PASSWORD: openoffice
           POSTGRES_DB: openoffice_cloud
         ports:
-          - '5435:5432'
+          - '5253:5432'
         options: >-
           --health-cmd "pg_isready -U openoffice -d openoffice_cloud"
           --health-interval 5s
@@ -136,6 +136,6 @@ jobs:
       - name: Migrate cloud-api database
         working-directory: apps/cloud-api
         env:
-          DATABASE_URL: postgresql://openoffice:openoffice@127.0.0.1:5435/openoffice_cloud
+          DATABASE_URL: postgresql://openoffice:openoffice@127.0.0.1:5253/openoffice_cloud
         run: bunx prisma migrate deploy
       - run: bun run test:e2e --filter=cloud-api

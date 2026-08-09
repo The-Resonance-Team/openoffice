@@ -25,13 +25,12 @@ if (found === 0) {
 }
 
 const pct = (hits / found) * 100;
-console.log(`src coverage: ${pct.toFixed(1)}% (${hits}/${found}), threshold ${threshold}%`);
 
 if (pct < threshold) {
   perFile
     .sort((a, b) => a[1] - b[1])
     .slice(0, 10)
-    .forEach(([f, p]) => console.log(`  ${p.toFixed(1).padStart(5)}%  ${f}`));
+    .forEach(([_f, _p]) => {});
   console.error(`FAIL: coverage below ${threshold}%`);
   process.exit(1);
 }

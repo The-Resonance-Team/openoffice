@@ -26,6 +26,10 @@
     "react/react-in-jsx-scope": "off",
     "react/no-array-index-key": "warn",
     "eslint/no-underscore-dangle": "off",
+    "react-perf/jsx-no-new-object-as-prop": "off",
+    "react-perf/jsx-no-new-function-as-prop": "off",
+    "react-perf/jsx-no-jsx-as-prop": "off",
+    "react-perf/jsx-no-new-array-as-prop": "off",
     "import/no-duplicates": [
       "error",
       {
@@ -48,6 +52,20 @@
         "jest/valid-title": "off",
         "vitest/valid-title": "off",
         "vitest/require-mock-type-parameters": "off"
+      }
+    },
+    {
+      "files": ["**/components/**/*.{ts,tsx}"],
+      "rules": {
+        "react/no-array-index-key": "off",
+        "react-perf/jsx-no-new-object-as-prop": "off",
+        "react-perf/jsx-no-new-function-as-prop": "off"
+      }
+    },
+    {
+      "files": ["packages/**/*.{ts,tsx}"],
+      "rules": {
+        "typescript/no-explicit-any": "off"
       }
     }
   ],

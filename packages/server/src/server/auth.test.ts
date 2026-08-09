@@ -1,4 +1,4 @@
-import { describe, expect, test, beforeEach } from 'bun:test';
+import { describe, expect, test } from 'bun:test';
 import { Hono } from 'hono';
 import { loadAuthConfig, authRequired, createAuthMiddleware, authHeaders } from './auth';
 

@@ -10,8 +10,8 @@ services:
       POSTGRES_PASSWORD: openoffice
       POSTGRES_DB: openoffice_cloud
     ports:
-      # 5433: 5432 is commonly occupied by other projects' Postgres
-      - '5435:5432'
+      # 5253: 5432 is commonly occupied by other projects' Postgres
+      - '5253:5432'
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:

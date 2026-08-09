@@ -5,6 +5,7 @@ export * from './Dashboard';
 export * from './DocsShell';
 export * from './SettingsView';
 export * from './DashboardHome';
+export * from './ChatPanel';
 export * from './ToastProvider';
 export * from './ComingSoon';
 export * from './Modal';

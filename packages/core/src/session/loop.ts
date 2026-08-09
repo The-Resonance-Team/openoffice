@@ -8,7 +8,7 @@ import { emit } from '../events';
 import type { Config } from '../config';
 import type { AgentRegistry } from '../agent/registry';
 import { getModel, splitModel } from '../llm/model-limits';
-import { applyPrune, create, process, prune, type CompactionDeps } from './compaction';
+import { applyPrune, create, process, prune } from './compaction';
 import { isOverflow } from './overflow';
 import { filterCompacted, toModelMessages } from './ai-messages';
 import { buildMaxStepsPrompt, MAX_STEPS_FALLBACK_TEXT } from './max-steps';

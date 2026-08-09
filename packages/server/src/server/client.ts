@@ -1,12 +1,7 @@
 import { getDataDir, readDaemonInfo, isAlive, spawnDaemon } from './daemon';
 import { loadAuthConfig, authHeaders } from './auth';
 import type { Session } from '@openoffice/schema';
-import type {
-  DaemonClient,
-  StreamHandlers,
-  UpdateStatus,
-  McpServerStatusInfo,
-} from '@openoffice/protocol';
+import type { DaemonClient, StreamHandlers, McpServerStatusInfo } from '@openoffice/protocol';
 
 export type { StreamHandlers, UpdateStatus } from '@openoffice/protocol';
 

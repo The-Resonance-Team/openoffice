@@ -12,8 +12,8 @@ describe('loadCorsOrigins', () => {
   });
 
   test('parses a comma-separated list and trims whitespace', () => {
-    process.env.OPENOFFICE_SERVER_CORS_ORIGIN = 'http://localhost:3000, http://localhost:3001';
-    expect(loadCorsOrigins()).toEqual(['http://localhost:3000', 'http://localhost:3001']);
+    process.env.OPENOFFICE_SERVER_CORS_ORIGIN = 'http://localhost:5200, http://localhost:5201';
+    expect(loadCorsOrigins()).toEqual(['http://localhost:5200', 'http://localhost:5201']);
   });
 
   test('drops a wildcard origin', () => {
@@ -22,7 +22,7 @@ describe('loadCorsOrigins', () => {
   });
 
   test('drops wildcard but keeps real origins in a mixed list', () => {
-    process.env.OPENOFFICE_SERVER_CORS_ORIGIN = '*, http://localhost:3000';
-    expect(loadCorsOrigins()).toEqual(['http://localhost:3000']);
+    process.env.OPENOFFICE_SERVER_CORS_ORIGIN = '*, http://localhost:5200';
+    expect(loadCorsOrigins()).toEqual(['http://localhost:5200']);
   });
 });

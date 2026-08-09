@@ -94,7 +94,7 @@ export function parseConfigFile(path: string): unknown {
   try {
     return JSON.parse(stripJsonc(text));
   } catch (err) {
-    throw new Error(`invalid config ${path}: ${(err as Error).message}`);
+    throw new Error(`invalid config ${path}: ${(err as Error).message}`, { cause: err });
   }
 }
 
@@ -118,7 +118,7 @@ export function loadConfigFiles(globalPath: string | null, projectPath: string |
     try {
       layers.push(ConfigSchema.parse(parseConfigFile(path)));
     } catch (err) {
-      throw new Error(`invalid config ${path}: ${(err as Error).message}`);
+      throw new Error(`invalid config ${path}: ${(err as Error).message}`, { cause: err });
     }
   }
   return layers;

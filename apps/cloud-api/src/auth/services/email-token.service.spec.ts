@@ -24,7 +24,7 @@ describe('EmailTokenService', () => {
       new MailerService(
         new ConfigService({
           resend: { from: 'no-reply@test.dev' },
-          webAppUrl: 'http://localhost:3002',
+          webAppUrl: 'http://localhost:5202',
         }),
       ),
     );

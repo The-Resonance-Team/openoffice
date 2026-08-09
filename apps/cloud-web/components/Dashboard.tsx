@@ -1,16 +1,15 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { canManageOrg, isUnauthorized } from '@/lib';
-import { useMe } from '@/lib';
-import { initials } from '@/lib';
+import { canManageOrg, isUnauthorized, useMe, initials } from '@/lib';
 import { AccountView } from './AccountView';
 import { OrgView } from './OrgView';
 import { SettingsView } from './SettingsView';
 import { DashboardHome } from './DashboardHome';
+import { ChatPanel } from './ChatPanel';
 import { ToastProvider } from './ToastProvider';
 
-type View = 'home' | 'account' | 'org' | 'settings';
+type View = 'home' | 'chat' | 'account' | 'org' | 'settings';
 
 const I = {
   home: (
@@ -27,6 +26,21 @@ const I = {
     >
       <path d="M3 11l9-7 9 7" />
       <path d="M5 10v9h5v-6h4v6h5v-9" />
+    </svg>
+  ),
+  chat: (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      style={{ opacity: 0.85, flex: 'none' }}
+    >
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
     </svg>
   ),
   person: (
@@ -440,6 +454,12 @@ export function Dashboard() {
               onClick={() => nav('home')}
             />
             <NavItem
+              icon={I.chat}
+              label="Chat"
+              active={view === 'chat'}
+              onClick={() => nav('chat')}
+            />
+            <NavItem
               icon={I.person}
               label="My Account"
               active={view === 'account'}
@@ -578,6 +598,7 @@ export function Dashboard() {
             {view === 'home' && (
               <DashboardHome userName={profile.user.name ?? profile.user.email} />
             )}
+            {view === 'chat' && <ChatPanel />}
             {view === 'account' && <AccountView profile={profile} />}
             {view === 'org' && canManage && <OrgView profile={profile} />}
             {view === 'settings' && <SettingsView />}

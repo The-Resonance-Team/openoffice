@@ -1,8 +1,6 @@
 'use client';
 
-import { useUiStore } from '@/lib';
-import { providers } from '@/lib';
-import { Icon } from '@/lib';
+import { useUiStore, providers, Icon } from '@/lib';
 
 export function ProviderDialog() {
   const open = useUiStore((s) => s.providerDialogOpen);

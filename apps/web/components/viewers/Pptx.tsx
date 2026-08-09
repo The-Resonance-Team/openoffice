@@ -1,5 +1,4 @@
-import { useUiStore } from '@/lib';
-import { slides } from '@/lib';
+import { useUiStore, slides } from '@/lib';
 
 function SlideInner({ raw }: { raw: (typeof slides)[number] }) {
   if (raw.k === 'title') {

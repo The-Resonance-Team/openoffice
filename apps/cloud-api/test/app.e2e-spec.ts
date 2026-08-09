@@ -11,7 +11,7 @@ import { EmailTokenService } from './../src/auth/services/email-token.service';
 import { PrismaService } from './../src/prisma/prisma.service';
 
 // Requires the local dev database: `docker compose up -d postgres` (root
-// docker-compose.yml, port 5435) — the standing Postgres-always-Docker rule.
+// docker-compose.yml, port 5253) — the standing Postgres-always-Docker rule.
 // One shared verified user covers most flows, keeping register/login calls
 // under the per-route throttler limits (5 and 10 per minute).
 

@@ -24,7 +24,7 @@ export function canManageOrg(role: Role): boolean {
 }
 
 function apiBase(): string {
-  return process.env.NEXT_PUBLIC_CLOUD_API_URL ?? 'http://localhost:3001';
+  return process.env.NEXT_PUBLIC_CLOUD_API_URL ?? 'http://localhost:5201';
 }
 
 class ApiError extends Error {

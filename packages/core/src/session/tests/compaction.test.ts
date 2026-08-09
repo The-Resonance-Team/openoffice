@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { prune, applyPrune, select } from '../compaction';
+import { prune, select } from '../compaction';
 import type { WithParts, ToolPart } from '../parts';
 import type { Config } from '../../config';
 

@@ -2,16 +2,16 @@
 
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useUiStore } from '@/lib';
-import { useSession } from '@/lib';
-import { LeftRail } from '@/components';
-import { ChatPanel } from '@/components';
-import { Sidebar } from '@/components';
-import { Viewer } from '@/components';
-import { ProviderDialog } from '@/components';
-import { LoginDialog } from '@/components';
-import { ResizeHandle } from '@/components';
-import { Icon } from '@/lib';
+import { useUiStore, useSession, Icon } from '@/lib';
+import {
+  LeftRail,
+  ChatPanel,
+  Sidebar,
+  Viewer,
+  ProviderDialog,
+  LoginDialog,
+  ResizeHandle,
+} from '@/components';
 
 const RIGHT_MIN = 300;
 const RIGHT_MAX = 900;

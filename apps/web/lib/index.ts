@@ -1,3 +1,4 @@
+export * from './client';
 export * from './mock';
 export * from './use-session';
 export * from './use-ai-chat';
