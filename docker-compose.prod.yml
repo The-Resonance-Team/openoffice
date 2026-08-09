@@ -1,0 +1,17 @@
+# Production compose file for VPS deployment.
+# Usage: docker compose -f docker-compose.prod.yml up -d
+services:
+  cloud-api:
+    image: ghcr.io/the-resonance-team/openoffice-cloud-api:latest
+    restart: unless-stopped
+    ports:
+      - '5201:5201'
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: ${DATABASE_URL}
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://localhost:5201/v1/health']
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3

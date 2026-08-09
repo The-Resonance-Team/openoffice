@@ -1,0 +1,99 @@
+name: CD
+
+on:
+  push:
+    tags: ['v*']
+
+concurrency:
+  group: cd-${{ github.ref_name }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-push:
+    name: Build & Push (cloud-api)
+    runs-on: self-hosted
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+        with:
+          driver: docker
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: apps/cloud-api/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/the-resonance-team/openoffice-cloud-api:${{ github.ref_name }}
+            ghcr.io/the-resonance-team/openoffice-cloud-api:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    name: Deploy (VPS)
+    needs: build-push
+    runs-on: self-hosted
+    timeout-minutes: 15
+    outputs:
+      status: ${{ steps.deploy.outcome }}
+    steps:
+      - name: Deploy
+        id: deploy
+        uses: appleboy/ssh-action@v1
+        continue-on-error: true
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          port: ${{ secrets.SSH_PORT }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          timeout: 10m
+          script: |
+            set -e
+            cd /opt/openoffice
+            docker compose -f docker-compose.prod.yml pull
+            docker compose -f docker-compose.prod.yml up -d --wait --wait-timeout 120
+
+      - name: Rollback on failure
+        if: steps.deploy.outcome == 'failure'
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          port: ${{ secrets.SSH_PORT }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          timeout: 10m
+          script: |
+            set -e
+            cd /opt/openoffice
+            docker compose -f docker-compose.prod.yml up -d --force-recreate --wait --wait-timeout 120
+            for i in $(seq 1 10); do
+              code=$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:5201/v1/health" 2>/dev/null || echo 000)
+              if [ "$code" = "200" ]; then
+                echo "Rollback complete — API healthy"
+                exit 0
+              fi
+              echo "Health check $i/10 failed (HTTP $code), retrying in 5s..."
+              sleep 5
+            done
+            echo "::error::Rollback failed — API not healthy"
+
+      - name: Deployment summary
+        if: always()
+        run: |
+          TAG="${{ github.ref_name }}"
+          STATUS="${{ steps.deploy.outcome }}"
+          echo "## Deployment $STATUS" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Component | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Tag | \`$TAG\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| cloud-api | $([ "$STATUS" = "success" ] && echo "✅ Live" || echo "❌ Failed — rollback attempted") |" >> $GITHUB_STEP_SUMMARY
