@@ -21,4 +21,5 @@ export type EventMap = {
   "session:ask": { sessionID: string; promptID: string; question: string };
   "session:end": { sessionID: string };
   "todo:updated": { sessionID: string; todos: Todo[] };
+  "session:step-limit": { sessionID: string; maxSteps: number };
 };

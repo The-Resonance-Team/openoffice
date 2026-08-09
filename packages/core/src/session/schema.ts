@@ -9,6 +9,7 @@ export const sessions = sqliteTable("sessions", {
   createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
   endedAt: integer("ended_at", { mode: "timestamp_ms" }),
+  lastActiveAt: integer("last_active_at", { mode: "timestamp_ms" }),
 });
 
 // Message rows: one per WithParts.info. Part payloads (text, tool state) live

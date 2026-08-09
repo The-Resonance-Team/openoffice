@@ -17,6 +17,7 @@ import {
 } from "./compaction";
 import { isOverflow } from "./overflow";
 import { filterCompacted, toModelMessages } from "./ai-messages";
+import { buildMaxStepsPrompt, MAX_STEPS_FALLBACK_TEXT } from "./max-steps";
 import type { Part, ToolPart } from "./parts";
 
 export interface RunTurnOptions {
@@ -26,6 +27,7 @@ export interface RunTurnOptions {
   agents: AgentRegistry;
   tools?: ToolRegistry;
   system?: string;
+  maxSteps?: number;
   config: Config;
   chatFn?: (
     options: ChatOptions,
@@ -42,10 +44,13 @@ export async function runTurn(options: RunTurnOptions) {
     tools,
     system,
     config,
+    maxSteps,
     chatFn = defaultChat,
   } = options;
   const model = getModel(session.model);
   const now = Date.now();
+  // The step cap for this turn — the same number chat() uses to stop.
+  const stepLimit = maxSteps ?? 50;
 
   // Load history once — reused across prune, overflow check, and request.
   const history = store.messages(session.id);
@@ -109,6 +114,7 @@ export async function runTurn(options: RunTurnOptions) {
       messages: toModelMessages(filterCompacted(store.messages(session.id))),
       tools: aiTools,
       system,
+      maxSteps: stepLimit,
       onRetry: (info) => {
         fullText = "";
         emit("llm:retry", { sessionID: session.id, ...info });
@@ -206,6 +212,70 @@ export async function runTurn(options: RunTurnOptions) {
         });
       }
     }
+  }
+
+  // Step cap reached: tools are off, the model must produce a text-only
+  // summary of the work done and what remains (pulling from the todo list
+  // when one exists). A second, capped text-only call produces it; if that
+  // call fails, a local fallback text lands instead — never an empty turn.
+  if (result.hitStepCap()) {
+    emit("session:step-limit", { sessionID: session.id, maxSteps: stepLimit });
+
+    const prompt = buildMaxStepsPrompt(store.getTodos(session.id));
+    // Drop pending tool-call parts (the cap cut them off mid-turn): a tool
+    // call without a result is invalid model input, and their inputs are
+    // already visible in the persisted turn.
+    const history = store.messages(session.id).map((msg) =>
+      msg.info.role === "assistant"
+        ? {
+            ...msg,
+            parts: msg.parts.filter(
+              (p) => !(p.type === "tool" && p.state.status === "pending")
+            ),
+          }
+        : msg
+    );
+
+    let summaryText = MAX_STEPS_FALLBACK_TEXT;
+    try {
+      const summary = chatFn(
+        {
+          model: session.model,
+          messages: [
+            ...toModelMessages(filterCompacted(history)),
+            { role: "assistant", content: prompt },
+          ],
+          tools: undefined,
+          maxSteps: 1,
+          system,
+        },
+        config
+      );
+      summaryText = "";
+      for await (const chunk of summary.textStream) {
+        summaryText += chunk;
+        emit("llm:token", { sessionID: session.id, token: chunk });
+      }
+      await summary.responseMessages;
+    } catch {
+      // fallback text already assigned
+    }
+
+    const summaryId = randomUUID();
+    store.updateMessage(session.id, {
+      id: summaryId,
+      role: "assistant",
+      parentID: userMsgId,
+      agent: session.agent,
+      model: splitModelRef(session.model),
+      finish: "max-steps",
+      time: { created: Date.now() },
+    });
+    store.updatePart(session.id, summaryId, {
+      type: "text",
+      text: summaryText,
+    });
+    fullText += summaryText;
   }
 
   // Persist token usage on the final assistant message so the next turn knows

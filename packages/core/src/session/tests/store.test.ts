@@ -140,4 +140,24 @@ describe("SessionStore", () => {
     ]);
     expect(store.getTodos("s2")).toEqual([]);
   });
+
+  test("lastActiveAt is set by turn writes and survives save()", () => {
+    const session = makeSession("s1");
+    store.save(session);
+    expect(store.load("s1")!.lastActiveAt).toBeUndefined();
+
+    store.updateMessage("s1", {
+      id: "m1",
+      role: "user",
+      time: { created: 1000 },
+    });
+    expect(store.load("s1")!.lastActiveAt).toBe(1000);
+
+    // A later save() (e.g. the loop-end save) must not clobber the heartbeat.
+    const loaded = store.load("s1")!;
+    store.save({ ...loaded, title: "renamed" });
+    expect(store.load("s1")!.lastActiveAt).toBe(1000);
+
+    expect(store.list()[0].lastActiveAt).toBe(1000);
+  });
 });

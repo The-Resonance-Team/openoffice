@@ -210,6 +210,7 @@ export async function startDaemon(): Promise<DaemonHandle> {
   }
 
   const defaultModel = config.model ?? "anthropic/claude-sonnet-4-20250514";
+  const maxSteps = config.maxSteps ?? 50;
   const defaultAgent = agentRegistry.getDefault();
 
   const runtimeCache = new Map<string, SessionRuntime>();
@@ -289,6 +290,7 @@ export async function startDaemon(): Promise<DaemonHandle> {
         agents: agentRegistry,
         tools: runtime.tools,
         system: runtime.system,
+        maxSteps,
         config,
       }),
     updateStatus: async () => {

@@ -55,6 +55,7 @@ export const CompactionConfigSchema = z.object({
 
 export const ConfigSchema = z.object({
   model: z.string().optional(),
+  maxSteps: z.number().int().positive().optional(),
   llm: z
     .object({
       retry: z
