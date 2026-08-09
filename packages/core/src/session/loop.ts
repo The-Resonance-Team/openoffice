@@ -248,6 +248,12 @@ export async function runTurn(options: RunTurnOptions) {
           tools: undefined,
           maxSteps: 1,
           system,
+          // Same accumulator-reset discipline as the main stream: a retried
+          // attempt re-yields from scratch, so tokens from the interrupted
+          // attempt must be discarded.
+          onRetry: () => {
+            summaryText = "";
+          },
         },
         config
       );
@@ -258,7 +264,9 @@ export async function runTurn(options: RunTurnOptions) {
       }
       await summary.responseMessages;
     } catch {
-      // fallback text already assigned
+      // A stream that dies mid-way with real output keeps that output; only
+      // an empty (or never-started) summary falls back to the local text.
+      if (!summaryText) summaryText = MAX_STEPS_FALLBACK_TEXT;
     }
 
     const summaryId = randomUUID();

@@ -399,6 +399,28 @@ describe("server API", () => {
     expect(emits).toBe(1);
     off();
   });
+
+  test("/end races resolve to a single session:end", async () => {
+    const { app } = makeApp();
+    const created = await post(app, "/api/sessions", { cwd: "/tmp" });
+    const id = created.json.id;
+    const { on } = await import("@openoffice/core");
+    let emits = 0;
+    const off = on("session:end", (d) => {
+      if (d.sessionID === id) emits++;
+    });
+    try {
+      await Promise.all([
+        post(app, `/api/sessions/${id}/end`),
+        post(app, `/api/sessions/${id}/end`),
+        post(app, `/api/sessions/${id}/end`),
+      ]);
+    } finally {
+      off();
+    }
+    expect(emits).toBe(1);
+    expect(store.load(id)!.endedAt).toBeDefined();
+  });
 });
 
 describe("MCP routes", () => {

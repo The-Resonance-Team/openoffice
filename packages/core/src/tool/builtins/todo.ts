@@ -1,7 +1,6 @@
 import { z } from "zod";
 import type { Todo } from "@openoffice/schema";
 import type { ToolDefinition } from "../types";
-import type { SessionStore } from "../../session";
 import { emit } from "../../events";
 
 const todoSchema = z.object({
@@ -13,6 +12,13 @@ const todoSchema = z.object({
 const parameters = z.object({
   todos: z.array(todoSchema),
 });
+
+// Structural deps, not SessionStore: the tool domain must not import session
+// (that closes a dependency cycle), and the shape is all the tool needs.
+export interface TodoDeps {
+  getTodos: (sessionId: string) => Todo[];
+  setTodos: (sessionId: string, todos: Todo[]) => void;
+}
 
 const DESCRIPTION = `Create and maintain a structured task list for the current session. Tracks progress, organizes multi-step work, and surfaces status to the user.
 
@@ -27,7 +33,7 @@ Rules:
 - Each call writes the WHOLE list: it replaces the previous list, it is not a merge
 - Keep todos specific and actionable; break large work into smaller steps`;
 
-export function createTodoTool(deps: { store: SessionStore }): ToolDefinition {
+export function createTodoTool(deps: TodoDeps): ToolDefinition {
   return {
     name: "todo",
     description: DESCRIPTION,
@@ -46,7 +52,7 @@ export function createTodoTool(deps: { store: SessionStore }): ToolDefinition {
         };
       }
       const todos: Todo[] = parsed.data.todos;
-      deps.store.setTodos(ctx.sessionID, todos);
+      deps.setTodos(ctx.sessionID, todos);
       emit("todo:updated", { sessionID: ctx.sessionID, todos });
       return { success: true, output: JSON.stringify(todos, null, 2) };
     },

@@ -283,12 +283,17 @@ export class SessionStore {
       .run();
   }
 
-  markEnded(id: string, endedAt: number): void {
-    this.drizzle
-      .update(sessions)
-      .set({ endedAt: new Date(endedAt) })
-      .where(eq(sessions.id, id))
-      .run();
+  /**
+   * Atomically claims the session end: only the first caller sees ended_at
+   * transition null → set. Returns whether this call won the claim.
+   */
+  markEnded(id: string, endedAt: number): boolean {
+    const result = this.sqlite
+      .query(
+        "UPDATE sessions SET ended_at = ? WHERE id = ? AND ended_at IS NULL"
+      )
+      .run(endedAt, id);
+    return result.changes > 0;
   }
 
   load(id: string): Session | null {

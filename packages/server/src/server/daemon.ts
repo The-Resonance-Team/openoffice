@@ -248,7 +248,12 @@ export async function startDaemon(
         ...convertDeps,
       })
     );
-    registry.register(createTodoTool({ store }));
+    registry.register(
+      createTodoTool({
+        getTodos: (sessionID) => store.getTodos(sessionID),
+        setTodos: (sessionID, todos) => store.setTodos(sessionID, todos),
+      })
+    );
 
     const runtime: SessionRuntime = {
       tools: registry,

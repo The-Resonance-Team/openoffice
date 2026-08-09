@@ -112,8 +112,9 @@ function textOf(message: WithParts): string {
 // The single session-end operation: every side effect of a session ending
 // lives here, so future end paths (heartbeat sweep, #39) call this instead
 // of re-implementing pieces and leaking a share or an orphaned draft.
-// Idempotent: a second call for an already-ended session is a no-op, so the
-// sweep and an explicit /end can race without double-emitting.
+// Races (sweep vs /end) resolve atomically: markEnded is a null → set claim,
+// so exactly one caller runs the side-effects — the loser's orphanAll may
+// still have run (idempotent), but revoke + emit happen exactly once.
 export async function endSession(
   deps: ServerDeps,
   sessionID: string
@@ -121,7 +122,7 @@ export async function endSession(
   const session = deps.store.load(sessionID);
   if (!session || session.endedAt) return;
   await deps.draftManager.orphanAll(sessionID);
-  deps.store.markEnded(sessionID, Date.now());
+  if (!deps.store.markEnded(sessionID, Date.now())) return;
   deps.shareStore.revoke(sessionID);
   emit("session:end", { sessionID });
 }
@@ -245,9 +246,11 @@ export function createApp(deps: ServerDeps) {
 
   app.get("/api/sessions/:id/stream", (c) => {
     const sessionID = c.req.param("id");
-    // An open event stream is an attached client (ADR 0022).
-    attached.attach(sessionID);
     return streamSSE(c, async (stream) => {
+      // An open event stream is an attached client (ADR 0022). Attach after
+      // the stream exists: a request aborted before this callback runs never
+      // attached, so it cannot leak a count.
+      attached.attach(sessionID);
       const offs: (() => void)[] = [];
       const subscribe = <K extends keyof EventMap>(
         event: K,

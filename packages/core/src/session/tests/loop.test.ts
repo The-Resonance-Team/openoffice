@@ -146,9 +146,11 @@ describe("runTurn persistence with foreign keys enforced", () => {
     }
 
     expect(calls).toBe(2);
-    // Summary call: tools disabled, capped at one step, prompt appended last.
+    // Summary call: tools disabled, capped at one step, prompt appended last,
+    // accumulator-reset onRetry (a retried attempt re-yields from scratch).
     expect(summaryOptions.tools).toBeUndefined();
     expect(summaryOptions.maxSteps).toBe(1);
+    expect(typeof summaryOptions.onRetry).toBe("function");
     const last = summaryOptions.messages![summaryOptions.messages!.length - 1];
     expect(last.role).toBe("assistant");
     expect(String(last.content)).toContain("MAXIMUM STEPS REACHED");
@@ -218,5 +220,52 @@ describe("runTurn persistence with foreign keys enforced", () => {
     );
     expect(summary).toBeDefined();
     expect(events).toHaveLength(1);
+  });
+
+  test("a summary stream that dies mid-way keeps its partial output", async () => {
+    const session = makeSession("s1");
+    store.save(session);
+
+    let calls = 0;
+    const chatFn = (_options: ChatOptions) => {
+      calls++;
+      if (calls === 1) {
+        return {
+          textStream: (async function* () {
+            yield "starting";
+          })(),
+          responseMessages: [{ role: "assistant", content: "starting" }],
+          usage: { inputTokens: 1, outputTokens: 1 },
+          hitStepCap: () => true,
+        };
+      }
+      return {
+        textStream: (async function* () {
+          yield "partial summary";
+          throw new Error("mid-stream failure after retries");
+        })(),
+        // The for-await throws first, so this sibling is never awaited — the
+        // catch mirrors retry.ts's own unhandled-rejection discipline.
+        responseMessages: Promise.reject(new Error("nope")).catch(
+          () => undefined
+        ),
+        usage: { inputTokens: 1, outputTokens: 1 },
+        hitStepCap: () => false,
+      };
+    };
+
+    const { text } = await runTurn({
+      session,
+      userMessage: "do it",
+      store,
+      agents: {},
+      config: {},
+      chatFn,
+      maxSteps: 10,
+    } as any);
+
+    // Real model output is kept; the local fallback only covers an empty summary.
+    expect(text).toContain("partial summary");
+    expect(text).not.toContain("Reached the step limit");
   });
 });

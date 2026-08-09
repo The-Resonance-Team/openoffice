@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import { createTodoTool } from "./todo";
 import { on } from "../../events";
-import type { SessionStore } from "../../session";
+import type { TodoDeps } from "./todo";
 
-function fakeStore(): Pick<SessionStore, "getTodos" | "setTodos"> & {
+function fakeStore(): TodoDeps & {
   writes: unknown[][];
 } {
   const writes: unknown[][] = [];
@@ -17,7 +17,7 @@ function fakeStore(): Pick<SessionStore, "getTodos" | "setTodos"> & {
 describe("todo tool", () => {
   test("writes the full list and returns it as JSON", async () => {
     const store = fakeStore();
-    const tool = createTodoTool({ store: store as unknown as SessionStore });
+    const tool = createTodoTool(store);
     const result = await tool.execute(
       {
         todos: [
@@ -44,7 +44,7 @@ describe("todo tool", () => {
 
   test("emits todo:updated with the session id and the new list", async () => {
     const store = fakeStore();
-    const tool = createTodoTool({ store: store as unknown as SessionStore });
+    const tool = createTodoTool(store);
     const events: unknown[] = [];
     const off = on("todo:updated", (data) => events.push(data));
     try {
@@ -65,7 +65,7 @@ describe("todo tool", () => {
 
   test("rejects an invalid status without writing", async () => {
     const store = fakeStore();
-    const tool = createTodoTool({ store: store as unknown as SessionStore });
+    const tool = createTodoTool(store);
     const result = await tool.execute(
       { todos: [{ content: "x", status: "blocked", priority: "high" }] },
       { sessionID: "s1" }
