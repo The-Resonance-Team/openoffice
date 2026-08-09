@@ -17,7 +17,7 @@ env:
   # Remote cache (Vercel) turns on once the repo variable TURBO_TEAM and the
   # secret TURBO_TOKEN exist; empty values disable it cleanly (verified
   # against turbo 2.10.8: falls back to local cache, no error).
-  TURBO_TEAM: ${{ vars.TURBO_TEAM }}
+  TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
   TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
 
 jobs:
@@ -28,7 +28,6 @@ jobs:
       - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
-          cache: true
           bun-version-file: package.json
       - run: bun install --frozen-lockfile
       # Turbo's default cache lives in node_modules/.cache, which checkout
@@ -47,7 +46,6 @@ jobs:
       - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
-          cache: true
           bun-version-file: package.json
       - run: bun install --frozen-lockfile
       - name: Warm turbo L1 cache
@@ -62,15 +60,14 @@ jobs:
       - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
-          cache: true
           bun-version-file: package.json
       # Self-hosted: HOME persists across runs, so bun's install cache is warm
-      # (setup-bun `cache: true` caches only the bun binary itself; the
-      # hosted-runner cache restore/save actions are unnecessary here).
+      # (setup-bun caches the bun binary itself by default; the hosted-runner
+      # cache restore/save actions are unnecessary here).
       - run: bun install --frozen-lockfile
       - run: bun run turbo run build --filter=web
         env:
-          NEXT_PUBLIC_OPENOFFICE_SERVER_PORT: "9999"
+          NEXT_PUBLIC_OPENOFFICE_SERVER_PORT: '9999'
 
   unit:
     runs-on: self-hosted
@@ -79,7 +76,6 @@ jobs:
       - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
-          cache: true
           bun-version-file: package.json
       - run: bun install --frozen-lockfile
       - name: Warm turbo L1 cache
@@ -95,7 +91,6 @@ jobs:
       - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
-          cache: true
           bun-version-file: package.json
       - run: bun install --frozen-lockfile
       # ponytail: stays a bare root run — the aggregate lcov + threshold gate
@@ -115,7 +110,7 @@ jobs:
           POSTGRES_PASSWORD: openoffice
           POSTGRES_DB: openoffice_cloud
         ports:
-          - "5435:5432"
+          - '5253:5432'
         options: >-
           --health-cmd "pg_isready -U openoffice -d openoffice_cloud"
           --health-interval 5s
@@ -125,7 +120,6 @@ jobs:
       - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
-          cache: true
           bun-version-file: package.json
       - run: bun install --frozen-lockfile
       # ponytail: no cache action for officecli — the self-hosted runner's HOME
@@ -142,6 +136,6 @@ jobs:
       - name: Migrate cloud-api database
         working-directory: apps/cloud-api
         env:
-          DATABASE_URL: postgresql://openoffice:openoffice@127.0.0.1:5435/openoffice_cloud
+          DATABASE_URL: postgresql://openoffice:openoffice@127.0.0.1:5253/openoffice_cloud
         run: bunx prisma migrate deploy
       - run: bun run test:e2e --filter=cloud-api

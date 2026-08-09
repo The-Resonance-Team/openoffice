@@ -1,5 +1,4 @@
-import { Icon } from "@/lib/icons";
-import type { IconName } from "@/lib/mock";
+import { Icon, type IconName } from '@/lib';
 
 export function FallbackBody({ name, icon }: { name: string; icon: IconName }) {
   return (
@@ -9,8 +8,8 @@ export function FallbackBody({ name, icon }: { name: string; icon: IconName }) {
       </div>
       <div className="text-[17px] font-bold">{name}</div>
       <div className="max-w-[320px] text-[13.5px] leading-normal text-muted">
-        No in-panel preview for this file type. It&apos;s an incidental file
-        left in the working directory.
+        No in-panel preview for this file type. It&apos;s an incidental file left in the working
+        directory.
       </div>
       <button
         type="button"

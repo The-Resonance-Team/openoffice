@@ -1,19 +1,20 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { navPrimary, pinned } from "@/lib/mock";
-import { Icon } from "@/lib/icons";
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
+  navPrimary,
+  pinned,
+  Icon,
   getUpdateStatus,
   listSessions,
   deleteSession,
   renameSession,
   type SessionDto,
-} from "@/lib/api";
+} from '@/lib';
 
 const navBase =
-  "flex items-center gap-3 rounded-[9px] px-[11px] py-2 text-left text-[14px] font-medium text-muted hover:bg-panel2 hover:text-ink w-full";
+  'flex items-center gap-3 rounded-[9px] px-[11px] py-2 text-left text-[14px] font-medium text-muted hover:bg-panel2 hover:text-ink w-full';
 
 export function LeftRail({
   onToggleLeftRail,
@@ -32,27 +33,26 @@ export function LeftRail({
   const [renamingId, setRenamingId] = useState<string | null>(null);
 
   const { data: updateStatus } = useQuery({
-    queryKey: ["update-status"],
+    queryKey: ['update-status'],
     queryFn: getUpdateStatus,
     retry: false,
     refetchInterval: 60_000,
   });
 
   const { data: sessions = [] } = useQuery({
-    queryKey: ["sessions"],
+    queryKey: ['sessions'],
     queryFn: listSessions,
   });
 
   const renameMutation = useMutation({
-    mutationFn: ({ id, title }: { id: string; title: string }) =>
-      renameSession(id, title),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["sessions"] }),
+    mutationFn: ({ id, title }: { id: string; title: string }) => renameSession(id, title),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['sessions'] }),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => deleteSession(id),
     onSuccess: (_result, id) => {
-      queryClient.invalidateQueries({ queryKey: ["sessions"] });
+      queryClient.invalidateQueries({ queryKey: ['sessions'] });
       if (id === activeSessionId) onNewSession();
     },
   });
@@ -60,12 +60,12 @@ export function LeftRail({
   function commitRename(id: string, title: string) {
     setRenamingId(null);
     const trimmed = title.trim();
-    const current = sessions.find((s) => s.id === id)?.title ?? "";
+    const current = sessions.find((s) => s.id === id)?.title ?? '';
     if (trimmed !== current) renameMutation.mutate({ id, title: trimmed });
   }
 
   function sessionLabel(session: SessionDto): string {
-    return session.title || "New chat";
+    return session.title || 'New chat';
   }
 
   return (
@@ -106,13 +106,8 @@ export function LeftRail({
 
       <nav className="flex flex-col gap-px px-3 pb-1">
         {navPrimary.map((it) =>
-          it.label === "New" ? (
-            <button
-              key={it.label}
-              type="button"
-              onClick={onNewSession}
-              className={navBase}
-            >
+          it.label === 'New' ? (
+            <button key={it.label} type="button" onClick={onNewSession} className={navBase}>
               <Icon name={it.icon} size={18} />
               <span>{it.label}</span>
             </button>
@@ -121,7 +116,7 @@ export function LeftRail({
               <Icon name={it.icon} size={18} />
               <span>{it.label}</span>
             </button>
-          )
+          ),
         )}
       </nav>
 
@@ -136,27 +131,21 @@ export function LeftRail({
           </button>
         ))}
         <div className="flex items-center justify-between px-[11px] pb-[6px] pt-4">
-          <div className="text-[11.5px] font-semibold tracking-[.02em] text-faint">
-            Recents
-          </div>
+          <div className="text-[11.5px] font-semibold tracking-[.02em] text-faint">Recents</div>
           <span className="flex text-faint">
             <Icon name="sliders" size={15} />
           </span>
         </div>
         {sessions.map((session) => (
-          <div
-            key={session.id}
-            className="group/session flex items-center gap-1"
-          >
+          <div key={session.id} className="group/session flex items-center gap-1">
             {renamingId === session.id ? (
               <input
                 autoFocus
                 defaultValue={session.title}
                 onBlur={(e) => commitRename(session.id, e.currentTarget.value)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter")
-                    commitRename(session.id, e.currentTarget.value);
-                  if (e.key === "Escape") setRenamingId(null);
+                  if (e.key === 'Enter') commitRename(session.id, e.currentTarget.value);
+                  if (e.key === 'Escape') setRenamingId(null);
                 }}
                 className="w-full rounded-[9px] border border-line bg-panel px-[11px] py-2 text-[14px] text-ink outline-none"
               />
@@ -166,10 +155,7 @@ export function LeftRail({
                 onClick={() => onSwitchSession(session.id)}
                 onDoubleClick={() => setRenamingId(session.id)}
                 className={
-                  navBase +
-                  (session.id === activeSessionId
-                    ? " font-semibold text-ink"
-                    : "")
+                  navBase + (session.id === activeSessionId ? ' font-semibold text-ink' : '')
                 }
               >
                 <Icon name="msg" size={18} />
@@ -196,29 +182,23 @@ export function LeftRail({
       >
         <span
           className="grid h-[30px] w-[30px] flex-none place-items-center rounded-lg text-[14px] font-extrabold text-white"
-          style={{ background: "linear-gradient(135deg,#ff7a5e,#c21f07)" }}
+          style={{ background: 'linear-gradient(135deg,#ff7a5e,#c21f07)' }}
         >
           M
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block text-[13.5px] font-semibold leading-tight">
-            Meridian Labs
-          </span>
-          <span className="block text-[11.5px] text-muted">
-            Pro · Office plan
-          </span>
+          <span className="block text-[13.5px] font-semibold leading-tight">Meridian Labs</span>
+          <span className="block text-[11.5px] text-muted">Pro · Office plan</span>
         </span>
         <span className="flex text-faint">
           <Icon name="chevronDown" size={16} />
         </span>
         <span
-          className={
-            "flex" + (updateStatus?.available ? " text-accent2" : " text-faint")
-          }
+          className={'flex' + (updateStatus?.available ? ' text-accent2' : ' text-faint')}
           title={
             updateStatus?.available
-              ? `Update available: ${updateStatus.version ?? ""}`
-              : "Up to date"
+              ? `Update available: ${updateStatus.version ?? ''}`
+              : 'Up to date'
           }
         >
           <Icon name="download" size={15} />

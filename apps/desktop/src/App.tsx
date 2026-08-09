@@ -1,12 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  DaemonClient,
-  textOf,
-  type Session,
-  type StreamEvent,
-} from "./api/daemon";
-import { SessionList } from "./components/SessionList";
-import { ChatWindow } from "./components/ChatWindow";
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { DaemonClient, textOf, type Session, type StreamEvent } from './api/daemon';
+import { SessionList } from './components/SessionList';
+import { ChatWindow } from './components/ChatWindow';
 
 interface Ask {
   promptID: string;
@@ -19,7 +14,7 @@ export default function App() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [streamText, setStreamText] = useState("");
+  const [streamText, setStreamText] = useState('');
   const [busy, setBusy] = useState(false);
   const [asks, setAsks] = useState<Ask[]>([]);
   const abortRef = useRef<(() => void) | null>(null);
@@ -27,7 +22,7 @@ export default function App() {
   const subscribe = useCallback((c: DaemonClient, id: string) => {
     const stream: StreamEvent[] = [];
     abortRef.current?.();
-    setStreamText("");
+    setStreamText('');
     setAsks([]);
     const push = (ev: StreamEvent) => {
       stream.push(ev);
@@ -35,24 +30,23 @@ export default function App() {
       // assistant text accumulates tokens until done, then we refetch.
       setStreamText(
         stream
-          .filter((e) => e.type === "token")
+          .filter((e) => e.type === 'token')
           .map((e) => (e as { token: string }).token)
-          .join("")
+          .join(''),
       );
     };
     const off = c.stream(id, {
-      token: (token) => push({ type: "token", token }),
+      token: (token) => push({ type: 'token', token }),
       done: () => {
         void c
           .getSession(id)
           .then(setSession)
           .catch(() => undefined);
-        setStreamText("");
+        setStreamText('');
         stream.length = 0;
       },
-      ask: (promptID, question) =>
-        setAsks((a) => [...a, { promptID, question }]),
-      message: (role, content) => push({ type: "message", role, content }),
+      ask: (promptID, question) => setAsks((a) => [...a, { promptID, question }]),
+      message: (role, content) => push({ type: 'message', role, content }),
     });
     abortRef.current = off;
   }, []);
@@ -83,7 +77,7 @@ export default function App() {
       setSession(s);
       subscribe(c, id);
     },
-    [subscribe]
+    [subscribe],
   );
 
   const handleSelect = (id: string) => {
@@ -108,7 +102,7 @@ export default function App() {
     if (cmd) {
       const [, kind, filePath] = cmd;
       try {
-        if (kind === "accept") await client.accept(session.id, filePath);
+        if (kind === 'accept') await client.accept(session.id, filePath);
         else await client.undo(session.id, filePath);
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));

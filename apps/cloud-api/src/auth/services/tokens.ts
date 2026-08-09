@@ -1,8 +1,8 @@
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, randomBytes } from 'node:crypto';
 
 /** 32 random bytes as hex — used for email tokens, invites, refresh tokens. */
 export function randomToken(): string {
-  return randomBytes(32).toString("hex");
+  return randomBytes(32).toString('hex');
 }
 
 /**
@@ -11,5 +11,5 @@ export function randomToken(): string {
  * argon2 stays for passwords, which are low-entropy.
  */
 export function sha256Hex(value: string): string {
-  return createHash("sha256").update(value).digest("hex");
+  return createHash('sha256').update(value).digest('hex');
 }

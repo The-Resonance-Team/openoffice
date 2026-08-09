@@ -1,14 +1,9 @@
-import { getDataDir, readDaemonInfo, isAlive, spawnDaemon } from "./daemon";
-import { loadAuthConfig, authHeaders } from "./auth";
-import type { Session } from "@openoffice/schema";
-import type {
-  DaemonClient,
-  StreamHandlers,
-  UpdateStatus,
-  McpServerStatusInfo,
-} from "@openoffice/protocol";
+import { getDataDir, readDaemonInfo, isAlive, spawnDaemon } from './daemon';
+import { loadAuthConfig, authHeaders } from './auth';
+import type { Session } from '@openoffice/schema';
+import type { DaemonClient, StreamHandlers, McpServerStatusInfo } from '@openoffice/protocol';
 
-export type { StreamHandlers, UpdateStatus } from "@openoffice/protocol";
+export type { StreamHandlers, UpdateStatus } from '@openoffice/protocol';
 
 export async function connectClient(): Promise<OpenOfficeClient> {
   const dataDir = getDataDir();
@@ -25,19 +20,16 @@ export class OpenOfficeClient implements DaemonClient {
 
   constructor(
     private baseUrl: string,
-    auth?: ReturnType<typeof loadAuthConfig>
+    auth?: ReturnType<typeof loadAuthConfig>,
   ) {
     this.auth = auth ?? loadAuthConfig();
   }
 
-  private async request<T>(
-    path: string,
-    init?: RequestInit
-  ): Promise<{ status: number; data: T }> {
+  private async request<T>(path: string, init?: RequestInit): Promise<{ status: number; data: T }> {
     const res = await fetch(`${this.baseUrl}${path}`, {
       ...init,
       headers: {
-        "content-type": "application/json",
+        'content-type': 'application/json',
         ...authHeaders(this.auth),
         ...((init?.headers as Record<string, string>) ?? {}),
       },
@@ -49,8 +41,8 @@ export class OpenOfficeClient implements DaemonClient {
   }
 
   async createSession(cwd: string): Promise<Session> {
-    const { data } = await this.request<Session>("/api/sessions", {
-      method: "POST",
+    const { data } = await this.request<Session>('/api/sessions', {
+      method: 'POST',
       body: JSON.stringify({ cwd }),
     });
     return data;
@@ -62,50 +54,50 @@ export class OpenOfficeClient implements DaemonClient {
   }
 
   async turn(id: string, message: string): Promise<{ text: string }> {
-    const { data } = await this.request<{ text: string }>(
-      `/api/sessions/${id}/turn`,
-      { method: "POST", body: JSON.stringify({ message }) }
-    );
+    const { data } = await this.request<{ text: string }>(`/api/sessions/${id}/turn`, {
+      method: 'POST',
+      body: JSON.stringify({ message }),
+    });
     return data;
   }
 
   async accept(id: string, filePath: string): Promise<void> {
     await this.request(`/api/sessions/${id}/accept`, {
-      method: "POST",
+      method: 'POST',
       body: JSON.stringify({ filePath }),
     });
   }
 
   async undo(id: string, filePath: string): Promise<void> {
     await this.request(`/api/sessions/${id}/undo`, {
-      method: "POST",
+      method: 'POST',
       body: JSON.stringify({ filePath }),
     });
   }
 
   async revert(id: string, filePath: string, timestamp: number): Promise<void> {
     await this.request(`/api/sessions/${id}/revert`, {
-      method: "POST",
+      method: 'POST',
       body: JSON.stringify({ filePath, timestamp }),
     });
   }
 
   async askAnswer(id: string, promptID: string, answer: string): Promise<void> {
     await this.request(`/api/sessions/${id}/ask-answer`, {
-      method: "POST",
+      method: 'POST',
       body: JSON.stringify({ promptID, answer }),
     });
   }
 
   async endSession(id: string): Promise<void> {
-    await this.request(`/api/sessions/${id}/end`, { method: "POST" });
+    await this.request(`/api/sessions/${id}/end`, { method: 'POST' });
   }
 
   async share(id: string): Promise<{ url: string }> {
     const { status, data } = await this.request<{
       url?: string;
       error?: string;
-    }>(`/api/sessions/${id}/share`, { method: "POST" });
+    }>(`/api/sessions/${id}/share`, { method: 'POST' });
     if (status !== 200 || !data.url) {
       throw new Error(data.error ?? `share failed (${status})`);
     }
@@ -113,10 +105,9 @@ export class OpenOfficeClient implements DaemonClient {
   }
 
   async unshare(id: string): Promise<void> {
-    const { status, data } = await this.request<{ error?: string }>(
-      `/api/sessions/${id}/unshare`,
-      { method: "POST" }
-    );
+    const { status, data } = await this.request<{ error?: string }>(`/api/sessions/${id}/unshare`, {
+      method: 'POST',
+    });
     if (status !== 200) {
       throw new Error(data.error ?? `unshare failed (${status})`);
     }
@@ -136,22 +127,23 @@ export class OpenOfficeClient implements DaemonClient {
   }
 
   async mcpStatus(): Promise<Record<string, McpServerStatusInfo>> {
-    const { status, data } =
-      await this.request<Record<string, McpServerStatusInfo>>(`/api/mcp`);
+    const { status, data } = await this.request<Record<string, McpServerStatusInfo>>(`/api/mcp`);
     return status === 200 ? data : {};
   }
 
   async mcpEnable(name: string): Promise<McpServerStatusInfo> {
-    const { data } = await this.request<
-      McpServerStatusInfo & { error?: string }
-    >(`/api/mcp/${name}/enable`, { method: "POST" });
+    const { data } = await this.request<McpServerStatusInfo & { error?: string }>(
+      `/api/mcp/${name}/enable`,
+      { method: 'POST' },
+    );
     return data;
   }
 
   async mcpDisable(name: string): Promise<McpServerStatusInfo> {
-    const { data } = await this.request<
-      McpServerStatusInfo & { error?: string }
-    >(`/api/mcp/${name}/disable`, { method: "POST" });
+    const { data } = await this.request<McpServerStatusInfo & { error?: string }>(
+      `/api/mcp/${name}/disable`,
+      { method: 'POST' },
+    );
     return data;
   }
 
@@ -178,51 +170,52 @@ export class OpenOfficeClient implements DaemonClient {
           if (!res.ok) throw new Error(`stream failed: ${res.status}`);
           const reader = res.body!.getReader();
           const decoder = new TextDecoder();
-          let buf = "";
+          let buf = '';
           for (;;) {
             const { done, value } = await reader.read();
             if (done) break;
             buf += decoder.decode(value, { stream: true });
             let idx: number;
-            while ((idx = buf.indexOf("\n\n")) >= 0) {
+            while ((idx = buf.indexOf('\n\n')) >= 0) {
               const raw = buf.slice(0, idx);
               buf = buf.slice(idx + 2);
-              const dataLine = raw
-                .split("\n")
-                .find((l) => l.startsWith("data: "));
+              const dataLine = raw.split('\n').find((l) => l.startsWith('data: '));
               if (!dataLine) continue;
-              let event: any;
+              let event: { type: string; [key: string]: unknown };
               try {
-                event = JSON.parse(dataLine.slice(6));
+                event = JSON.parse(dataLine.slice(6)) as {
+                  type: string;
+                  [key: string]: unknown;
+                };
               } catch {
                 continue;
               }
               switch (event.type) {
-                case "token":
-                  handlers.token?.(event.token);
+                case 'token':
+                  handlers.token?.(event.token as string);
                   break;
-                case "done":
-                  handlers.done?.(event.response);
+                case 'done':
+                  handlers.done?.(event.response as never);
                   break;
-                case "toolStart":
-                  handlers.toolStart?.(event.tool, event.params);
+                case 'toolStart':
+                  handlers.toolStart?.(event.tool as string, event.params as never);
                   break;
-                case "toolDone":
-                  handlers.toolDone?.(event.tool, event.result);
+                case 'toolDone':
+                  handlers.toolDone?.(event.tool as string, event.result as never);
                   break;
-                case "message":
-                  handlers.message?.(event.role, event.content);
+                case 'message':
+                  handlers.message?.(event.role as string, event.content as never);
                   break;
-                case "ask":
-                  await handlers.ask?.(event.promptID, event.question);
+                case 'ask':
+                  await handlers.ask?.(event.promptID as string, event.question as string);
                   break;
-                case "todoUpdated":
-                  handlers.todoUpdated?.(event.todos);
+                case 'todoUpdated':
+                  handlers.todoUpdated?.(event.todos as never);
                   break;
-                case "stepLimit":
-                  handlers.stepLimit?.(event.maxSteps);
+                case 'stepLimit':
+                  handlers.stepLimit?.(event.maxSteps as number);
                   break;
-                case "sessionEnd":
+                case 'sessionEnd':
                   handlers.sessionEnd?.();
                   break;
               }

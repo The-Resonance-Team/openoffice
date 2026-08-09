@@ -1,4 +1,4 @@
-import type { Todo } from "@openoffice/schema";
+import type { Todo } from '@openoffice/schema';
 
 // Adapted from opencode's MAX_STEPS_PROMPT (session/runner/max-steps.ts).
 export const MAX_STEPS_PROMPT = `CRITICAL - MAXIMUM STEPS REACHED
@@ -20,14 +20,14 @@ Any attempt to use tools is a critical violation. Respond with text ONLY.`;
 
 // Landed verbatim in the transcript when the forced-summary call itself fails.
 export const MAX_STEPS_FALLBACK_TEXT =
-  "Reached the step limit. Summarize the work done and what remains.";
+  'Reached the step limit. Summarize the work done and what remains.';
 
 export function buildMaxStepsPrompt(todos: Todo[]): string {
   const todoBlock =
     todos.length > 0
       ? `\n\nCurrent todo list:\n${todos
           .map((t, i) => `${i + 1}. [${t.status}] (${t.priority}) ${t.content}`)
-          .join("\n")}`
-      : "";
+          .join('\n')}`
+      : '';
   return `${MAX_STEPS_PROMPT}${todoBlock}\n\nRespond in the language of the conversation.`;
 }

@@ -21,5 +21,5 @@ export function ComingSoon({ title, detail }: { title: string; detail: string })
         {detail}
       </div>
     </div>
-  )
+  );
 }

@@ -1,6 +1,5 @@
-@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&display=swap');
-
 :root {
+  color-scheme: dark;
   --bg: #1c1a18;
   --panel: #252220;
   --panel-2: #2c2926;
@@ -20,7 +19,6 @@
   --teal: #6fa8a0;
   --shadow: 0 14px 34px -16px rgba(0, 0, 0, 0.6);
   --shadow-lg: 0 30px 72px -22px rgba(0, 0, 0, 0.74);
-  --mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
 }
 
 * {
@@ -31,13 +29,16 @@ body {
   margin: 0;
   padding: 0;
 }
+html {
+  scroll-behavior: smooth;
+}
 body {
   background: var(--bg);
   color: var(--text);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   font-family:
-    'Archivo',
+    var(--font-be-vietnam),
     system-ui,
     -apple-system,
     'Segoe UI',
@@ -52,11 +53,16 @@ textarea,
 select {
   font-family: inherit;
 }
-input:focus,
-textarea:focus,
-select:focus {
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
   outline: none;
   border-color: var(--accent) !important;
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 a {
   color: var(--accent);
@@ -79,6 +85,16 @@ a:hover {
 }
 ::-webkit-scrollbar-track {
   background: transparent;
+}
+@keyframes blink {
+  0%,
+  50% {
+    opacity: 1;
+  }
+  50.01%,
+  100% {
+    opacity: 0;
+  }
 }
 @keyframes fadeup {
   from {
@@ -125,4 +141,86 @@ a:hover {
 
 button {
   cursor: pointer;
+}
+
+.skip-link {
+  position: fixed;
+  top: -100px;
+  left: 16px;
+  z-index: 999;
+  background: var(--accent);
+  color: #fff;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.skip-link:focus-visible {
+  top: 12px;
+}
+
+button,
+a,
+select {
+  touch-action: manipulation;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  html {
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Public marketing/docs shell — the design (openoffice.dc.html) ships its own
+   cool-dark/blue palette on the same token names the app shell already
+   defines on :root (warm-dark/orange, see above). Scope it here instead of
+   redefining :root so the two don't clobber each other. */
+.public-shell {
+  --bg: #0a0a0b;
+  --panel: #0f0f11;
+  --elev: #151517;
+  --elev2: #1b1b1f;
+  --hover: #202026;
+  --border: #2a2a30;
+  --border-soft: #1c1c21;
+  --text: #e9e9ea;
+  --dim: #9b9ba2;
+  --faint: #63636b;
+  --accent: #2f6bed;
+  --accent-h: #4a80f4;
+  --accent-soft: #16233f;
+  --accent-fg: #ffffff;
+  --green: #26c165;
+  --amber: #e0a13a;
+  --teal: #4f9a9a;
+  background: var(--bg);
+  color: var(--text);
+  font-family:
+    var(--font-be-vietnam),
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    Helvetica,
+    Arial,
+    sans-serif;
+  font-size: 13px;
+  line-height: 1.5;
+  min-height: 100vh;
+}
+.public-shell a {
+  color: var(--accent);
+}
+.public-shell a:hover {
+  color: var(--accent-h);
+}
+.public-shell .doc-toc-link:hover {
+  color: var(--text) !important;
 }

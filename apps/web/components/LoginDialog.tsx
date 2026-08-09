@@ -1,13 +1,12 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import { loadAuth, saveAuth } from "@/lib/api";
-import { Icon } from "@/lib/icons";
+import { useState } from 'react';
+import { loadAuth, saveAuth, Icon } from '@/lib';
 
 export function LoginDialog({ onClose }: { onClose: () => void }) {
   const existing = loadAuth();
-  const [username, setUsername] = useState(existing?.username ?? "");
-  const [password, setPassword] = useState(existing?.password ?? "");
+  const [username, setUsername] = useState(existing?.username ?? '');
+  const [password, setPassword] = useState(existing?.password ?? '');
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -20,10 +19,7 @@ export function LoginDialog({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div
-      className="fixed inset-0 z-[60] grid place-items-center bg-black/55 p-6"
-      onClick={onClose}
-    >
+    <div className="fixed inset-0 z-[60] grid place-items-center bg-black/55 p-6" onClick={onClose}>
       <form
         onClick={(e) => e.stopPropagation()}
         onSubmit={submit}
@@ -31,12 +27,9 @@ export function LoginDialog({ onClose }: { onClose: () => void }) {
       >
         <div className="flex items-start gap-3 border-b border-line px-5 py-4">
           <div className="flex-1">
-            <div className="text-lg font-bold tracking-tight">
-              Connect to daemon
-            </div>
+            <div className="text-lg font-bold tracking-tight">Connect to daemon</div>
             <div className="mt-1 text-[13px] text-muted">
-              Only needed if the daemon requires a password. Leave blank to run
-              without credentials.
+              Only needed if the daemon requires a password. Leave blank to run without credentials.
             </div>
           </div>
           <button

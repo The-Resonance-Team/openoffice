@@ -1,22 +1,24 @@
-import { z } from "zod";
-import type { ToolDefinition } from "../tool";
-import { loadSkill } from "./loader";
+import { z } from 'zod';
+import type { ToolDefinition, ToolResult } from '../tool';
+import { loadSkill } from './loader';
 
-export function createSkillTool(skillsDir: string): ToolDefinition {
+const skillSchema = z.object({
+  name: z.string().describe('The name of the skill to load'),
+});
+
+export function createSkillTool(skillsDir: string): ToolDefinition<typeof skillSchema> {
   return {
-    name: "skill",
+    name: 'skill',
     description:
-      "Load a specialized skill when the task at hand matches its description. Use this to get detailed instructions for specific tools or domains.",
-    parameters: z.object({
-      name: z.string().describe("The name of the skill to load"),
-    }),
-    execute: async (params) => {
+      'Load a specialized skill when the task at hand matches its description. Use this to get detailed instructions for specific tools or domains.',
+    parameters: skillSchema,
+    execute: async (params): Promise<ToolResult> => {
       const skill = loadSkill(skillsDir, params.name);
       if (!skill) {
         return {
           success: false,
           error: `Skill "${params.name}" not found`,
-          code: "SKILL_NOT_FOUND",
+          code: 'SKILL_NOT_FOUND',
         };
       }
       return {

@@ -1,24 +1,12 @@
-import { Database } from "bun:sqlite";
-import { mkdirSync } from "node:fs";
-import { dirname } from "node:path";
-import { drizzle } from "drizzle-orm/bun-sqlite";
-import { eq, desc, sql } from "drizzle-orm";
-import { randomUUID } from "node:crypto";
-import type {
-  Session,
-  Todo,
-  TodoPriority,
-  TodoStatus,
-} from "@openoffice/schema";
-import { sessions, messages, parts, sessionTodos } from "./schema";
-import type {
-  MessageInfo,
-  Part,
-  TextPart,
-  ToolPart,
-  CompactionPart,
-  WithParts,
-} from "./parts";
+import { Database } from 'bun:sqlite';
+import { mkdirSync } from 'node:fs';
+import { dirname } from 'node:path';
+import { drizzle } from 'drizzle-orm/bun-sqlite';
+import { eq, desc, sql } from 'drizzle-orm';
+import { randomUUID } from 'node:crypto';
+import type { Session, Todo, TodoPriority, TodoStatus } from '@openoffice/schema';
+import { sessions, messages, parts, sessionTodos } from './schema';
+import type { MessageInfo, Part, TextPart, ToolPart, CompactionPart, WithParts } from './parts';
 
 const parse = <T>(value: string | null): T | undefined =>
   value ? (JSON.parse(value) as T) : undefined;
@@ -54,14 +42,14 @@ function rowToInfo(row: {
 }): MessageInfo {
   return {
     id: row.id,
-    role: row.role as MessageInfo["role"],
+    role: row.role as MessageInfo['role'],
     parentID: row.parentId ?? undefined,
     agent: row.agent ?? undefined,
-    model: parse<MessageInfo["model"]>(row.model),
+    model: parse<MessageInfo['model']>(row.model),
     summary: row.summary || undefined,
-    finish: (row.finish as MessageInfo["finish"]) ?? undefined,
+    finish: (row.finish as MessageInfo['finish']) ?? undefined,
     error: parse<{ message: string }>(row.error),
-    tokens: parse<MessageInfo["tokens"]>(row.tokens),
+    tokens: parse<MessageInfo['tokens']>(row.tokens),
     time: { created: row.timestamp.getTime() },
   };
 }
@@ -79,8 +67,8 @@ function partToRow(part: Part, sessionId: string, timestamp: number) {
     time: string | null;
     timestamp: Date;
   } = {
-    id: part.id ?? "",
-    messageId: part.messageID ?? "",
+    id: part.id ?? '',
+    messageId: part.messageID ?? '',
     sessionId,
     type: part.type,
     tool: null,
@@ -90,10 +78,10 @@ function partToRow(part: Part, sessionId: string, timestamp: number) {
     time: part.time ? JSON.stringify(part.time) : null,
     timestamp: new Date(timestamp),
   };
-  if (part.type === "text") {
+  if (part.type === 'text') {
     row.text = part.text;
   }
-  if (part.type === "tool") {
+  if (part.type === 'tool') {
     row.tool = part.tool;
     row.callId = part.callID ?? null;
     row.state = JSON.stringify(part.state);
@@ -112,16 +100,16 @@ function rowToPart(row: {
   time: string | null;
 }): Part {
   const base = { id: row.id, messageID: row.messageId };
-  const time = parse<Part["time"]>(row.time);
-  if (row.type === "text") {
-    const part: TextPart = { ...base, type: "text", text: row.text ?? "" };
+  const time = parse<Part['time']>(row.time);
+  if (row.type === 'text') {
+    const part: TextPart = { ...base, type: 'text', text: row.text ?? '' };
     if (time) part.time = time;
     return part;
   }
-  if (row.type === "compaction") {
+  if (row.type === 'compaction') {
     const part: CompactionPart = {
       ...base,
-      type: "compaction",
+      type: 'compaction',
       auto: false,
       overflow: false,
     };
@@ -130,10 +118,10 @@ function rowToPart(row: {
   }
   const part: ToolPart = {
     ...base,
-    type: "tool",
-    tool: row.tool ?? "",
+    type: 'tool',
+    tool: row.tool ?? '',
     callID: row.callId ?? undefined,
-    state: parse<Record<string, unknown>>(row.state) as ToolPart["state"],
+    state: parse<Record<string, unknown>>(row.state) as ToolPart['state'],
   };
   if (time) part.time = time;
   return part;
@@ -146,8 +134,8 @@ export class SessionStore {
   constructor(dbPath: string) {
     mkdirSync(dirname(dbPath), { recursive: true });
     const sqlite = new Database(dbPath);
-    sqlite.run("PRAGMA journal_mode = WAL");
-    sqlite.run("PRAGMA foreign_keys = ON");
+    sqlite.run('PRAGMA journal_mode = WAL');
+    sqlite.run('PRAGMA foreign_keys = ON');
     this.drizzle = drizzle(sqlite);
     this.sqlite = sqlite;
     this.migrate(sqlite);
@@ -168,25 +156,19 @@ export class SessionStore {
   // schema stabilizes.
   private migrate(sqlite: Database): void {
     const hasParent = sqlite
-      .query(
-        "SELECT name FROM pragma_table_info('messages') WHERE name = 'parent_id'"
-      )
+      .query("SELECT name FROM pragma_table_info('messages') WHERE name = 'parent_id'")
       .get();
     const hasEndedAt = sqlite
-      .query(
-        "SELECT name FROM pragma_table_info('sessions') WHERE name = 'ended_at'"
-      )
+      .query("SELECT name FROM pragma_table_info('sessions') WHERE name = 'ended_at'")
       .get();
     const hasLastActiveAt = sqlite
-      .query(
-        "SELECT name FROM pragma_table_info('sessions') WHERE name = 'last_active_at'"
-      )
+      .query("SELECT name FROM pragma_table_info('sessions') WHERE name = 'last_active_at'")
       .get();
     if (!hasParent || !hasEndedAt || !hasLastActiveAt) {
-      this.drizzle.run("DROP TABLE IF EXISTS parts");
-      this.drizzle.run("DROP TABLE IF EXISTS messages");
-      this.drizzle.run("DROP TABLE IF EXISTS session_todos");
-      this.drizzle.run("DROP TABLE IF EXISTS sessions");
+      this.drizzle.run('DROP TABLE IF EXISTS parts');
+      this.drizzle.run('DROP TABLE IF EXISTS messages');
+      this.drizzle.run('DROP TABLE IF EXISTS session_todos');
+      this.drizzle.run('DROP TABLE IF EXISTS sessions');
     }
     this.drizzle.run(/* sql */ `
       CREATE TABLE IF NOT EXISTS sessions (
@@ -241,17 +223,13 @@ export class SessionStore {
       )
     `);
     this.drizzle.run(
-      /* sql */ "CREATE INDEX IF NOT EXISTS idx_todos_session ON session_todos(session_id, position)"
+      /* sql */ 'CREATE INDEX IF NOT EXISTS idx_todos_session ON session_todos(session_id, position)',
     );
     this.drizzle.run(
-      /* sql */ "CREATE INDEX IF NOT EXISTS idx_messages_session ON messages(session_id, seq)"
+      /* sql */ 'CREATE INDEX IF NOT EXISTS idx_messages_session ON messages(session_id, seq)',
     );
-    this.drizzle.run(
-      /* sql */ "CREATE INDEX IF NOT EXISTS idx_parts_message ON parts(message_id)"
-    );
-    this.drizzle.run(
-      /* sql */ "CREATE INDEX IF NOT EXISTS idx_parts_session ON parts(session_id)"
-    );
+    this.drizzle.run(/* sql */ 'CREATE INDEX IF NOT EXISTS idx_parts_message ON parts(message_id)');
+    this.drizzle.run(/* sql */ 'CREATE INDEX IF NOT EXISTS idx_parts_session ON parts(session_id)');
   }
 
   save(session: Session): void {
@@ -266,9 +244,7 @@ export class SessionStore {
         createdAt: new Date(session.createdAt),
         updatedAt: new Date(session.updatedAt),
         endedAt: session.endedAt ? new Date(session.endedAt) : null,
-        lastActiveAt: session.lastActiveAt
-          ? new Date(session.lastActiveAt)
-          : null,
+        lastActiveAt: session.lastActiveAt ? new Date(session.lastActiveAt) : null,
       })
       .onConflictDoUpdate({
         target: sessions.id,
@@ -289,19 +265,13 @@ export class SessionStore {
    */
   markEnded(id: string, endedAt: number): boolean {
     const result = this.sqlite
-      .query(
-        "UPDATE sessions SET ended_at = ? WHERE id = ? AND ended_at IS NULL"
-      )
+      .query('UPDATE sessions SET ended_at = ? WHERE id = ? AND ended_at IS NULL')
       .run(endedAt, id);
     return result.changes > 0;
   }
 
   load(id: string): Session | null {
-    const row = this.drizzle
-      .select()
-      .from(sessions)
-      .where(eq(sessions.id, id))
-      .get();
+    const row = this.drizzle.select().from(sessions).where(eq(sessions.id, id)).get();
     if (!row) return null;
 
     return {
@@ -319,11 +289,7 @@ export class SessionStore {
   }
 
   list(): Session[] {
-    const rows = this.drizzle
-      .select()
-      .from(sessions)
-      .orderBy(desc(sessions.updatedAt))
-      .all();
+    const rows = this.drizzle.select().from(sessions).orderBy(desc(sessions.updatedAt)).all();
     return rows.map((r) => ({
       id: r.id,
       agent: r.agent,
@@ -396,16 +362,8 @@ export class SessionStore {
   // part once its result arrives.
   updatePart(sessionId: string, messageId: string, part: Part): string {
     const id = part.id ?? randomUUID();
-    const row = partToRow(
-      { ...part, id, messageID: messageId },
-      sessionId,
-      Date.now()
-    );
-    this.drizzle
-      .insert(parts)
-      .values(row)
-      .onConflictDoUpdate({ target: parts.id, set: row })
-      .run();
+    const row = partToRow({ ...part, id, messageID: messageId }, sessionId, Date.now());
+    this.drizzle.insert(parts).values(row).onConflictDoUpdate({ target: parts.id, set: row }).run();
     this.touch(sessionId, Date.now());
     return id;
   }
@@ -437,9 +395,7 @@ export class SessionStore {
   /** Replace-on-write: deletes the session's todos, then inserts the new list. */
   setTodos(sessionId: string, todos: Todo[]): void {
     this.drizzle.transaction((tx) => {
-      tx.delete(sessionTodos)
-        .where(eq(sessionTodos.sessionId, sessionId))
-        .run();
+      tx.delete(sessionTodos).where(eq(sessionTodos.sessionId, sessionId)).run();
       todos.forEach((todo, position) => {
         tx.insert(sessionTodos)
           .values({

@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   createSession,
   getSession,
@@ -9,7 +9,7 @@ import {
   streamSession,
   type SessionDto,
   type StreamEvent,
-} from "./api";
+} from './api';
 
 export interface ChatMessage {
   role: string;
@@ -28,16 +28,16 @@ interface RemoteMessage {
   parts: RemotePart[];
 }
 
-const ACTIVE_SESSION_KEY = "oo-active-session";
+const ACTIVE_SESSION_KEY = 'oo-active-session';
 
 function toChatMessages(session: SessionDto): ChatMessage[] {
   return (session.messages as RemoteMessage[])
     .map((m) => ({
       role: m.info.role,
       content: m.parts
-        .filter((p) => p.type === "text" && typeof p.text === "string")
+        .filter((p) => p.type === 'text' && typeof p.text === 'string')
         .map((p) => p.text)
-        .join(""),
+        .join(''),
     }))
     .filter((m) => m.content.length > 0);
 }
@@ -46,7 +46,7 @@ export function useSession() {
   const queryClient = useQueryClient();
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [streaming, setStreaming] = useState("");
+  const [streaming, setStreaming] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -72,7 +72,7 @@ export function useSession() {
       }
       const session = await createSession();
       window.localStorage.setItem(ACTIVE_SESSION_KEY, session.id);
-      queryClient.invalidateQueries({ queryKey: ["sessions"] });
+      queryClient.invalidateQueries({ queryKey: ['sessions'] });
       if (!cancelled) {
         setSessionId(session.id);
         setMessages([]);
@@ -87,12 +87,12 @@ export function useSession() {
     async (id: string) => {
       abortRef.current?.abort();
       window.localStorage.setItem(ACTIVE_SESSION_KEY, id);
-      setStreaming("");
+      setStreaming('');
       setError(null);
       await load(id);
       setSessionId(id);
     },
-    [load]
+    [load],
   );
 
   const startSession = useCallback(async () => {
@@ -100,7 +100,7 @@ export function useSession() {
     const session = await createSession();
     window.localStorage.setItem(ACTIVE_SESSION_KEY, session.id);
     setMessages([]);
-    setStreaming("");
+    setStreaming('');
     setError(null);
     setSessionId(session.id);
     return session.id;
@@ -108,14 +108,14 @@ export function useSession() {
 
   async function send(message: string) {
     if (!sessionId || !message.trim() || busy) return;
-    setMessages((m) => [...m, { role: "user", content: message }]);
+    setMessages((m) => [...m, { role: 'user', content: message }]);
     setBusy(true);
     setError(null);
-    setStreaming("");
+    setStreaming('');
 
     const controller = new AbortController();
     abortRef.current = controller;
-    let acc = "";
+    let acc = '';
 
     // Tokens stream over SSE while the turn runs server-side; postTurn's own
     // response is the source of truth for the persisted message, the stream
@@ -123,23 +123,23 @@ export function useSession() {
     const streamDone = streamSession(
       sessionId,
       (ev: StreamEvent) => {
-        if (ev.type === "token") {
+        if (ev.type === 'token') {
           acc += ev.token;
           setStreaming(acc);
         }
       },
-      controller.signal
+      controller.signal,
     ).catch(() => undefined);
 
     try {
       const { text } = await postTurn(sessionId, message);
-      setMessages((m) => [...m, { role: "assistant", content: text }]);
+      setMessages((m) => [...m, { role: 'assistant', content: text }]);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "turn failed");
+      setError(e instanceof Error ? e.message : 'turn failed');
     } finally {
       controller.abort();
       await streamDone;
-      setStreaming("");
+      setStreaming('');
       setBusy(false);
     }
   }

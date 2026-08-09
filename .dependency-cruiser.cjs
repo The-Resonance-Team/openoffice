@@ -17,7 +17,7 @@
 //    so the domain rules must stay on the path level.
 
 /** Where packages live. One immediate child dir per package (flat, no nesting). */
-const PKGS = "(packages|apps)";
+const PKGS = '(packages|apps)';
 
 // --- derived patterns (no need to edit) -------------------------------------
 /**
@@ -26,67 +26,67 @@ const PKGS = "(packages|apps)";
  */
 const PKG_INTERNALS = `^${PKGS}/[^/]+/`;
 /** A core domain's private internals: anything nested inside a domain subfolder. */
-const DOMAIN_INTERNALS = "^packages/core/src/[^/]+/[^/]+/";
+const DOMAIN_INTERNALS = '^packages/core/src/[^/]+/[^/]+/';
 
 /** @type {import('dependency-cruiser').IConfiguration} */
 module.exports = {
   forbidden: [
     {
-      name: "no-cross-package-relative-imports",
+      name: 'no-cross-package-relative-imports',
       comment:
-        "Relative imports must stay inside the same package. Cross-package imports use the bare @openoffice/* specifier (the package entry), which never matches a path rule.",
-      severity: "error",
+        'Relative imports must stay inside the same package. Cross-package imports use the bare @openoffice/* specifier (the package entry), which never matches a path rule.',
+      severity: 'error',
       from: { path: `^${PKGS}/` },
-      to: { path: `^${PKGS}/`, pathNot: "^$1/$2/" },
+      to: { path: `^${PKGS}/`, pathNot: '^$1/$2/' },
     },
     {
-      name: "entrypoint-boundary-from-app",
+      name: 'entrypoint-boundary-from-app',
       comment:
         "App/root code (outside any package) may import a package's entry points only, never its internals.",
-      severity: "error",
+      severity: 'error',
       from: { pathNot: `^${PKGS}/` },
       to: { path: PKG_INTERNALS },
     },
     {
-      name: "domain-entrypoint-boundary-across-domains",
+      name: 'domain-entrypoint-boundary-across-domains',
       comment:
         "A core domain's own files import each other freely, but may reach OTHER core domains only through their root entry files — never their subfolder internals.",
-      severity: "error",
+      severity: 'error',
       from: {
-        path: "^packages/core/src/([^/]+)/",
-        pathNot: "^packages/core/src/[^/]+/tests/",
+        path: '^packages/core/src/([^/]+)/',
+        pathNot: '^packages/core/src/[^/]+/tests/',
       },
       to: {
         path: DOMAIN_INTERNALS,
-        pathNot: "^packages/core/src/$1/",
+        pathNot: '^packages/core/src/$1/',
       },
     },
     {
-      name: "tests-through-entrypoints",
+      name: 'tests-through-entrypoints',
       comment:
         "A core domain's tests exercise it through its entry points like everyone else: they may import any domain's entry points and their own tests/ fixtures, but never any domain's internals — not even their own.",
-      severity: "error",
-      from: { path: "^packages/core/src/([^/]+)/tests/" },
+      severity: 'error',
+      from: { path: '^packages/core/src/([^/]+)/tests/' },
       to: {
         path: DOMAIN_INTERNALS,
-        pathNot: "^packages/core/src/$1/tests/",
+        pathNot: '^packages/core/src/$1/tests/',
       },
     },
     {
-      name: "no-circular-deps",
-      comment: "No dependency cycles within the monorepo.",
-      severity: "error",
+      name: 'no-circular-deps',
+      comment: 'No dependency cycles within the monorepo.',
+      severity: 'error',
       from: {},
       to: { circular: true },
     },
   ],
   options: {
-    doNotFollow: { path: "node_modules" },
-    tsConfig: { fileName: "../../tsconfig.base.json" },
+    doNotFollow: { path: 'node_modules' },
+    tsConfig: { fileName: '../../tsconfig.base.json' },
     tsPreCompilationDeps: true,
     enhancedResolveOptions: {
-      exportsFields: ["exports"],
-      conditionNames: ["import", "default"],
+      exportsFields: ['exports'],
+      conditionNames: ['import', 'default'],
     },
   },
 };

@@ -1,5 +1,5 @@
-import type { Context, Next } from "hono";
-import { basicAuth } from "hono/basic-auth";
+import type { Context, Next } from 'hono';
+import { basicAuth } from 'hono/basic-auth';
 
 export interface ServerAuthConfig {
   username: string;
@@ -8,12 +8,12 @@ export interface ServerAuthConfig {
 
 export function loadAuthConfig(): ServerAuthConfig {
   const password = process.env.OPENOFFICE_SERVER_PASSWORD ?? null;
-  const username = process.env.OPENOFFICE_SERVER_USERNAME ?? "openoffice";
+  const username = process.env.OPENOFFICE_SERVER_USERNAME ?? 'openoffice';
   return { username, password };
 }
 
 export function authRequired(config: ServerAuthConfig): boolean {
-  return config.password !== null && config.password !== "";
+  return config.password !== null && config.password !== '';
 }
 
 export function createAuthMiddleware(config: ServerAuthConfig) {
@@ -26,12 +26,8 @@ export function createAuthMiddleware(config: ServerAuthConfig) {
   return basicAuth({ username: config.username, password: config.password! });
 }
 
-export function authHeaders(
-  config: ServerAuthConfig
-): Record<string, string> | undefined {
+export function authHeaders(config: ServerAuthConfig): Record<string, string> | undefined {
   if (!authRequired(config)) return undefined;
-  const encoded = Buffer.from(`${config.username}:${config.password}`).toString(
-    "base64"
-  );
+  const encoded = Buffer.from(`${config.username}:${config.password}`).toString('base64');
   return { Authorization: `Basic ${encoded}` };
 }

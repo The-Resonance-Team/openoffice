@@ -1,21 +1,19 @@
-"use client";
+'use client';
 
-import { useMutation } from "@tanstack/react-query";
-import { useUiStore } from "@/lib/store";
+import { useMutation } from '@tanstack/react-query';
 import {
+  useUiStore,
   files,
   pageCounts,
   sheetNames,
   sheetOrder,
   slides,
   turnOrder,
-} from "@/lib/mock";
-import { CheckSm, GDriveIcon, Icon } from "@/lib/icons";
-import { DocxBody } from "./viewer/Docx";
-import { XlsxBody } from "./viewer/Xlsx";
-import { PptxBody } from "./viewer/Pptx";
-import { PdfBody } from "./viewer/Pdf";
-import { FallbackBody } from "./viewer/Fallback";
+  CheckSm,
+  GDriveIcon,
+  Icon,
+} from '@/lib';
+import { DocxBody, XlsxBody, PptxBody, PdfBody, FallbackBody } from './viewers';
 
 // TODO: session is mocked (lib/use-session.ts) so there's no real daemon
 // session to accept/undo against yet — simulate the round trip locally. Takes
@@ -25,7 +23,7 @@ function mockAcceptOrUndo(): Promise<{ ok: boolean }> {
 }
 
 const hoverBtn =
-  "grid h-[34px] w-[34px] flex-none place-items-center rounded-lg text-muted hover:bg-panel2 hover:text-ink";
+  'grid h-[34px] w-[34px] flex-none place-items-center rounded-lg text-muted hover:bg-panel2 hover:text-ink';
 
 export function Viewer({ sessionId }: { sessionId: string | null }) {
   const activeId = useUiStore((s) => s.activeId);
@@ -47,7 +45,7 @@ export function Viewer({ sessionId }: { sessionId: string | null }) {
   const acceptMutation = useMutation({
     mutationFn: (filePath: string) => {
       void filePath;
-      if (!sessionId) throw new Error("no session");
+      if (!sessionId) throw new Error('no session');
       return mockAcceptOrUndo();
     },
     onSuccess: () => acceptFileLocal(),
@@ -55,36 +53,35 @@ export function Viewer({ sessionId }: { sessionId: string | null }) {
   const undoMutation = useMutation({
     mutationFn: (filePath: string) => {
       void filePath;
-      if (!sessionId) throw new Error("no session");
+      if (!sessionId) throw new Error('no session');
       return mockAcceptOrUndo();
     },
     onSuccess: () => undoFileLocal(),
   });
 
-  const isFb = activeId === "fb";
+  const isFb = activeId === 'fb';
   const f = !isFb ? files[activeId] : undefined;
   const af = isFb
     ? {
         name: fbName,
-        ext: "FILE",
-        icon: "file" as const,
+        ext: 'FILE',
+        icon: 'file' as const,
         local: true,
-        connector: "",
+        connector: '',
       }
     : {
         name: f!.name,
         ext: f!.ext,
         icon: f!.icon,
         local: f!.local,
-        connector: f!.connector ?? "",
+        connector: f!.connector ?? '',
       };
 
-  const isDocx = activeId === "docx";
-  const isXlsx = activeId === "xlsx";
-  const isPptx = activeId === "pptx";
-  const isPdf = activeId === "pdf";
-  const isDraft =
-    !isFb && f?.draft && !accepted[activeId] && !discarded[activeId];
+  const isDocx = activeId === 'docx';
+  const isXlsx = activeId === 'xlsx';
+  const isPptx = activeId === 'pptx';
+  const isPdf = activeId === 'pdf';
+  const isDraft = !isFb && f?.draft && !accepted[activeId] && !discarded[activeId];
   const isSaved = !isFb && f?.draft && accepted[activeId];
   const isReadonly = !isFb && !!f?.connector;
   const pageCount = pageCounts[activeId] || 1;
@@ -109,18 +106,13 @@ export function Viewer({ sessionId }: { sessionId: string | null }) {
         )}
         <button
           type="button"
-          title={viewerExpanded ? "Collapse" : "Expand"}
+          title={viewerExpanded ? 'Collapse' : 'Expand'}
           onClick={toggleExpand}
           className={hoverBtn}
         >
-          <Icon name={viewerExpanded ? "minimize" : "maximize"} size={18} />
+          <Icon name={viewerExpanded ? 'minimize' : 'maximize'} size={18} />
         </button>
-        <button
-          type="button"
-          title="Close"
-          onClick={closeViewer}
-          className={hoverBtn}
-        >
+        <button type="button" title="Close" onClick={closeViewer} className={hoverBtn}>
           <Icon name="x" size={18} />
         </button>
       </div>
@@ -135,8 +127,8 @@ export function Viewer({ sessionId }: { sessionId: string | null }) {
                 type="button"
                 onClick={() => switchFile(tid)}
                 className={
-                  "flex items-center gap-[7px] whitespace-nowrap rounded-lg px-[13px] py-[7px] text-[13px] font-semibold " +
-                  (activeId === tid ? "bg-panel2 text-ink" : "text-muted")
+                  'flex items-center gap-[7px] whitespace-nowrap rounded-lg px-[13px] py-[7px] text-[13px] font-semibold ' +
+                  (activeId === tid ? 'bg-panel2 text-ink' : 'text-muted')
                 }
               >
                 <Icon name={tf.icon} size={15} />
@@ -180,24 +172,20 @@ export function Viewer({ sessionId }: { sessionId: string | null }) {
           <span className="flex text-accent2">
             <CheckSm />
           </span>
-          <span className="text-[13px] text-muted">
-            Accepted — saved to the working folder.
-          </span>
+          <span className="text-[13px] text-muted">Accepted — saved to the working folder.</span>
         </div>
       )}
       {isReadonly && (
         <div className="flex flex-none items-center gap-[10px] border-y border-line bg-white/[.03] p-[11px_16px]">
           <GDriveIcon size={15} />
-          <span className="text-[13px] text-muted">
-            Read-only reference from Google Drive.
-          </span>
+          <span className="text-[13px] text-muted">Read-only reference from Google Drive.</span>
         </div>
       )}
 
       <div
         className={
-          "oo-scroll oo-lt flex-1 overflow-auto border-t border-line " +
-          (isXlsx ? "bg-white" : "bg-bg2")
+          'oo-scroll oo-lt flex-1 overflow-auto border-t border-line ' +
+          (isXlsx ? 'bg-white' : 'bg-bg2')
         }
       >
         {isDocx ? (
@@ -219,7 +207,7 @@ export function Viewer({ sessionId }: { sessionId: string | null }) {
             type="button"
             onClick={() => pageStep(-1, pageCount)}
             className="grid h-7 w-7 place-items-center rounded-md text-muted hover:bg-panel2"
-            style={{ transform: "rotate(90deg)" }}
+            style={{ transform: 'rotate(90deg)' }}
           >
             <Icon name="chevronDown" size={15} />
           </button>
@@ -230,7 +218,7 @@ export function Viewer({ sessionId }: { sessionId: string | null }) {
             type="button"
             onClick={() => pageStep(1, pageCount)}
             className="grid h-7 w-7 place-items-center rounded-md text-muted hover:bg-panel2"
-            style={{ transform: "rotate(-90deg)" }}
+            style={{ transform: 'rotate(-90deg)' }}
           >
             <Icon name="chevronDown" size={15} />
           </button>
@@ -244,10 +232,8 @@ export function Viewer({ sessionId }: { sessionId: string | null }) {
               type="button"
               onClick={() => setSheet(k)}
               className={
-                "whitespace-nowrap rounded-lg px-[15px] py-[7px] text-[12.5px] " +
-                (k === activeSheet
-                  ? "bg-panel2 font-bold text-ink"
-                  : "text-muted")
+                'whitespace-nowrap rounded-lg px-[15px] py-[7px] text-[12.5px] ' +
+                (k === activeSheet ? 'bg-panel2 font-bold text-ink' : 'text-muted')
               }
             >
               {sheetNames[k]}

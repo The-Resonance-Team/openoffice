@@ -1,38 +1,32 @@
-'use client'
+'use client';
 
-import { useState } from 'react'
-import { createInvite, type MemberProfile, type Role } from '@/lib/api'
-import { FieldLabel, Modal, ModalActions, textInputStyle } from '@/components/Modal'
-import { ComingSoon } from '@/components/ComingSoon'
-import { SectionHeader, Toast } from '@/components/AccountView'
-import { initials } from '@/lib/initials'
+import { useState } from 'react';
+import { createInvite, type MemberProfile, type Role, initials } from '@/lib';
+import { FieldLabel, Modal, ModalActions, textInputStyle } from './Modal';
+import { ComingSoon } from './ComingSoon';
+import { useToast } from './ToastProvider';
 
 const card: React.CSSProperties = {
   background: 'var(--panel)',
   border: '1px solid var(--border)',
   borderRadius: 18,
   boxShadow: 'var(--shadow)',
-}
+};
 
 export function OrgView({ profile }: { profile: MemberProfile }) {
-  const { org } = profile
-  const [inviteOpen, setInviteOpen] = useState(false)
-  const [email, setEmail] = useState('')
-  const [role, setRole] = useState<Role>('MEMBER')
-  const [toast, setToast] = useState<string | null>(null)
-
-  function showToast(t: string) {
-    setToast(t)
-    setTimeout(() => setToast(null), 2600)
-  }
+  const { org } = profile;
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [email, setEmail] = useState('');
+  const [role, setRole] = useState<Role>('MEMBER');
+  const showToast = useToast();
 
   async function submitInvite() {
-    if (!email) return
-    await createInvite(email, role)
-    showToast(`Invite sent to ${email}`)
-    setInviteOpen(false)
-    setEmail('')
-    setRole('MEMBER')
+    if (!email) return;
+    await createInvite(email, role);
+    showToast(`Invite sent to ${email}`);
+    setInviteOpen(false);
+    setEmail('');
+    setRole('MEMBER');
   }
 
   return (
@@ -54,7 +48,7 @@ export function OrgView({ profile }: { profile: MemberProfile }) {
             Organization
           </h1>
           <p style={{ color: 'var(--muted)', margin: '8px 0 0', fontSize: 14 }}>
-            Members, teams and invitations for {org.name}.
+            Members, teams, roles and invitations for {org.name}.
           </p>
         </div>
         <button
@@ -76,64 +70,122 @@ export function OrgView({ profile }: { profile: MemberProfile }) {
         </button>
       </div>
 
-      <div style={{ ...card, padding: '19px 22px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 15 }}>
-          <div
-            style={{
-              width: 50,
-              height: 50,
-              borderRadius: 13,
-              background: 'var(--av-grad)',
-              color: '#fff',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 17,
-              fontWeight: 800,
-              flex: 'none',
-            }}
-          >
-            {initials(org.name)}
-          </div>
-          <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-.01em' }}>{org.name}</div>
+      <section id="sec-org" style={{ scrollMarginTop: 14 }}>
+        <div style={{ ...card, padding: '19px 22px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 15 }}>
             <div
               style={{
-                fontSize: '12.5px',
-                color: 'var(--faint)',
-                marginTop: 4,
-                fontFamily: 'var(--mono)',
+                width: 50,
+                height: 50,
+                borderRadius: 13,
+                background: 'var(--av-grad)',
+                color: '#fff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 17,
+                fontWeight: 800,
+                flex: 'none',
               }}
             >
-              openoffice.ai/{org.slug}
+              {initials(org.name)}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-.01em' }}>
+                  {org.name}
+                </span>
+                <span
+                  style={{
+                    fontSize: 10.5,
+                    fontWeight: 600,
+                    letterSpacing: '.02em',
+                    color: 'var(--accent)',
+                    border: '1px solid var(--accent)',
+                    borderRadius: 6,
+                    padding: '2px 7px',
+                  }}
+                >
+                  Free plan
+                </span>
+              </div>
+              <div
+                style={{
+                  fontSize: 12.5,
+                  color: 'var(--faint)',
+                  marginTop: 4,
+                  fontFamily: 'var(--mono)',
+                }}
+              >
+                openoffice.ai/{org.slug}
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 24, flex: 'none' }}>
+              <OrgStat value="—" label="Members" />
+              <OrgStat value="—" label="Teams" />
+              <OrgStat value="—" label="Pending" />
             </div>
           </div>
         </div>
-      </div>
+      </section>
 
-      <div style={{ marginTop: 30 }}>
-        <SectionHeader title="Members" subtitle="Everyone with access to this org." />
+      <section id="sec-members" style={{ scrollMarginTop: 14, marginTop: 30 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 12 }}>
+          <span style={{ fontSize: 16, fontWeight: 700, letterSpacing: '-.01em' }}>Members</span>
+        </div>
         <ComingSoon
-          title="Member management isn't wired up yet"
+          title="Member listing isn't wired up yet"
           detail="Listing, editing, and removing org members needs a cloud-api endpoint that doesn't exist yet."
         />
-      </div>
+      </section>
 
-      <div style={{ marginTop: 30 }}>
-        <SectionHeader title="Teams" subtitle="Optional groupings of members." />
+      <section id="sec-teams" style={{ scrollMarginTop: 14, marginTop: 30 }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'flex-end',
+            justifyContent: 'space-between',
+            gap: 16,
+            marginBottom: 12,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+            <span style={{ fontSize: 16, fontWeight: 700, letterSpacing: '-.01em' }}>Teams</span>
+          </div>
+          <button
+            onClick={() => showToast('Team creation — coming soon')}
+            className="hover-ghost"
+            style={{
+              flex: 'none',
+              background: 'transparent',
+              color: 'var(--text)',
+              border: '1px solid var(--border-2)',
+              borderRadius: 9,
+              padding: '8px 13px',
+              fontSize: 13,
+              fontWeight: 600,
+            }}
+          >
+            Create team
+          </button>
+        </div>
         <ComingSoon
           title="Team management isn't wired up yet"
           detail="The Team model exists, but cloud-api has no endpoint to list or create teams yet."
         />
-      </div>
+      </section>
 
-      <div style={{ marginTop: 30 }}>
-        <SectionHeader title="Pending invites" subtitle="Invitations sent but not yet accepted." />
+      <section id="sec-invites" style={{ scrollMarginTop: 14, marginTop: 30 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 12 }}>
+          <span style={{ fontSize: 16, fontWeight: 700, letterSpacing: '-.01em' }}>
+            Pending invites
+          </span>
+        </div>
         <ComingSoon
           title="Invite tracking isn't wired up yet"
           detail="Sending invites works (above) — listing, resending, and revoking them needs an endpoint that doesn't exist yet."
         />
-      </div>
+      </section>
 
       {inviteOpen && (
         <Modal title="Invite member" onClose={() => setInviteOpen(false)}>
@@ -141,6 +193,8 @@ export function OrgView({ profile }: { profile: MemberProfile }) {
           <input
             id="invite-email"
             name="invite-email"
+            type="email"
+            autoComplete="off"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="teammate@company.com"
@@ -150,6 +204,7 @@ export function OrgView({ profile }: { profile: MemberProfile }) {
           <select
             id="invite-role"
             name="invite-role"
+            aria-label="Role"
             value={role}
             onChange={(e) => setRole(e.target.value as Role)}
             style={{ ...textInputStyle, cursor: 'pointer' }}
@@ -165,8 +220,26 @@ export function OrgView({ profile }: { profile: MemberProfile }) {
           />
         </Modal>
       )}
-
-      {toast && <Toast text={toast} />}
     </div>
-  )
+  );
+}
+
+function OrgStat({ value, label }: { value: string; label: string }) {
+  return (
+    <div style={{ textAlign: 'right' }}>
+      <div style={{ fontSize: 20, fontWeight: 700 }}>{value}</div>
+      <div
+        style={{
+          fontSize: 10.5,
+          color: 'var(--faint)',
+          textTransform: 'uppercase',
+          letterSpacing: '.04em',
+          fontWeight: 600,
+          marginTop: 2,
+        }}
+      >
+        {label}
+      </div>
+    </div>
+  );
 }

@@ -1,8 +1,8 @@
-import { execFileSync } from "node:child_process";
-import { mkdtempSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import type { Config } from "@openoffice/core";
+import { execFileSync } from 'node:child_process';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import type { Config } from '@openoffice/core';
 
 export interface LLMCall {
   index: number;
@@ -10,14 +10,13 @@ export interface LLMCall {
 }
 
 export type FakeResponse =
-  | { kind: "tool-call"; name: string; args: string }
-  | { kind: "text"; content: string };
+  { kind: 'tool-call'; name: string; args: string } | { kind: 'text'; content: string };
 
 export type FakeScript = (call: LLMCall) => FakeResponse;
 
 export function officecliAvailable(): boolean {
   try {
-    execFileSync("officecli", ["--version"], { stdio: "pipe" });
+    execFileSync('officecli', ['--version'], { stdio: 'pipe' });
     return true;
   } catch {
     return false;
@@ -25,31 +24,29 @@ export function officecliAvailable(): boolean {
 }
 
 export function runOfficecli(args: string[]): any {
-  const out = execFileSync("officecli", [...args, "--json"], {
-    encoding: "utf-8",
+  const out = execFileSync('officecli', [...args, '--json'], {
+    encoding: 'utf-8',
     timeout: 30000,
   });
   return JSON.parse(out);
 }
 
 export function readTextViaOfficecli(file: string, path: string): string {
-  const res = runOfficecli(["get", file, path]);
-  return res?.data?.results?.[0]?.text ?? "";
+  const res = runOfficecli(['get', file, path]);
+  return res?.data?.results?.[0]?.text ?? '';
 }
 
 /** True when the document's DOM contains the needle anywhere (texts live in
  * children, not on the container node's own text field). */
 export function docContains(file: string, needle: string): boolean {
-  const res = runOfficecli(["get", file, "/body"]);
+  const res = runOfficecli(['get', file, '/body']);
   return JSON.stringify(res).includes(needle);
 }
 
 function sseChunks(chunks: object[]): Response {
-  const body =
-    chunks.map((c) => `data: ${JSON.stringify(c)}\n\n`).join("") +
-    "data: [DONE]\n\n";
+  const body = chunks.map((c) => `data: ${JSON.stringify(c)}\n\n`).join('') + 'data: [DONE]\n\n';
   return new Response(body, {
-    headers: { "content-type": "text/event-stream" },
+    headers: { 'content-type': 'text/event-stream' },
   });
 }
 
@@ -59,55 +56,55 @@ function sseChunks(chunks: object[]): Response {
  * → next call) is driven entirely by `script`.
  */
 export async function startFakeLLM(
-  script: FakeScript
+  script: FakeScript,
 ): Promise<{ port: number; stop: () => void }> {
   let calls = 0;
   const server = Bun.serve({
     port: 0,
     async fetch(req) {
-      if (req.method !== "POST") return new Response("ok");
+      if (req.method !== 'POST') return new Response('ok');
       const body = await req.json();
       const resp = script({ index: calls++, body });
       const chunk = (delta: any, finish: string | null) => ({
-        id: "chatcmpl-e2e",
-        object: "chat.completion.chunk",
+        id: 'chatcmpl-e2e',
+        object: 'chat.completion.chunk',
         created: 0,
-        model: "e2e",
+        model: 'e2e',
         choices: [{ index: 0, delta, finish_reason: finish }],
       });
-      if (resp.kind === "text") {
+      if (resp.kind === 'text') {
         return sseChunks([
-          chunk({ role: "assistant", content: "" }, null),
+          chunk({ role: 'assistant', content: '' }, null),
           chunk({ content: resp.content }, null),
-          chunk({}, "stop"),
+          chunk({}, 'stop'),
         ]);
       }
       return sseChunks([
-        chunk({ role: "assistant", content: "" }, null),
+        chunk({ role: 'assistant', content: '' }, null),
         chunk(
           {
             tool_calls: [
               {
                 index: 0,
                 id: `call_${calls}`,
-                type: "function",
+                type: 'function',
                 function: { name: resp.name, arguments: resp.args },
               },
             ],
           },
-          null
+          null,
         ),
-        chunk({}, "tool_calls"),
+        chunk({}, 'tool_calls'),
       ]);
     },
   });
   return { port: server.port!, stop: () => server.stop(true) };
 }
 
-export function fakeConfig(baseURL: string, model = "openai/e2e"): Config {
+export function fakeConfig(baseURL: string, model = 'openai/e2e'): Config {
   return {
     model,
-    provider: { openai: { apiKey: "test-key", baseURL } },
+    provider: { openai: { apiKey: 'test-key', baseURL } },
   };
 }
 

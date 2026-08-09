@@ -1,73 +1,67 @@
-import { readFileSync, existsSync } from "node:fs";
-import { extname } from "node:path";
-import { z } from "zod";
-import type { ToolContext, ToolDefinition, ToolResult } from "../types";
-import type { DraftManager } from "../../draft";
+import { readFileSync, existsSync } from 'node:fs';
+import { extname } from 'node:path';
+import { z } from 'zod';
+import type { ToolContext, ToolDefinition, ToolResult } from '../types';
+import { errorMessage } from '../../errors';
+import type { DraftManager } from '../../draft';
 
 export const OFFICE_EXTENSIONS = new Set([
-  ".docx",
-  ".xlsx",
-  ".pptx",
-  ".docm",
-  ".xlsm",
-  ".pptm",
-  ".dotx",
-  ".xltx",
-  ".potx",
+  '.docx',
+  '.xlsx',
+  '.pptx',
+  '.docm',
+  '.xlsm',
+  '.pptm',
+  '.dotx',
+  '.xltx',
+  '.potx',
 ]);
-export const LEGACY_OFFICE_EXTENSIONS = new Set([
-  ".doc",
-  ".xls",
-  ".ppt",
-  ".dot",
-  ".xlt",
-  ".pot",
-]);
+export const LEGACY_OFFICE_EXTENSIONS = new Set(['.doc', '.xls', '.ppt', '.dot', '.xlt', '.pot']);
 export const DOCUMENT_EXTENSIONS = new Set([
   ...OFFICE_EXTENSIONS,
   ...LEGACY_OFFICE_EXTENSIONS,
-  ".xlsb",
-  ".pps",
-  ".ppsx",
-  ".ppsm",
-  ".odt",
-  ".ods",
-  ".odp",
-  ".rtf",
-  ".epub",
-  ".pdf",
+  '.xlsb',
+  '.pps',
+  '.ppsx',
+  '.ppsm',
+  '.odt',
+  '.ods',
+  '.odp',
+  '.rtf',
+  '.epub',
+  '.pdf',
 ]);
 const TEXT_EXTENSIONS = new Set([
-  ".txt",
-  ".md",
-  ".ts",
-  ".tsx",
-  ".js",
-  ".jsx",
-  ".json",
-  ".jsonc",
-  ".yaml",
-  ".yml",
-  ".toml",
-  ".csv",
-  ".xml",
-  ".html",
-  ".css",
-  ".sh",
-  ".bash",
-  ".zsh",
-  ".py",
-  ".rb",
-  ".go",
-  ".rs",
-  ".java",
-  ".c",
-  ".cpp",
-  ".h",
-  ".hpp",
-  ".cs",
-  ".swift",
-  ".kt",
+  '.txt',
+  '.md',
+  '.ts',
+  '.tsx',
+  '.js',
+  '.jsx',
+  '.json',
+  '.jsonc',
+  '.yaml',
+  '.yml',
+  '.toml',
+  '.csv',
+  '.xml',
+  '.html',
+  '.css',
+  '.sh',
+  '.bash',
+  '.zsh',
+  '.py',
+  '.rb',
+  '.go',
+  '.rs',
+  '.java',
+  '.c',
+  '.cpp',
+  '.h',
+  '.hpp',
+  '.cs',
+  '.swift',
+  '.kt',
 ]);
 
 export interface ReadDeps {
@@ -84,24 +78,19 @@ export interface ReadDeps {
 // configured server name, path is the resource's own URI, percent-encoded.
 // Split on the first "/" of the raw string rather than the URL class: URL
 // lowercases and decodes the host, but server names are case-sensitive.
-export function readMcpReference(
-  ref: string,
-  mcp: ReadDeps["mcp"]
-): Promise<ToolResult> {
+export function readMcpReference(ref: string, mcp: ReadDeps['mcp']): Promise<ToolResult> {
   const fail = (error: string): ToolResult => ({
     success: false,
     error,
-    code: "MCP_RESOURCE_ERROR",
+    code: 'MCP_RESOURCE_ERROR',
   });
   if (!mcp) {
-    return Promise.resolve(
-      fail(`Cannot resolve ${ref}: MCP resources are not available`)
-    );
+    return Promise.resolve(fail(`Cannot resolve ${ref}: MCP resources are not available`));
   }
-  const rest = ref.slice("mcp://".length);
-  const slash = rest.indexOf("/");
+  const rest = ref.slice('mcp://'.length);
+  const slash = rest.indexOf('/');
   const clientName = slash === -1 ? rest : rest.slice(0, slash);
-  const encoded = slash === -1 ? "" : rest.slice(slash + 1);
+  const encoded = slash === -1 ? '' : rest.slice(slash + 1);
   let resourceUri: string;
   try {
     resourceUri = decodeURIComponent(encoded);
@@ -114,17 +103,20 @@ export function readMcpReference(
   return mcp.readResource(clientName, resourceUri);
 }
 
-export function createReadTool(deps: ReadDeps): ToolDefinition {
+const readSchema = z.object({
+  file: z.string().describe('Path to the file to read'),
+});
+
+export function createReadTool(deps: ReadDeps): ToolDefinition<typeof readSchema> {
   return {
-    name: "read",
+    name: 'read',
     description:
-      "Read file contents. Auto-detects Office, OpenDocument, RTF, EPUB, and PDF files via AnyDoc, plain text for everything else. Always use this to read any file.",
-    parameters: z.object({
-      file: z.string().describe("Path to the file to read"),
-    }),
-    execute: async (params, ctx) => {
+      'Read file contents. Auto-detects Office, OpenDocument, RTF, EPUB, and PDF files via AnyDoc, plain text for everything else. Always use this to read any file.',
+    parameters: readSchema,
+
+    execute: async (params, ctx): Promise<ToolResult> => {
       // MCP resource reference (ADR 0030) — never a filesystem path.
-      if (params.file.startsWith("mcp://")) {
+      if (params.file.startsWith('mcp://')) {
         return readMcpReference(params.file, deps.mcp);
       }
       const ext = extname(params.file).toLowerCase();
@@ -134,16 +126,12 @@ export function createReadTool(deps: ReadDeps): ToolDefinition {
       // the existence check so new-file drafts (no real file yet) are readable.
       let file = params.file;
       if (deps.draftManager && OFFICE_EXTENSIONS.has(ext)) {
-        const resolved = await deps.draftManager.resolve(
-          params.file,
-          ctx.sessionID,
-          false
-        );
+        const resolved = await deps.draftManager.resolve(params.file, ctx.sessionID, false);
         if (resolved.lockError) {
           return {
             success: false,
             error: resolved.lockError,
-            code: "LOCKED",
+            code: 'LOCKED',
           };
         }
         file = resolved.path!;
@@ -153,24 +141,24 @@ export function createReadTool(deps: ReadDeps): ToolDefinition {
         return {
           success: false,
           error: `File not found: ${params.file}`,
-          code: "FILE_NOT_FOUND",
+          code: 'FILE_NOT_FOUND',
         };
       }
 
-      if (ext === ".pdf" && deps.readPdf) {
+      if (ext === '.pdf' && deps.readPdf) {
         try {
           const content = await deps.readPdf(file);
           return { success: true, output: content };
-        } catch (e: any) {
+        } catch (e: unknown) {
           return {
             success: false,
-            error: e.message ?? "Failed to read PDF",
+            error: errorMessage(e) || 'Failed to read PDF',
             // ponytail: preserve known error codes — PDF_UNSUPPORTED_PLATFORM tells the agent what to install
             code:
-              e.code === "PDF_NO_TEXT_LAYER" ||
-              e.code === "PDF_UNSUPPORTED_PLATFORM"
-                ? e.code
-                : "PDF_READ_ERROR",
+              (e instanceof Error && 'code' in e && e.code === 'PDF_NO_TEXT_LAYER') ||
+              (e instanceof Error && 'code' in e && e.code === 'PDF_UNSUPPORTED_PLATFORM')
+                ? (e as { code: string }).code
+                : 'PDF_READ_ERROR',
           };
         }
       }
@@ -179,37 +167,37 @@ export function createReadTool(deps: ReadDeps): ToolDefinition {
         try {
           const content = await deps.readDocument(file, ctx);
           return { success: true, output: content };
-        } catch (e: any) {
+        } catch (e: unknown) {
           return {
             success: false,
-            error: e.message ?? "Failed to read office document",
-            code: ext === ".pdf" ? "PDF_READ_ERROR" : "DOCUMENT_READ_ERROR",
+            error: errorMessage(e) || 'Failed to read office document',
+            code: ext === '.pdf' ? 'PDF_READ_ERROR' : 'DOCUMENT_READ_ERROR',
           };
         }
       }
 
       if (TEXT_EXTENSIONS.has(ext) || !ext) {
         try {
-          const content = readFileSync(params.file, "utf-8");
+          const content = readFileSync(params.file, 'utf-8');
           return { success: true, output: content };
-        } catch (e: any) {
+        } catch (e: unknown) {
           return {
             success: false,
-            error: e.message ?? "Failed to read file",
-            code: "READ_ERROR",
+            error: errorMessage(e) || 'Failed to read file',
+            code: 'READ_ERROR',
           };
         }
       }
 
       // Unknown extension — try text, might be binary
       try {
-        const content = readFileSync(params.file, "utf-8");
+        const content = readFileSync(params.file, 'utf-8');
         return { success: true, output: content };
-      } catch (e: any) {
+      } catch (e: unknown) {
         return {
           success: false,
-          error: `Cannot read ${ext} files: ${e.message}`,
-          code: "UNSUPPORTED_FORMAT",
+          error: `Cannot read ${ext} files: ${errorMessage(e)}`,
+          code: 'UNSUPPORTED_FORMAT',
         };
       }
     },

@@ -1,4 +1,4 @@
-import { describe, expect, test, beforeEach } from "bun:test";
+import { describe, expect, test, beforeEach } from 'bun:test';
 import {
   mkdtempSync,
   writeFileSync,
@@ -6,9 +6,9 @@ import {
   existsSync,
   mkdirSync,
   chmodSync,
-} from "node:fs";
-import { join } from "node:path";
-import { tmpdir } from "node:os";
+} from 'node:fs';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 import {
   parseVersion,
   compareVersions,
@@ -22,195 +22,178 @@ import {
   checkForUpdate,
   performUpdate,
   type ReleaseInfo,
-} from "@openoffice/server";
+} from '@openoffice/server';
 
 function releases(...tags: string[]): ReleaseInfo[] {
   return tags.map((tag) => ({
     tag,
-    version: tag.replace(/^v/, ""),
-    prerelease: tag.includes("-"),
+    version: tag.replace(/^v/, ''),
+    prerelease: tag.includes('-'),
   }));
 }
 
-describe("parseVersion / compareVersions", () => {
-  test("parses stable and pre-release", () => {
-    expect(parseVersion("v1.2.3")).toEqual({ core: [1, 2, 3], pre: null });
-    expect(parseVersion("1.2.3-rc.1")).toEqual({
+describe('parseVersion / compareVersions', () => {
+  test('parses stable and pre-release', () => {
+    expect(parseVersion('v1.2.3')).toEqual({ core: [1, 2, 3], pre: null });
+    expect(parseVersion('1.2.3-rc.1')).toEqual({
       core: [1, 2, 3],
-      pre: "rc.1",
+      pre: 'rc.1',
     });
-    expect(parseVersion("nonsense")).toBeNull();
+    expect(parseVersion('nonsense')).toBeNull();
   });
 
-  test("stable beats pre-release at same core", () => {
-    const a = parseVersion("v1.2.3")!;
-    const b = parseVersion("v1.2.3-rc.1")!;
+  test('stable beats pre-release at same core', () => {
+    const a = parseVersion('v1.2.3')!;
+    const b = parseVersion('v1.2.3-rc.1')!;
     expect(compareVersions(a, b)).toBeGreaterThan(0);
     expect(compareVersions(b, a)).toBeLessThan(0);
   });
 
-  test("pre-release at higher core beats older stable", () => {
-    const a = parseVersion("v1.2.0")!;
-    const b = parseVersion("v1.3.0-rc.1")!;
+  test('pre-release at higher core beats older stable', () => {
+    const a = parseVersion('v1.2.0')!;
+    const b = parseVersion('v1.3.0-rc.1')!;
     expect(compareVersions(b, a)).toBeGreaterThan(0);
   });
 
-  test("prerelease identifier ordering", () => {
+  test('prerelease identifier ordering', () => {
     expect(
-      compareVersions(
-        parseVersion("v1.0.0-rc.2")!,
-        parseVersion("v1.0.0-rc.10")!
-      )
+      compareVersions(parseVersion('v1.0.0-rc.2')!, parseVersion('v1.0.0-rc.10')!),
     ).toBeLessThan(0);
     expect(
-      compareVersions(
-        parseVersion("v1.0.0-alpha")!,
-        parseVersion("v1.0.0-beta")!
-      )
+      compareVersions(parseVersion('v1.0.0-alpha')!, parseVersion('v1.0.0-beta')!),
     ).toBeLessThan(0);
   });
 });
 
-describe("newestRelease", () => {
-  test("offers newest tag including pre-releases", () => {
-    const rels = releases("v0.1.0", "v0.2.0-rc.1", "v0.2.0");
-    const best = newestRelease(rels, "0.1.0");
-    expect(best?.tag).toBe("v0.2.0");
+describe('newestRelease', () => {
+  test('offers newest tag including pre-releases', () => {
+    const rels = releases('v0.1.0', 'v0.2.0-rc.1', 'v0.2.0');
+    const best = newestRelease(rels, '0.1.0');
+    expect(best?.tag).toBe('v0.2.0');
   });
 
-  test("pre-release wins when it is the only newer tag", () => {
-    const rels = releases("v0.1.1", "v0.2.0-rc.1");
-    expect(newestRelease(rels, "0.1.1")?.tag).toBe("v0.2.0-rc.1");
+  test('pre-release wins when it is the only newer tag', () => {
+    const rels = releases('v0.1.1', 'v0.2.0-rc.1');
+    expect(newestRelease(rels, '0.1.1')?.tag).toBe('v0.2.0-rc.1');
   });
 
-  test("no update when current is newest", () => {
-    expect(newestRelease(releases("v0.1.0", "v0.2.0"), "0.2.0")).toBeNull();
-  });
-});
-
-describe("artifactName", () => {
-  test("maps platforms and archs", () => {
-    expect(artifactName("darwin", "arm64")).toBe("openoffice-darwin-arm64");
-    expect(artifactName("darwin", "x64")).toBe("openoffice-darwin-x64");
-    expect(artifactName("linux", "x64")).toBe("openoffice-linux-x64");
-    expect(artifactName("win32", "x64")).toBe("openoffice-windows-x64.exe");
-    expect(artifactName("windows", "x64")).toBe("openoffice-windows-x64.exe");
+  test('no update when current is newest', () => {
+    expect(newestRelease(releases('v0.1.0', 'v0.2.0'), '0.2.0')).toBeNull();
   });
 });
 
-describe("fetchChecksums + verifySha256", () => {
-  test("parses sha256sum format and verifies", async () => {
-    const data = Buffer.from("binary-bytes");
+describe('artifactName', () => {
+  test('maps platforms and archs', () => {
+    expect(artifactName('darwin', 'arm64')).toBe('openoffice-darwin-arm64');
+    expect(artifactName('darwin', 'x64')).toBe('openoffice-darwin-x64');
+    expect(artifactName('linux', 'x64')).toBe('openoffice-linux-x64');
+    expect(artifactName('win32', 'x64')).toBe('openoffice-windows-x64.exe');
+    expect(artifactName('windows', 'x64')).toBe('openoffice-windows-x64.exe');
+  });
+});
+
+describe('fetchChecksums + verifySha256', () => {
+  test('parses sha256sum format and verifies', async () => {
+    const data = Buffer.from('binary-bytes');
     const hash = sha256(data);
-    const fakeFetch = async () =>
-      new Response(`${hash}  openoffice-darwin-arm64\ngarbage-line\n`);
-    const map = await fetchChecksums("v1.0.0", fakeFetch);
-    expect(map.get("openoffice-darwin-arm64")).toBe(hash);
+    const fakeFetch = async () => new Response(`${hash}  openoffice-darwin-arm64\ngarbage-line\n`);
+    const map = await fetchChecksums('v1.0.0', fakeFetch);
+    expect(map.get('openoffice-darwin-arm64')).toBe(hash);
     expect(verifySha256(data, hash)).toBe(true);
-    expect(verifySha256(Buffer.from("tampered"), hash)).toBe(false);
+    expect(verifySha256(Buffer.from('tampered'), hash)).toBe(false);
   });
 });
 
-describe("swapBinary + cleanupPendingUpdate", () => {
+describe('swapBinary + cleanupPendingUpdate', () => {
   let dir: string;
   beforeEach(() => {
-    dir = mkdtempSync(join(tmpdir(), "ooo-update-"));
+    dir = mkdtempSync(join(tmpdir(), 'ooo-update-'));
   });
 
-  test("swaps binary keeping .old until next run", () => {
-    const binPath = join(dir, "openoffice");
-    writeFileSync(binPath, "old-binary");
+  test('swaps binary keeping .old until next run', () => {
+    const binPath = join(dir, 'openoffice');
+    writeFileSync(binPath, 'old-binary');
     chmodSync(binPath, 0o755);
 
-    const oldPath = swapBinary(Buffer.from("new-binary"), binPath);
+    const oldPath = swapBinary(Buffer.from('new-binary'), binPath);
 
-    expect(readFileSync(binPath, "utf-8")).toBe("new-binary");
-    expect(readFileSync(oldPath, "utf-8")).toBe("old-binary");
-    expect((oldPath as unknown as string).endsWith(".old")).toBe(true);
+    expect(readFileSync(binPath, 'utf-8')).toBe('new-binary');
+    expect(readFileSync(oldPath, 'utf-8')).toBe('old-binary');
+    expect((oldPath as unknown as string).endsWith('.old')).toBe(true);
 
-    const markerDir = join(dir, "data");
+    const markerDir = join(dir, 'data');
     mkdirSync(markerDir);
-    writeFileSync(
-      join(markerDir, "update-pending.json"),
-      JSON.stringify({ oldPath })
-    );
+    writeFileSync(join(markerDir, 'update-pending.json'), JSON.stringify({ oldPath }));
     cleanupPendingUpdate(markerDir);
     expect(existsSync(oldPath)).toBe(false);
   });
 
-  test("rolls back when the new binary cannot replace", () => {
-    const binPath = join(dir, "openoffice");
-    writeFileSync(binPath, "old-binary");
-    mkdirSync(binPath.replace(/openoffice$/, "blocker"));
+  test('rolls back when the new binary cannot replace', () => {
+    const binPath = join(dir, 'openoffice');
+    writeFileSync(binPath, 'old-binary');
+    mkdirSync(binPath.replace(/openoffice$/, 'blocker'));
     // make the target a directory so the rename fails
-    const blockedPath = join(dir, "openoffice.new");
+    const blockedPath = join(dir, 'openoffice.new');
     mkdirSync(blockedPath);
-    expect(() => swapBinary(Buffer.from("new"), binPath)).toThrow();
-    expect(readFileSync(binPath, "utf-8")).toBe("old-binary");
+    expect(() => swapBinary(Buffer.from('new'), binPath)).toThrow();
+    expect(readFileSync(binPath, 'utf-8')).toBe('old-binary');
   });
 });
 
-describe("checkForUpdate", () => {
-  test("uses the TTL cache on repeat calls", async () => {
+describe('checkForUpdate', () => {
+  test('uses the TTL cache on repeat calls', async () => {
     let calls = 0;
     const fakeFetch = async () => {
       calls++;
-      return new Response(
-        JSON.stringify([{ tag_name: "v9.9.9", prerelease: false }]),
-        {
-          headers: { "content-type": "application/json" },
-        }
-      );
+      return new Response(JSON.stringify([{ tag_name: 'v9.9.9', prerelease: false }]), {
+        headers: { 'content-type': 'application/json' },
+      });
     };
-    const dir = mkdtempSync(join(tmpdir(), "ooo-check-"));
-    const first = await checkForUpdate("0.1.0", dir, fakeFetch);
+    const dir = mkdtempSync(join(tmpdir(), 'ooo-check-'));
+    const first = await checkForUpdate('0.1.0', dir, fakeFetch);
     expect(first.available).toBe(true);
-    expect(first.version).toBe("9.9.9");
+    expect(first.version).toBe('9.9.9');
     expect(calls).toBe(1);
-    const second = await checkForUpdate("0.1.0", dir, fakeFetch);
+    const second = await checkForUpdate('0.1.0', dir, fakeFetch);
     expect(second.available).toBe(true);
     expect(calls).toBe(1);
   });
 
-  test("cache is invalidated when the installed version changes", async () => {
+  test('cache is invalidated when the installed version changes', async () => {
     let calls = 0;
     const fakeFetch = async () => {
       calls++;
-      return new Response(
-        JSON.stringify([{ tag_name: "v9.9.9", prerelease: false }]),
-        {
-          headers: { "content-type": "application/json" },
-        }
-      );
+      return new Response(JSON.stringify([{ tag_name: 'v9.9.9', prerelease: false }]), {
+        headers: { 'content-type': 'application/json' },
+      });
     };
-    const dir = mkdtempSync(join(tmpdir(), "ooo-check-"));
-    await checkForUpdate("0.1.0", dir, fakeFetch);
+    const dir = mkdtempSync(join(tmpdir(), 'ooo-check-'));
+    await checkForUpdate('0.1.0', dir, fakeFetch);
     expect(calls).toBe(1);
     // upgrade to 0.2.0: the cached "9.9.9 available" must be recomputed, not served
-    const afterUpgrade = await checkForUpdate("0.2.0", dir, fakeFetch);
-    expect(afterUpgrade.current).toBe("0.2.0");
+    const afterUpgrade = await checkForUpdate('0.2.0', dir, fakeFetch);
+    expect(afterUpgrade.current).toBe('0.2.0');
     expect(calls).toBe(2);
   });
 });
 
-describe("performUpdate", () => {
+describe('performUpdate', () => {
   // performUpdate resolves the artifact name from the RUNNING platform, so
   // the routes must be keyed per platform (darwin-arm64 locally, linux-x64
   // on CI).
   const asset = artifactName(process.platform, process.arch);
   const assetURL = `https://github.com/The-Resonance-Team/openoffice/releases/download/v2.0.0/${asset}`;
 
-  test("downloads, verifies, and swaps", async () => {
-    const data = Buffer.from("fresh-binary");
+  test('downloads, verifies, and swaps', async () => {
+    const data = Buffer.from('fresh-binary');
     const hash = sha256(data);
     const routes: Record<string, Response> = {
-      "https://api.github.com/repos/The-Resonance-Team/openoffice/releases?per_page=50":
-        new Response(
-          JSON.stringify([{ tag_name: "v2.0.0", prerelease: false }]),
-          { headers: { "content-type": "application/json" } }
-        ),
+      'https://api.github.com/repos/The-Resonance-Team/openoffice/releases?per_page=50':
+        new Response(JSON.stringify([{ tag_name: 'v2.0.0', prerelease: false }]), {
+          headers: { 'content-type': 'application/json' },
+        }),
       [assetURL]: new Response(data),
-      "https://github.com/The-Resonance-Team/openoffice/releases/download/v2.0.0/SHA256SUMS":
+      'https://github.com/The-Resonance-Team/openoffice/releases/download/v2.0.0/SHA256SUMS':
         new Response(`${hash}  ${asset}\n`),
     };
     const fakeFetch = async (url: string | URL | Request) => {
@@ -219,34 +202,32 @@ describe("performUpdate", () => {
       if (!res) throw new Error(`unexpected fetch: ${u}`);
       return res;
     };
-    const dir = mkdtempSync(join(tmpdir(), "ooo-perform-"));
-    const binPath = join(dir, "openoffice");
-    writeFileSync(binPath, "old");
+    const dir = mkdtempSync(join(tmpdir(), 'ooo-perform-'));
+    const binPath = join(dir, 'openoffice');
+    writeFileSync(binPath, 'old');
 
-    const result = await performUpdate("0.1.0", binPath, dir, fakeFetch);
-    expect(result).toEqual({ status: "updated", version: "2.0.0" });
-    expect(readFileSync(binPath, "utf-8")).toBe("fresh-binary");
+    const result = await performUpdate('0.1.0', binPath, dir, fakeFetch);
+    expect(result).toEqual({ status: 'updated', version: '2.0.0' });
+    expect(readFileSync(binPath, 'utf-8')).toBe('fresh-binary');
   });
 
-  test("refuses on checksum mismatch", async () => {
+  test('refuses on checksum mismatch', async () => {
     const routes: Record<string, Response> = {
-      "https://api.github.com/repos/The-Resonance-Team/openoffice/releases?per_page=50":
-        new Response(
-          JSON.stringify([{ tag_name: "v2.0.0", prerelease: false }]),
-          { headers: { "content-type": "application/json" } }
-        ),
-      [assetURL]: new Response("tampered"),
-      "https://github.com/The-Resonance-Team/openoffice/releases/download/v2.0.0/SHA256SUMS":
-        new Response(`${"0".repeat(64)}  ${asset}\n`),
+      'https://api.github.com/repos/The-Resonance-Team/openoffice/releases?per_page=50':
+        new Response(JSON.stringify([{ tag_name: 'v2.0.0', prerelease: false }]), {
+          headers: { 'content-type': 'application/json' },
+        }),
+      [assetURL]: new Response('tampered'),
+      'https://github.com/The-Resonance-Team/openoffice/releases/download/v2.0.0/SHA256SUMS':
+        new Response(`${'0'.repeat(64)}  ${asset}\n`),
     };
-    const fakeFetch = async (url: string | URL | Request) =>
-      routes[String(url)];
-    const dir = mkdtempSync(join(tmpdir(), "ooo-perform-"));
-    const binPath = join(dir, "openoffice");
-    writeFileSync(binPath, "old");
+    const fakeFetch = async (url: string | URL | Request) => routes[String(url)];
+    const dir = mkdtempSync(join(tmpdir(), 'ooo-perform-'));
+    const binPath = join(dir, 'openoffice');
+    writeFileSync(binPath, 'old');
 
-    const result = await performUpdate("0.1.0", binPath, dir, fakeFetch);
-    expect(result.status).toBe("error");
-    expect(readFileSync(binPath, "utf-8")).toBe("old");
+    const result = await performUpdate('0.1.0', binPath, dir, fakeFetch);
+    expect(result.status).toBe('error');
+    expect(readFileSync(binPath, 'utf-8')).toBe('old');
   });
 });

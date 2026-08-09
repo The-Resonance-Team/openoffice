@@ -1,10 +1,10 @@
-import { z } from "zod";
+import { z } from 'zod';
 
 export const ProviderConfigSchema = z.object({
   apiKey: z.string().optional(),
   baseURL: z.string().optional(),
   region: z.string().optional(),
-  compatibility: z.enum(["openai", "anthropic"]).optional(),
+  compatibility: z.enum(['openai', 'anthropic']).optional(),
 });
 
 export const UpdateConfigSchema = z.object({
@@ -18,7 +18,7 @@ export const AgentConfigSchema = z.object({
 });
 
 export const McpConfigSchema = z.object({
-  type: z.enum(["local", "remote"]),
+  type: z.enum(['local', 'remote']),
   command: z.array(z.string()).optional(),
   url: z.string().optional(),
   environment: z.record(z.string(), z.string()).optional(),
@@ -48,7 +48,7 @@ export const CompactionConfigSchema = z.object({
       z.object({
         context: z.number(),
         output: z.number(),
-      })
+      }),
     )
     .optional(),
 });
@@ -72,16 +72,16 @@ export const ConfigSchema = z.object({
   grep: GrepConfigSchema.optional(),
   compaction: CompactionConfigSchema.optional(),
   update: UpdateConfigSchema.optional(),
-  share: z.enum(["disabled", "auto"]).optional(),
+  share: z.enum(['disabled', 'auto']).optional(),
   // Legacy alias: opencode's autoshare maps to share: "auto" when share is unset.
   autoshare: z.boolean().optional(),
 });
 
 export type Config = z.infer<typeof ConfigSchema>;
 
-export type ShareMode = "disabled" | "auto";
+export type ShareMode = 'disabled' | 'auto';
 
 export function shareMode(config: Config): ShareMode {
   if (config.share !== undefined) return config.share;
-  return config.autoshare ? "auto" : "disabled";
+  return config.autoshare ? 'auto' : 'disabled';
 }

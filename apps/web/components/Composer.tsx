@@ -1,12 +1,10 @@
-"use client";
+'use client';
 
-import { useRef, useState } from "react";
-import { useUiStore } from "@/lib/store";
-import { models } from "@/lib/mock";
-import { Icon } from "@/lib/icons";
+import { useRef, useState } from 'react';
+import { useUiStore, models, Icon } from '@/lib';
 
 export function Composer({ onSend }: { onSend: (text: string) => void }) {
-  const [value, setValue] = useState("");
+  const [value, setValue] = useState('');
   const taRef = useRef<HTMLTextAreaElement>(null);
   const composingRef = useRef(false);
   const modelMenuOpen = useUiStore((s) => s.modelMenuOpen);
@@ -22,14 +20,14 @@ export function Composer({ onSend }: { onSend: (text: string) => void }) {
   function autoGrow() {
     const el = taRef.current;
     if (!el) return;
-    el.style.height = "auto";
-    el.style.height = Math.min(200, el.scrollHeight) + "px";
+    el.style.height = 'auto';
+    el.style.height = Math.min(200, el.scrollHeight) + 'px';
   }
 
   function submit() {
     if (!value.trim()) return;
     onSend(value);
-    setValue("");
+    setValue('');
     requestAnimationFrame(autoGrow);
   }
 
@@ -59,9 +57,7 @@ export function Composer({ onSend }: { onSend: (text: string) => void }) {
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="flex items-center gap-[7px]">
-                        <span className="text-[14px] font-semibold text-ink">
-                          {m.name}
-                        </span>
+                        <span className="text-[14px] font-semibold text-ink">{m.name}</span>
                         {m.tier && (
                           <span className="rounded-[5px] bg-accent-soft px-[6px] py-px text-[10.5px] font-semibold text-accent2">
                             {m.tier}
@@ -82,9 +78,7 @@ export function Composer({ onSend }: { onSend: (text: string) => void }) {
                 className="flex w-full items-center gap-[11px] px-[15px] py-3 text-left text-muted hover:bg-panel2 hover:text-ink"
               >
                 <Icon name="shapes" size={17} />
-                <span className="flex-1 text-[13.5px] font-medium">
-                  Manage providers
-                </span>
+                <span className="flex-1 text-[13.5px] font-medium">Manage providers</span>
                 <span className="text-faint">
                   <Icon name="chevronRight" size={15} />
                 </span>
@@ -112,7 +106,7 @@ export function Composer({ onSend }: { onSend: (text: string) => void }) {
             }}
             onKeyDown={(e) => {
               if (
-                e.key === "Enter" &&
+                e.key === 'Enter' &&
                 !e.shiftKey &&
                 !composingRef.current &&
                 !e.nativeEvent.isComposing
@@ -180,7 +174,7 @@ export function Composer({ onSend }: { onSend: (text: string) => void }) {
           </div>
         </div>
         <div className="mt-[10px] text-center text-[12px] text-faint">
-          OpenOffice can make mistakes. Verify important figures before sharing.{" "}
+          OpenOffice can make mistakes. Verify important figures before sharing.{' '}
           <a href="#" onClick={(e) => e.preventDefault()}>
             Give feedback
           </a>

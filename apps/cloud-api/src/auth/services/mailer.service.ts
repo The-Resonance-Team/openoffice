@@ -1,7 +1,7 @@
-import { Injectable, Logger } from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
-import { Resend } from "resend";
-import type { Mail } from "./mailer.type";
+import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { Resend } from 'resend';
+import type { Mail } from './mailer.type';
 
 /**
  * Email boundary (cloud ADR 0006: verification/reset/invite mail). Sends via
@@ -17,9 +17,9 @@ export class MailerService {
   private readonly webAppUrl: string;
 
   constructor(config: ConfigService) {
-    this.from = config.getOrThrow<string>("resend.from");
-    this.webAppUrl = config.getOrThrow<string>("webAppUrl");
-    const apiKey = config.get<string>("resend.apiKey");
+    this.from = config.getOrThrow<string>('resend.from');
+    this.webAppUrl = config.getOrThrow<string>('webAppUrl');
+    const apiKey = config.get<string>('resend.apiKey');
     this.resend = apiKey ? new Resend(apiKey) : null;
   }
 
@@ -30,9 +30,7 @@ export class MailerService {
 
   async send(mail: Mail): Promise<void> {
     if (!this.resend) {
-      this.logger.log(
-        `[dev mailer] to=${mail.to} subject="${mail.subject}"\n${mail.text}`
-      );
+      this.logger.log(`[dev mailer] to=${mail.to} subject="${mail.subject}"\n${mail.text}`);
       return;
     }
     await this.resend.emails.send({

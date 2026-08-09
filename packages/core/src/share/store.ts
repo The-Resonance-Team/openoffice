@@ -1,7 +1,7 @@
-import { drizzle } from "drizzle-orm/bun-sqlite";
-import { eq } from "drizzle-orm";
-import { randomBytes } from "node:crypto";
-import { shares } from "./schema";
+import { drizzle } from 'drizzle-orm/bun-sqlite';
+import { eq } from 'drizzle-orm';
+import { randomBytes } from 'node:crypto';
+import { shares } from './schema';
 
 // Co-resident with SessionStore over the same SQLite file: it takes
 // SessionStore's drizzle handle (one connection, one writer) instead of
@@ -29,7 +29,7 @@ export class ShareStore {
   // Generates an unguessable token for a session; re-sharing replaces the
   // old token (the old URL dies).
   create(sessionID: string): string {
-    const token = randomBytes(32).toString("hex");
+    const token = randomBytes(32).toString('hex');
     this.db
       .insert(shares)
       .values({ sessionId: sessionID, token })
@@ -46,20 +46,12 @@ export class ShareStore {
   }
 
   findByToken(token: string): string | null {
-    const row = this.db
-      .select()
-      .from(shares)
-      .where(eq(shares.token, token))
-      .get();
+    const row = this.db.select().from(shares).where(eq(shares.token, token)).get();
     return row?.sessionId ?? null;
   }
 
   get(sessionID: string): string | null {
-    const row = this.db
-      .select()
-      .from(shares)
-      .where(eq(shares.sessionId, sessionID))
-      .get();
+    const row = this.db.select().from(shares).where(eq(shares.sessionId, sessionID)).get();
     return row?.token ?? null;
   }
 }

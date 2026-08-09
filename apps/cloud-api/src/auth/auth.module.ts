@@ -1,12 +1,8 @@
-import { Global, Module, type Provider } from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
-import { JwtModule, type JwtSignOptions } from "@nestjs/jwt";
-import { PassportModule } from "@nestjs/passport";
-import {
-  ApiKeysController,
-  AuthController,
-  InvitesController,
-} from "./controllers";
+import { Global, Module, type Provider } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { JwtModule, type JwtSignOptions } from '@nestjs/jwt';
+import { PassportModule } from '@nestjs/passport';
+import { ApiKeysController, AuthController, InvitesController } from './controllers';
 import {
   ApiKeyService,
   AuthService,
@@ -14,13 +10,8 @@ import {
   InviteService,
   MailerService,
   OAuthService,
-} from "./services";
-import {
-  ApiKeyStrategy,
-  GithubStrategy,
-  GoogleStrategy,
-  JwtStrategy,
-} from "./strategies";
+} from './services';
+import { ApiKeyStrategy, GithubStrategy, GoogleStrategy, JwtStrategy } from './strategies';
 
 /**
  * Registers an OAuth strategy only when the provider's credentials are
@@ -32,7 +23,7 @@ import {
  */
 function oauthStrategyProvider(
   Strategy: typeof GoogleStrategy,
-  provider: "google" | "github"
+  provider: 'google' | 'github',
 ): Provider {
   return {
     provide: Strategy,
@@ -53,12 +44,10 @@ function oauthStrategyProvider(
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        secret: config.getOrThrow<string>("jwt.secret"),
+        secret: config.getOrThrow<string>('jwt.secret'),
         // zod-validated string; cast at the config trust boundary
         signOptions: {
-          expiresIn: config.get<string>(
-            "jwt.expiresIn"
-          ) as JwtSignOptions["expiresIn"],
+          expiresIn: config.get<string>('jwt.expiresIn') as JwtSignOptions['expiresIn'],
         },
       }),
     }),
@@ -73,8 +62,8 @@ function oauthStrategyProvider(
     OAuthService,
     JwtStrategy,
     ApiKeyStrategy,
-    oauthStrategyProvider(GoogleStrategy, "google"),
-    oauthStrategyProvider(GithubStrategy, "github"),
+    oauthStrategyProvider(GoogleStrategy, 'google'),
+    oauthStrategyProvider(GithubStrategy, 'github'),
   ],
   exports: [JwtModule, AuthService, ApiKeyService, OAuthService, InviteService],
 })

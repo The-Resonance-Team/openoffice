@@ -5,5 +5,5 @@ export function initials(name: string): string {
     .map((x) => x[0])
     .join('')
     .slice(0, 2)
-    .toUpperCase()
+    .toUpperCase();
 }

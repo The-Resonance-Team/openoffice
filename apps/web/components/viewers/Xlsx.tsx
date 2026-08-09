@@ -1,25 +1,19 @@
-import { useUiStore } from "@/lib/store";
-import { excel } from "@/lib/mock";
+import { useUiStore, excel } from '@/lib';
 
 const totalRe = /total|gross profit|ebitda margin|ebitda|weighted/i;
-const letters = "ABCDEFGHIJ".split("");
+const letters = 'ABCDEFGHIJ'.split('');
 
-function cellClass(
-  head: boolean,
-  hi: boolean,
-  bold: boolean,
-  rightAlign: boolean
-) {
+function cellClass(head: boolean, hi: boolean, bold: boolean, rightAlign: boolean) {
   return [
-    "border-r border-b border-n3 px-[10px] py-[5px] text-[12.5px] text-[#26221f] overflow-hidden whitespace-nowrap text-ellipsis",
+    'border-r border-b border-n3 px-[10px] py-[5px] text-[12.5px] text-[#26221f] overflow-hidden whitespace-nowrap text-ellipsis',
     head
-      ? "bg-n1 font-bold"
+      ? 'bg-n1 font-bold'
       : hi
-        ? "bg-[#fff2ef] shadow-[inset_0_0_0_2px_var(--accent)]"
-        : "bg-white",
-    rightAlign ? "text-right tabular-nums" : "text-left",
-    bold && !head ? "font-bold" : "",
-  ].join(" ");
+        ? 'bg-[#fff2ef] shadow-[inset_0_0_0_2px_var(--accent)]'
+        : 'bg-white',
+    rightAlign ? 'text-right tabular-nums' : 'text-left',
+    bold && !head ? 'font-bold' : '',
+  ].join(' ');
 }
 
 export function XlsxBody() {
@@ -76,7 +70,7 @@ export function XlsxBody() {
                 false,
                 sh.hi[0] === ri && sh.hi[1] === ci,
                 ci !== 0 && totalRe.test(r[0]),
-                ci > 0
+                ci > 0,
               )}
             >
               {v}
