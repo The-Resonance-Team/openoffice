@@ -125,6 +125,7 @@
       "dependencies": {
         "@fontsource/archivo": "^5.2.5",
         "@fontsource/source-serif-4": "^5.2.5",
+        "@openoffice/ui": "workspace:*",
         "@tailwindcss/vite": "^4.3.3",
         "@tanstack/react-query": "^5.101.4",
         "@tauri-apps/api": "^2",
@@ -154,6 +155,7 @@
       "name": "web",
       "version": "0.1.0",
       "dependencies": {
+        "@openoffice/ui": "workspace:*",
         "@tanstack/react-query": "^5.101.4",
         "next": "16.3.0",
         "react": "19.2.8",
@@ -240,6 +242,25 @@
         "@typescript/native-preview": "^7.0.0-dev.20260707.2",
         "oxlint": "^1.76.0",
         "typescript": "^6",
+      },
+    },
+    "packages/ui": {
+      "name": "@openoffice/ui",
+      "version": "0.1.0",
+      "dependencies": {
+        "@tanstack/react-query": "^5.101.4",
+        "react": "^19.1.0",
+        "react-dom": "^19.1.0",
+        "react-markdown": "^10.1.0",
+        "remark-gfm": "^4.0.1",
+        "zustand": "^5.0.14",
+      },
+      "devDependencies": {
+        "@types/react": "^19.1.8",
+        "@types/react-dom": "^19.1.6",
+        "@typescript/native-preview": "^7.0.0-dev.20260707.2",
+        "oxlint": "^1.77.0",
+        "typescript": "~5.8.3",
       },
     },
   },
@@ -733,6 +754,8 @@
     "@openoffice/schema": ["@openoffice/schema@workspace:packages/schema"],
 
     "@openoffice/server": ["@openoffice/server@workspace:packages/server"],
+
+    "@openoffice/ui": ["@openoffice/ui@workspace:packages/ui"],
 
     "@oxlint/binding-android-arm-eabi": ["@oxlint/binding-android-arm-eabi@1.77.0", "", { "os": "android", "cpu": "arm" }, "sha512-E06sKWS6PiI6HRxS1wyQg22HvApt01hI7fV+T3wUk3OSbaaP4a3hYGY/MIQDmASqCiRjBdpRQYkgMkqH82cWmQ=="],
 
@@ -3155,6 +3178,8 @@
     "@nestjs/schematics/@angular-devkit/schematics": ["@angular-devkit/schematics@19.2.24", "", { "dependencies": { "@angular-devkit/core": "19.2.24", "jsonc-parser": "3.3.1", "magic-string": "0.30.17", "ora": "5.4.1", "rxjs": "7.8.1" } }, "sha512-lnw+ZM1Io+cJAkReC0NPDjqObL8NtKzKIkdgEEKC8CUmkhurYhedbicN8Y8NYHgG1uLd2GozW3+/QqPRZaN+Lw=="],
 
     "@next/eslint-plugin-next/@eslint-community/eslint-utils": ["@eslint-community/eslint-utils@4.9.1", "", { "dependencies": { "eslint-visitor-keys": "^3.4.3" }, "peerDependencies": { "eslint": "^6.0.0 || ^7.0.0 || >=8.0.0" } }, "sha512-phrYmNiYppR7znFEdqgfWHXR6NCkZEK7hwWDHZUjit/2/U0r6XvkDl0SYnoM51Hq7FhCGdLDT6zxCCOY1hexsQ=="],
+
+    "@openoffice/ui/typescript": ["typescript@5.8.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-p1diW6TqL9L07nNxvRMM7hMMw4c5XOo/1ibL4aAIGmSAt9slTE1Xgw5KWuof2uTOvCg9BY7ZRi+GaF+7sfgPeQ=="],
 
     "@prisma/engines/@prisma/get-platform": ["@prisma/get-platform@7.9.1", "", { "dependencies": { "@prisma/debug": "7.9.1" } }, "sha512-PK8R60YZRQvYxBrGG9i7l2/rFyzy+2MuI1dKtmtrCqPH8YpiJx/MfiC7LRzX5786rZDEv7BngcjfIJW4/9ADuw=="],
 

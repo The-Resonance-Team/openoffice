@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Archivo, Source_Serif_4 } from "next/font/google";
-import { QueryProvider } from "@/lib/query-provider";
+import { QueryProvider } from "@openoffice/ui";
 import "./globals.css";
 
 const archivo = Archivo({
