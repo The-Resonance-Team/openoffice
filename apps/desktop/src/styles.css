@@ -1,1 +1,139 @@
 @import "tailwindcss";
+
+:root {
+  --bg: #1c1a18;
+  --bg2: #161513;
+  --panel: #252220;
+  --panel2: #2f2b28;
+  --panel3: #39342f;
+  --ink: #f3efe9;
+  --muted: rgba(243, 239, 233, 0.56);
+  --faint: rgba(243, 239, 233, 0.34);
+  --line: rgba(243, 239, 233, 0.08);
+  --line2: rgba(243, 239, 233, 0.14);
+  --accent: #ec3013;
+  --accent2: #ff6a4d;
+  --accent-soft: rgba(255, 106, 77, 0.16);
+  --n1: #f8f4f4;
+  --n2: #eae7e7;
+  --n3: #d7d3d3;
+  --n5: #9b9797;
+  --n7: #605d5d;
+  --gutter: #161513;
+  /* Self-hosted via @fontsource (imported in main.tsx) — Vite has no
+     next/font, so these vars stand in for its generated ones. */
+  --font-archivo: "Archivo", system-ui, sans-serif;
+  --font-source-serif: "Source Serif 4", serif;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-bg2: var(--bg2);
+  --color-panel: var(--panel);
+  --color-panel2: var(--panel2);
+  --color-panel3: var(--panel3);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-line: var(--line);
+  --color-line2: var(--line2);
+  --color-accent: var(--accent);
+  --color-accent2: var(--accent2);
+  --color-accent-soft: var(--accent-soft);
+  --color-n1: var(--n1);
+  --color-n2: var(--n2);
+  --color-n3: var(--n3);
+  --color-n5: var(--n5);
+  --color-n7: var(--n7);
+  --font-sans: var(--font-archivo);
+  --font-serif: var(--font-source-serif);
+}
+
+@keyframes ooSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes ooFade {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-archivo), system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+:focus {
+  outline: none;
+}
+a {
+  color: #ff7a5e;
+  text-underline-offset: 3px;
+}
+a:hover {
+  color: #ff9179;
+}
+
+.oo-scroll::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.oo-scroll::-webkit-scrollbar-thumb {
+  background: rgba(244, 241, 236, 0.16);
+  border: 3px solid transparent;
+  background-clip: padding-box;
+  border-radius: 99px;
+}
+.oo-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(244, 241, 236, 0.28);
+  background-clip: padding-box;
+}
+.oo-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.oo-lt::-webkit-scrollbar-thumb {
+  background: rgba(32, 30, 29, 0.24);
+  border-radius: 99px;
+}
+.oo-el {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.oo-ta {
+  caret-color: #ff6a4d;
+}
+.oo-ta::placeholder {
+  color: rgba(244, 241, 236, 0.42);
+}
+.oo-composer {
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease;
+}
+.oo-composer:focus-within {
+  border-color: rgba(244, 241, 236, 0.26) !important;
+  box-shadow: 0 6px 34px rgba(0, 0, 0, 0.46) !important;
+}
