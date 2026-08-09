@@ -1,4 +1,5 @@
 import type { Config } from '../config';
+import type { LanguageModel } from 'ai';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createGoogle } from '@ai-sdk/google';
@@ -14,7 +15,7 @@ type ProviderConfig = {
   baseURL?: string;
   region?: string;
 };
-type ProviderFactory = (config: ProviderConfig) => any;
+type ProviderFactory = (config: ProviderConfig) => (modelId: string) => LanguageModel;
 type ParsedProviderConfig = ReturnType<typeof ProviderConfigSchema.parse>;
 
 export const BUILTIN_PROVIDERS = [
@@ -56,7 +57,12 @@ const providers: Record<string, ProviderFactory> = {
       : (modelId: string) => client(modelId);
   },
   google: (c) => createGoogle({ apiKey: c.apiKey }),
-  ollama: (c) => createOllama({ baseURL: c.baseURL ?? 'http://localhost:11434' }),
+  // ponytail: ollama's provider call signature returns LanguageModelV1, which
+  // is absent from the SDK's LanguageModel union — cast at the SDK boundary.
+  ollama: (c) =>
+    createOllama({ baseURL: c.baseURL ?? 'http://localhost:11434' }) as unknown as (
+      modelId: string,
+    ) => LanguageModel,
   openrouter: (c) =>
     createOpenAI({
       apiKey: c.apiKey,
@@ -140,7 +146,7 @@ export function resolveModel(
   modelString: string,
   config: Config,
   store: CredentialStore = new CredentialStore(),
-): any {
+): LanguageModel {
   const slash = modelString.indexOf('/');
   if (slash === -1) {
     throw new Error(`Invalid model string "${modelString}" — expected format "provider/model-id"`);

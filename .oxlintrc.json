@@ -61,12 +61,6 @@
         "react-perf/jsx-no-new-object-as-prop": "off",
         "react-perf/jsx-no-new-function-as-prop": "off"
       }
-    },
-    {
-      "files": ["packages/**/*.{ts,tsx}"],
-      "rules": {
-        "typescript/no-explicit-any": "off"
-      }
     }
   ],
   "ignorePatterns": [

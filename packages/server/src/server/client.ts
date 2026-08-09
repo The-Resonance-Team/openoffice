@@ -181,36 +181,39 @@ export class OpenOfficeClient implements DaemonClient {
               buf = buf.slice(idx + 2);
               const dataLine = raw.split('\n').find((l) => l.startsWith('data: '));
               if (!dataLine) continue;
-              let event: any;
+              let event: { type: string; [key: string]: unknown };
               try {
-                event = JSON.parse(dataLine.slice(6));
+                event = JSON.parse(dataLine.slice(6)) as {
+                  type: string;
+                  [key: string]: unknown;
+                };
               } catch {
                 continue;
               }
               switch (event.type) {
                 case 'token':
-                  handlers.token?.(event.token);
+                  handlers.token?.(event.token as string);
                   break;
                 case 'done':
-                  handlers.done?.(event.response);
+                  handlers.done?.(event.response as never);
                   break;
                 case 'toolStart':
-                  handlers.toolStart?.(event.tool, event.params);
+                  handlers.toolStart?.(event.tool as string, event.params as never);
                   break;
                 case 'toolDone':
-                  handlers.toolDone?.(event.tool, event.result);
+                  handlers.toolDone?.(event.tool as string, event.result as never);
                   break;
                 case 'message':
-                  handlers.message?.(event.role, event.content);
+                  handlers.message?.(event.role as string, event.content as never);
                   break;
                 case 'ask':
-                  await handlers.ask?.(event.promptID, event.question);
+                  await handlers.ask?.(event.promptID as string, event.question as string);
                   break;
                 case 'todoUpdated':
-                  handlers.todoUpdated?.(event.todos);
+                  handlers.todoUpdated?.(event.todos as never);
                   break;
                 case 'stepLimit':
-                  handlers.stepLimit?.(event.maxSteps);
+                  handlers.stepLimit?.(event.maxSteps as number);
                   break;
                 case 'sessionEnd':
                   handlers.sessionEnd?.();

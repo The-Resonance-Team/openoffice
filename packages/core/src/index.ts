@@ -33,6 +33,8 @@ export type {
 export { on, emit, setSensitiveValues } from './events';
 export type { EventMap } from './events';
 
+export { errorMessage } from './errors';
+
 export { HistoryStore } from './history';
 export type { AcceptPoint } from './history';
 

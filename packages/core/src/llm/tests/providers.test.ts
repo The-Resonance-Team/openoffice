@@ -135,7 +135,7 @@ describe('resolveModel', () => {
       store,
     );
     expect(model).toBeDefined();
-    expect(model.modelId).toBe('claude-sonnet-4-20250514');
+    expect((model as { modelId: string }).modelId).toBe('claude-sonnet-4-20250514');
   });
 
   test('unknown provider is rejected before any credential lookup', () => {
@@ -158,7 +158,7 @@ describe('resolveModel — expanded providers', () => {
       { model: 'ollama/llama3.1', provider: { ollama: {} } },
       store,
     );
-    expect(model.modelId).toBe('llama3.1');
+    expect((model as { modelId: string }).modelId).toBe('llama3.1');
   });
 
   test('openrouter resolves through the OpenAI-compatible endpoint', () => {
@@ -167,7 +167,7 @@ describe('resolveModel — expanded providers', () => {
       { provider: { openrouter: { apiKey: 'sk-or' } } },
       store,
     );
-    expect(model.modelId).toBe('anthropic/claude-sonnet-4');
+    expect((model as { modelId: string }).modelId).toBe('anthropic/claude-sonnet-4');
   });
 
   test('azure maps the deployment name as the model id', () => {
@@ -183,7 +183,7 @@ describe('resolveModel — expanded providers', () => {
       },
       store,
     );
-    expect(model.modelId).toBe('my-deployment');
+    expect((model as { modelId: string }).modelId).toBe('my-deployment');
   });
 
   test('bedrock needs no apiKey — the AWS credential chain applies', () => {
@@ -192,7 +192,7 @@ describe('resolveModel — expanded providers', () => {
       { provider: { bedrock: {} } },
       store,
     );
-    expect(model.modelId).toBe('anthropic.claude-sonnet-4');
+    expect((model as { modelId: string }).modelId).toBe('anthropic.claude-sonnet-4');
   });
 
   test('custom openai-compatible endpoint resolves by config name', () => {
@@ -209,7 +209,7 @@ describe('resolveModel — expanded providers', () => {
       },
       store,
     );
-    expect(model.modelId).toBe('qwen-32b');
+    expect((model as { modelId: string }).modelId).toBe('qwen-32b');
   });
 
   test('custom anthropic-compatible endpoint resolves by config name', () => {
@@ -226,7 +226,7 @@ describe('resolveModel — expanded providers', () => {
       },
       store,
     );
-    expect(model.modelId).toBe('claude-sonnet-4');
+    expect((model as { modelId: string }).modelId).toBe('claude-sonnet-4');
   });
 
   test('custom provider without a baseURL errors clearly', () => {

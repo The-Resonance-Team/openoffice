@@ -6,7 +6,7 @@ const echoTool: ToolDefinition = {
   name: 'echo',
   description: 'Echoes input back',
   parameters: z.object({ message: z.string() }),
-  execute: async (params) => ({
+  execute: async (params: { message: string }) => ({
     success: true as const,
     output: params.message,
   }),
@@ -53,7 +53,9 @@ describe('ToolRegistry', () => {
 
     const ai = reg.toAIToolsWithEvents('session-1');
     // Execute the tool directly (simulating what AI SDK does)
-    const result = await ai.echo.execute({ message: 'hi' });
+    const result = await (
+      ai.echo.execute as (input: { message: string }, _: unknown) => Promise<{ success: boolean }>
+    )({ message: 'hi' }, {});
     expect(result.success).toBe(true);
     expect(events).toEqual(['start', 'done']);
 

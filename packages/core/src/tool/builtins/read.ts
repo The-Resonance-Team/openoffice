@@ -2,6 +2,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import { extname } from 'node:path';
 import { z } from 'zod';
 import type { ToolContext, ToolDefinition, ToolResult } from '../types';
+import { errorMessage } from '../../errors';
 import type { DraftManager } from '../../draft';
 
 export const OFFICE_EXTENSIONS = new Set([
@@ -102,15 +103,18 @@ export function readMcpReference(ref: string, mcp: ReadDeps['mcp']): Promise<Too
   return mcp.readResource(clientName, resourceUri);
 }
 
-export function createReadTool(deps: ReadDeps): ToolDefinition {
+const readSchema = z.object({
+  file: z.string().describe('Path to the file to read'),
+});
+
+export function createReadTool(deps: ReadDeps): ToolDefinition<typeof readSchema> {
   return {
     name: 'read',
     description:
       'Read file contents. Auto-detects Office, OpenDocument, RTF, EPUB, and PDF files via AnyDoc, plain text for everything else. Always use this to read any file.',
-    parameters: z.object({
-      file: z.string().describe('Path to the file to read'),
-    }),
-    execute: async (params, ctx) => {
+    parameters: readSchema,
+
+    execute: async (params, ctx): Promise<ToolResult> => {
       // MCP resource reference (ADR 0030) — never a filesystem path.
       if (params.file.startsWith('mcp://')) {
         return readMcpReference(params.file, deps.mcp);
@@ -145,14 +149,15 @@ export function createReadTool(deps: ReadDeps): ToolDefinition {
         try {
           const content = await deps.readPdf(file);
           return { success: true, output: content };
-        } catch (e: any) {
+        } catch (e: unknown) {
           return {
             success: false,
-            error: e.message ?? 'Failed to read PDF',
+            error: errorMessage(e) || 'Failed to read PDF',
             // ponytail: preserve known error codes — PDF_UNSUPPORTED_PLATFORM tells the agent what to install
             code:
-              e.code === 'PDF_NO_TEXT_LAYER' || e.code === 'PDF_UNSUPPORTED_PLATFORM'
-                ? e.code
+              (e instanceof Error && 'code' in e && e.code === 'PDF_NO_TEXT_LAYER') ||
+              (e instanceof Error && 'code' in e && e.code === 'PDF_UNSUPPORTED_PLATFORM')
+                ? (e as { code: string }).code
                 : 'PDF_READ_ERROR',
           };
         }
@@ -162,10 +167,10 @@ export function createReadTool(deps: ReadDeps): ToolDefinition {
         try {
           const content = await deps.readDocument(file, ctx);
           return { success: true, output: content };
-        } catch (e: any) {
+        } catch (e: unknown) {
           return {
             success: false,
-            error: e.message ?? 'Failed to read office document',
+            error: errorMessage(e) || 'Failed to read office document',
             code: ext === '.pdf' ? 'PDF_READ_ERROR' : 'DOCUMENT_READ_ERROR',
           };
         }
@@ -175,10 +180,10 @@ export function createReadTool(deps: ReadDeps): ToolDefinition {
         try {
           const content = readFileSync(params.file, 'utf-8');
           return { success: true, output: content };
-        } catch (e: any) {
+        } catch (e: unknown) {
           return {
             success: false,
-            error: e.message ?? 'Failed to read file',
+            error: errorMessage(e) || 'Failed to read file',
             code: 'READ_ERROR',
           };
         }
@@ -188,10 +193,10 @@ export function createReadTool(deps: ReadDeps): ToolDefinition {
       try {
         const content = readFileSync(params.file, 'utf-8');
         return { success: true, output: content };
-      } catch (e: any) {
+      } catch (e: unknown) {
         return {
           success: false,
-          error: `Cannot read ${ext} files: ${e.message}`,
+          error: `Cannot read ${ext} files: ${errorMessage(e)}`,
           code: 'UNSUPPORTED_FORMAT',
         };
       }

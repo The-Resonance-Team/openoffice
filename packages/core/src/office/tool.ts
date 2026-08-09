@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type { ToolDefinition, ToolResult } from '../tool';
 import type { DraftManager } from '../draft';
+import { errorMessage } from '../errors';
 
 const VERBS = [
   'open',
@@ -87,58 +88,58 @@ export interface OfficeCliDeps {
   draftManager?: DraftManager;
 }
 
-export function createOfficeCliTool(deps: OfficeCliDeps): ToolDefinition {
+const officeSchema = z.object({
+  command: z.enum(VERBS),
+  file: z.string().optional().describe('Path to the document (merge uses template instead)'),
+  path: z.string().optional().describe('DOM path (e.g., /body/p[@paraId=00100000])'),
+  path2: z.string().optional().describe('Second DOM path (swap)'),
+  selector: z.string().optional().describe('CSS-like selector (query)'),
+  mode: z
+    .enum(VIEW_MODES)
+    .optional()
+    .describe(
+      'View mode: text, annotated, outline, stats, issues, html, svg, screenshot, pdf, forms',
+    ),
+  parent: z.string().optional().describe('Parent DOM path (add/import target)'),
+  type: z
+    .string()
+    .optional()
+    .describe('Element type to add (e.g., paragraph, run, table, slide, shape)'),
+  props: z
+    .record(z.string(), z.any())
+    .optional()
+    .describe('Properties to set (passed as repeatable --prop key=value)'),
+  find: z.string().optional().describe('Find this text/pattern to replace (set)'),
+  replace: z.string().optional().describe('Replacement text for --find matches (set)'),
+  from: z.string().optional().describe('Copy from an existing element path (add)'),
+  to: z.string().optional().describe('Target parent path (move)'),
+  index: z.string().optional().describe('Insert position, 0-based (add/move)'),
+  after: z.string().optional().describe('Insert/move after the element at this path'),
+  before: z.string().optional().describe('Insert/move before the element at this path'),
+  operations: z.array(z.any()).optional().describe('Batch operations (passed as --commands JSON)'),
+  part: z.string().optional().describe('Document part path (raw/raw-set, e.g., /document)'),
+  xpath: z.string().optional().describe('XPath to target elements (raw-set)'),
+  action: z
+    .enum(['append', 'prepend', 'insertbefore', 'insertafter', 'replace', 'remove', 'setattr'])
+    .optional()
+    .describe('XML action (raw-set)'),
+  xml: z.string().optional().describe('XML fragment or attr=value (raw-set)'),
+  source: z.string().optional().describe('Source CSV/TSV file to import (import)'),
+  template: z.string().optional().describe('Template file with {{key}} placeholders (merge)'),
+  output: z.string().optional().describe('Output file path (merge)'),
+  data: z.string().optional().describe('JSON data or path to .json file (merge)'),
+  format: z.string().optional().describe('Format for help (docx, xlsx, pptx)'),
+  query: z.string().optional().describe('Alias for selector (query)'),
+  content: z.string().optional().describe('Deprecated: use props instead'),
+});
+
+export function createOfficeCliTool(deps: OfficeCliDeps): ToolDefinition<typeof officeSchema> {
   return {
     name: 'officecli',
     description:
       "Create, read, and edit Word (.docx), Excel (.xlsx), and PowerPoint (.pptx) documents. Verbs: get/query/view (read), set/add/remove/move/swap (edit), batch (multi-op), validate, dump, import, merge, create, raw/raw-set (XML fallback), open/close/save (resident lifecycle), help (capability reference). Use --json via 'props' for structured output. Run 'officecli help' when unsure about commands or properties.",
-    parameters: z.object({
-      command: z.enum(VERBS),
-      file: z.string().optional().describe('Path to the document (merge uses template instead)'),
-      path: z.string().optional().describe('DOM path (e.g., /body/p[@paraId=00100000])'),
-      path2: z.string().optional().describe('Second DOM path (swap)'),
-      selector: z.string().optional().describe('CSS-like selector (query)'),
-      mode: z
-        .enum(VIEW_MODES)
-        .optional()
-        .describe(
-          'View mode: text, annotated, outline, stats, issues, html, svg, screenshot, pdf, forms',
-        ),
-      parent: z.string().optional().describe('Parent DOM path (add/import target)'),
-      type: z
-        .string()
-        .optional()
-        .describe('Element type to add (e.g., paragraph, run, table, slide, shape)'),
-      props: z
-        .record(z.string(), z.any())
-        .optional()
-        .describe('Properties to set (passed as repeatable --prop key=value)'),
-      find: z.string().optional().describe('Find this text/pattern to replace (set)'),
-      replace: z.string().optional().describe('Replacement text for --find matches (set)'),
-      from: z.string().optional().describe('Copy from an existing element path (add)'),
-      to: z.string().optional().describe('Target parent path (move)'),
-      index: z.string().optional().describe('Insert position, 0-based (add/move)'),
-      after: z.string().optional().describe('Insert/move after the element at this path'),
-      before: z.string().optional().describe('Insert/move before the element at this path'),
-      operations: z
-        .array(z.any())
-        .optional()
-        .describe('Batch operations (passed as --commands JSON)'),
-      part: z.string().optional().describe('Document part path (raw/raw-set, e.g., /document)'),
-      xpath: z.string().optional().describe('XPath to target elements (raw-set)'),
-      action: z
-        .enum(['append', 'prepend', 'insertbefore', 'insertafter', 'replace', 'remove', 'setattr'])
-        .optional()
-        .describe('XML action (raw-set)'),
-      xml: z.string().optional().describe('XML fragment or attr=value (raw-set)'),
-      source: z.string().optional().describe('Source CSV/TSV file to import (import)'),
-      template: z.string().optional().describe('Template file with {{key}} placeholders (merge)'),
-      output: z.string().optional().describe('Output file path (merge)'),
-      data: z.string().optional().describe('JSON data or path to .json file (merge)'),
-      format: z.string().optional().describe('Format for help (docx, xlsx, pptx)'),
-      query: z.string().optional().describe('Alias for selector (query)'),
-      content: z.string().optional().describe('Deprecated: use props instead'),
-    }),
+    parameters: officeSchema,
+
     execute: async (params, ctx): Promise<ToolResult> => {
       if (!(await deps.checkInstalled())) {
         return {
@@ -241,8 +242,9 @@ export function createOfficeCliTool(deps: OfficeCliDeps): ToolDefinition {
           };
         }
         return { success: true, output, data: parsed };
-      } catch (e: any) {
-        if (e.code === 'ENOENT') {
+      } catch (e: unknown) {
+        const code = e instanceof Error && 'code' in e ? e.code : undefined;
+        if (code === 'ENOENT') {
           return {
             success: false,
             error:
@@ -251,7 +253,7 @@ export function createOfficeCliTool(deps: OfficeCliDeps): ToolDefinition {
           };
         }
 
-        const stdout = e.stdout ?? '';
+        const stdout = e instanceof Error && 'stdout' in e ? String(e.stdout) : '';
         const parsed = parseError(stdout);
         return {
           success: false,

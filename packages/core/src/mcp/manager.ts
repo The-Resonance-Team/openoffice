@@ -1,5 +1,6 @@
 import type { ToolResult } from '../tool';
 import type { McpServerStatus, McpServerStatusInfo } from '@openoffice/protocol';
+import { errorMessage } from '../errors';
 
 export interface McpToolInfo {
   name: string;
@@ -54,10 +55,6 @@ interface McpServerEntry {
   note?: string;
 }
 
-function messageOf(e: unknown): string {
-  return e instanceof Error ? e.message : String(e);
-}
-
 export class McpManager {
   private clients = new Map<string, McpClient>();
   private servers = new Map<string, McpServerEntry>();
@@ -69,7 +66,7 @@ export class McpManager {
 
   private markError(entry: McpServerEntry, e: unknown): void {
     entry.status = 'error';
-    entry.error = messageOf(e);
+    entry.error = errorMessage(e);
   }
 
   /** Record a server's config without connecting (disabled or dogfooded at boot). */
@@ -235,10 +232,10 @@ export class McpManager {
     try {
       const content = await client.readResource(uri);
       return { success: true, output: content };
-    } catch (e: any) {
+    } catch (e: unknown) {
       return {
         success: false,
-        error: e.message ?? 'MCP resource read failed',
+        error: errorMessage(e) || 'MCP resource read failed',
         code: 'MCP_RESOURCE_ERROR',
       };
     }
@@ -264,10 +261,10 @@ export class McpManager {
         output: typeof result === 'string' ? result : JSON.stringify(result),
         data: result,
       };
-    } catch (e: any) {
+    } catch (e: unknown) {
       return {
         success: false,
-        error: e.message ?? 'MCP tool call failed',
+        error: errorMessage(e) || 'MCP tool call failed',
         code: 'MCP_TOOL_ERROR',
       };
     }

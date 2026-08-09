@@ -1,7 +1,8 @@
 import { execFile } from 'node:child_process';
 import { extname } from 'node:path';
 import { z } from 'zod';
-import type { ToolContext, ToolDefinition } from '../types';
+import type { ToolContext, ToolDefinition, ToolResult } from '../types';
+import { errorMessage } from '../../errors';
 import { DOCUMENT_EXTENSIONS } from './read';
 
 export interface GrepSearchData {
@@ -23,8 +24,10 @@ export interface GrepDeps {
 
 const MAX_OFFICE_EXTRACT_LIMIT = 20;
 
-function isNoMatch(error: any): boolean {
-  return error.status === 1 || error.code === 1 || error.code === '1';
+function isNoMatch(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null) return false;
+  const e = error as { status?: unknown; code?: unknown };
+  return e.status === 1 || e.code === 1 || e.code === '1';
 }
 
 function runRg(args: string[], input?: string): Promise<string> {
@@ -53,7 +56,7 @@ async function listFiles(path: string, include?: string): Promise<string[]> {
   try {
     const output = await runRg(args);
     return output.trim() ? output.trim().split(/\r?\n/) : [];
-  } catch (e: any) {
+  } catch (e: unknown) {
     if (isNoMatch(e)) return [];
     throw e;
   }
@@ -67,7 +70,7 @@ async function matchRg(
   try {
     const output = await runRg(['--no-heading', '--line-number', query], content);
     return output.trim().split(/\r?\n/).filter(Boolean).map(format);
-  } catch (e: any) {
+  } catch (e: unknown) {
     if (isNoMatch(e)) return [];
     throw e;
   }
@@ -110,17 +113,19 @@ async function matchFilePaths(files: string[], query: string): Promise<string[]>
   return matchRg(files.join('\n'), query, (line) => `Path match: ${line.replace(/^\d+:/, '')}`);
 }
 
-export function createGrepTool(deps?: GrepDeps): ToolDefinition {
+const grepSchema = z.object({
+  query: z.string().describe('Search pattern (regex supported)'),
+  path: z.string().optional().describe('File or directory to search in'),
+  include: z.string().optional().describe('File pattern to include (e.g., *.ts)'),
+});
+
+export function createGrepTool(deps?: GrepDeps): ToolDefinition<typeof grepSchema> {
   return {
     name: 'grep',
     description:
       'Search plain text, document contents, metadata, PDF annotations/bookmarks, and Excel formulas/comments. Returns matching lines with file paths and line numbers.',
-    parameters: z.object({
-      query: z.string().describe('Search pattern (regex supported)'),
-      path: z.string().optional().describe('File or directory to search in'),
-      include: z.string().optional().describe('File pattern to include (e.g., *.ts)'),
-    }),
-    execute: async (params, ctx) => {
+    parameters: grepSchema,
+    execute: async (params, ctx): Promise<ToolResult> => {
       try {
         const target = params.path ?? ctx.cwd ?? process.cwd();
         let files: string[] = [];
@@ -155,7 +160,7 @@ export function createGrepTool(deps?: GrepDeps): ToolDefinition {
           try {
             const output = await runRg(args);
             plainMatches = output.trim() ? [output.trim()] : [];
-          } catch (e: any) {
+          } catch (e: unknown) {
             if (!isNoMatch(e)) throw e;
           }
         }
@@ -288,13 +293,13 @@ export function createGrepTool(deps?: GrepDeps): ToolDefinition {
           success: true,
           output: [...(matches.length ? matches : ['No matches found']), ...notes].join('\n'),
         };
-      } catch (e: any) {
+      } catch (e: unknown) {
         if (isNoMatch(e)) {
           return { success: true, output: 'No matches found' };
         }
         return {
           success: false,
-          error: e.message ?? 'Failed to search',
+          error: errorMessage(e) || 'Failed to search',
           code: 'GREP_ERROR',
         };
       }

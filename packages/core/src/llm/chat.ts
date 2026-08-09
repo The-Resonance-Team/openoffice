@@ -1,4 +1,4 @@
-import { streamText, isStepCount, type ModelMessage } from 'ai';
+import { streamText, isStepCount, type ModelMessage, type StepResult, type ToolSet } from 'ai';
 import { resolveModel } from './providers';
 import { streamWithRetry, type RetryInfo } from './retry';
 import type { Config } from '../config';
@@ -6,7 +6,7 @@ import type { Config } from '../config';
 export interface ChatOptions {
   model: string;
   messages: ModelMessage[];
-  tools?: Record<string, any>;
+  tools?: ToolSet;
   system?: string;
   maxSteps?: number;
   onRetry?: (info: RetryInfo) => void;
@@ -17,10 +17,11 @@ export function chat(options: ChatOptions, config: Config) {
 
   let hitStepCap = false;
   const capped = isStepCount(maxSteps);
-  // ponytail: `steps: any[]` — mirrors StopCondition's parameter shape without
-  // importing the AI SDK's deeply-generic StepResult type; the runtime check
-  // is unchanged from isStepCount's own semantics.
-  const stopWhen = (result: { steps: any[] }) => {
+  // ponytail: generic callback — StopCondition's own generics (ToolSet, Context)
+  // are too deep to pin; a generic function infers at the streamText call site.
+  const stopWhen = <S extends ToolSet, C extends Record<string, unknown>>(result: {
+    steps: StepResult<S, C>[];
+  }) => {
     if (capped(result)) {
       hitStepCap = true;
       return true;

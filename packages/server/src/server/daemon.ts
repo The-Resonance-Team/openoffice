@@ -128,8 +128,11 @@ export async function startDaemon(
           timeout: 30000,
         });
         return { stdout, exitCode: 0 };
-      } catch (e: any) {
-        return { stdout: e.stdout ?? '', exitCode: e.status ?? 1 };
+      } catch (e: unknown) {
+        const stdout = e instanceof Error && 'stdout' in e ? String(e.stdout) : '';
+        const exitCode =
+          e instanceof Error && 'status' in e && typeof e.status === 'number' ? e.status : 1;
+        return { stdout, exitCode };
       }
     },
   });
@@ -206,7 +209,7 @@ export async function startDaemon(
       description: tool.description,
       // ponytail: MCP inputSchema is JSON Schema; AI SDK tool() accepts it directly
       parameters: tool.inputSchema as unknown as ToolDefinition['parameters'],
-      execute: (args) => mcp.callTool(tool.clientName, tool.name, args),
+      execute: (args) => mcp.callTool(tool.clientName, tool.name, args as Record<string, unknown>),
     });
   }
 

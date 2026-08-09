@@ -2,19 +2,23 @@ import { writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, extname } from 'node:path';
 
 import { z } from 'zod';
-import type { ToolDefinition } from '../types';
+import type { ToolDefinition, ToolResult } from '../types';
+import { errorMessage } from '../../errors';
 import { OFFICE_EXTENSIONS, LEGACY_OFFICE_EXTENSIONS } from './read';
 
-export function createWriteTool(): ToolDefinition {
+const writeSchema = z.object({
+  file: z.string().describe('Path to the file to write'),
+  content: z.string().describe('Content to write'),
+});
+
+export function createWriteTool(): ToolDefinition<typeof writeSchema> {
   return {
     name: 'write',
     description:
       'Write content to a file. Creates parent directories if needed. For Office documents (.docx/.xlsx/.pptx) use officecli instead.',
-    parameters: z.object({
-      file: z.string().describe('Path to the file to write'),
-      content: z.string().describe('Content to write'),
-    }),
-    execute: async (params) => {
+    parameters: writeSchema,
+
+    execute: async (params): Promise<ToolResult> => {
       const ext = extname(params.file).toLowerCase();
       if (OFFICE_EXTENSIONS.has(ext) || LEGACY_OFFICE_EXTENSIONS.has(ext)) {
         return {
@@ -30,10 +34,10 @@ export function createWriteTool(): ToolDefinition {
           success: true,
           output: `Wrote ${params.content.length} bytes to ${params.file}`,
         };
-      } catch (e: any) {
+      } catch (e: unknown) {
         return {
           success: false,
-          error: e.message ?? 'Failed to write file',
+          error: errorMessage(e) || 'Failed to write file',
           code: 'WRITE_ERROR',
         };
       }
