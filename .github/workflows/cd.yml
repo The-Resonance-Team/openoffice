@@ -14,9 +14,26 @@ permissions:
 
 jobs:
   build-push:
-    name: Build & Push (cloud-api)
+    name: Build & Push (${{ matrix.app }})
     runs-on: self-hosted
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        include:
+          - app: cloud-api
+            dockerfile: apps/cloud-api/Dockerfile
+          - app: cloud-web
+            dockerfile: apps/cloud-web/Dockerfile
+            build-args: |
+              NEXT_PUBLIC_API_URL=https://api.openoffice.dev
+              NEXT_PUBLIC_SITE_URL=https://cloud.openoffice.dev
+          - app: web
+            dockerfile: apps/web/Dockerfile
+            build-args: |
+              NEXT_PUBLIC_API_URL=https://api.openoffice.dev
+              NEXT_PUBLIC_SITE_URL=https://openoffice.dev
     steps:
       - uses: actions/checkout@v7
       - uses: docker/setup-buildx-action@v4
@@ -30,11 +47,12 @@ jobs:
       - uses: docker/build-push-action@v7
         with:
           context: .
-          file: apps/cloud-api/Dockerfile
+          file: ${{ matrix.dockerfile }}
           push: true
+          build-args: ${{ matrix.build-args }}
           tags: |
-            ghcr.io/the-resonance-team/openoffice-cloud-api:${{ github.ref_name }}
-            ghcr.io/the-resonance-team/openoffice-cloud-api:latest
+            ghcr.io/the-resonance-team/openoffice-${{ matrix.app }}:${{ github.ref_name }}
+            ghcr.io/the-resonance-team/openoffice-${{ matrix.app }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -97,3 +115,7 @@ jobs:
           echo "|-----------|--------|" >> $GITHUB_STEP_SUMMARY
           echo "| Tag | \`$TAG\` |" >> $GITHUB_STEP_SUMMARY
           echo "| cloud-api | $([ "$STATUS" = "success" ] && echo "✅ Live" || echo "❌ Failed — rollback attempted") |" >> $GITHUB_STEP_SUMMARY
+          echo "| cloud-web | $([ "$STATUS" = "success" ] && echo "✅ Live" || echo "❌ Failed — rollback attempted") |" >> $GITHUB_STEP_SUMMARY
+          echo "| web | $([ "$STATUS" = "success" ] && echo "✅ Live" || echo "❌ Failed — rollback attempted") |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**URLs:** https://cloud.openoffice.dev · https://openoffice.dev" >> $GITHUB_STEP_SUMMARY

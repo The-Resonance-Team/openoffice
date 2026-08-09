@@ -15,3 +15,31 @@ services:
       timeout: 5s
       start_period: 30s
       retries: 3
+
+  cloud-web:
+    image: ghcr.io/the-resonance-team/openoffice-cloud-web:latest
+    restart: unless-stopped
+    ports:
+      - '5202:5202'
+    environment:
+      NODE_ENV: production
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://localhost:5202/']
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+
+  web:
+    image: ghcr.io/the-resonance-team/openoffice-web:latest
+    restart: unless-stopped
+    ports:
+      - '5200:5200'
+    environment:
+      NODE_ENV: production
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://localhost:5200/']
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
