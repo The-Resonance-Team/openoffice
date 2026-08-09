@@ -13,6 +13,7 @@ import {
   create,
   process,
   prune,
+  type CompactionDeps,
 } from "./compaction";
 import { isOverflow } from "./overflow";
 import { filterCompacted, toModelMessages } from "./ai-messages";

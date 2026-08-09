@@ -17,6 +17,7 @@ import {
   type CompactionPart,
   type MessageInfo,
   type ModelRef,
+  type Part,
   type ToolPart,
   type WithParts,
 } from "./parts";

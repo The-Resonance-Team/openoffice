@@ -66,10 +66,10 @@ export function createConvertTool(deps: ConvertDeps): ToolDefinition {
             code: "CANCELLED",
           };
         }
-      } catch (e: unknown) {
+      } catch (e: any) {
         return {
           success: false,
-          error: (e as Error).message ?? "Failed to ask user",
+          error: e.message ?? "Failed to ask user",
           code: "QUESTION_ERROR",
         };
       }
@@ -77,10 +77,10 @@ export function createConvertTool(deps: ConvertDeps): ToolDefinition {
       try {
         const output = await deps.convertFile(params.file, target);
         return { success: true, output: `Converted to ${output}` };
-      } catch (e: unknown) {
+      } catch (e: any) {
         return {
           success: false,
-          error: (e as Error).message ?? "Conversion failed",
+          error: e.message ?? "Conversion failed",
           code: "CONVERT_ERROR",
         };
       }

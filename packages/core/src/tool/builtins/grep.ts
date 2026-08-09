@@ -26,7 +26,7 @@ export interface GrepDeps {
 
 const MAX_OFFICE_EXTRACT_LIMIT = 20;
 
-function isNoMatch(error: { status?: number; code?: number | string }): boolean {
+function isNoMatch(error: any): boolean {
   return error.status === 1 || error.code === 1 || error.code === "1";
 }
 
@@ -56,8 +56,8 @@ async function listFiles(path: string, include?: string): Promise<string[]> {
   try {
     const output = await runRg(args);
     return output.trim() ? output.trim().split(/\r?\n/) : [];
-  } catch (e: unknown) {
-    if (isNoMatch(e as { status?: number; code?: number | string })) return [];
+  } catch (e: any) {
+    if (isNoMatch(e)) return [];
     throw e;
   }
 }
@@ -73,8 +73,8 @@ async function matchRg(
       content
     );
     return output.trim().split(/\r?\n/).filter(Boolean).map(format);
-  } catch (e: unknown) {
-    if (isNoMatch(e as { status?: number; code?: number | string })) return [];
+  } catch (e: any) {
+    if (isNoMatch(e)) return [];
     throw e;
   }
 }
@@ -185,8 +185,8 @@ export function createGrepTool(deps?: GrepDeps): ToolDefinition {
           try {
             const output = await runRg(args);
             plainMatches = output.trim() ? [output.trim()] : [];
-          } catch (e: unknown) {
-            if (!isNoMatch(e as { status?: number; code?: number | string })) throw e;
+          } catch (e: any) {
+            if (!isNoMatch(e)) throw e;
           }
         }
         const limit = Math.max(
@@ -342,13 +342,13 @@ export function createGrepTool(deps?: GrepDeps): ToolDefinition {
             ...notes,
           ].join("\n"),
         };
-      } catch (e: unknown) {
-        if (isNoMatch(e as { status?: number; code?: number | string })) {
+      } catch (e: any) {
+        if (isNoMatch(e)) {
           return { success: true, output: "No matches found" };
         }
         return {
           success: false,
-          error: (e as Error).message ?? "Failed to search",
+          error: e.message ?? "Failed to search",
           code: "GREP_ERROR",
         };
       }

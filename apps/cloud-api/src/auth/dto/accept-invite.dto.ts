@@ -1,7 +1,7 @@
-import { IsNotEmpty, IsString } from 'class-validator'
+import { IsNotEmpty, IsString } from "class-validator";
 
 export class AcceptInviteDto {
   @IsString()
   @IsNotEmpty()
-  token: string
+  token: string;
 }

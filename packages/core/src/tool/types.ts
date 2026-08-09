@@ -9,7 +9,6 @@ export interface ToolDefinition {
   name: string;
   description: string;
   parameters: z.ZodType;
-  // oxlint-disable-next-line typescript/no-explicit-any
   execute: (params: any, ctx: ToolContext) => Promise<ToolResult>;
 }
 

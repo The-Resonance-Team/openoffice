@@ -4,10 +4,11 @@ import type { Session } from "@openoffice/schema";
 import type {
   DaemonClient,
   StreamHandlers,
+  UpdateStatus,
   McpServerStatusInfo,
 } from "@openoffice/protocol";
 
-export type { StreamHandlers } from "@openoffice/protocol";
+export type { StreamHandlers, UpdateStatus } from "@openoffice/protocol";
 
 export async function connectClient(): Promise<OpenOfficeClient> {
   const dataDir = getDataDir();
@@ -190,7 +191,6 @@ export class OpenOfficeClient implements DaemonClient {
                 .split("\n")
                 .find((l) => l.startsWith("data: "));
               if (!dataLine) continue;
-              // oxlint-disable-next-line typescript/no-explicit-any
               let event: any;
               try {
                 event = JSON.parse(dataLine.slice(6));

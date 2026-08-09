@@ -133,9 +133,8 @@ export async function startDaemon(
           timeout: 30000,
         });
         return { stdout, exitCode: 0 };
-      } catch (e: unknown) {
-        const err = e as { stdout?: string; status?: number };
-        return { stdout: err.stdout ?? "", exitCode: err.status ?? 1 };
+      } catch (e: any) {
+        return { stdout: e.stdout ?? "", exitCode: e.status ?? 1 };
       }
     },
   });

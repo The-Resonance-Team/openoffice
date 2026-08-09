@@ -17,10 +17,10 @@ export function createQuestionTool(deps: QuestionDeps): ToolDefinition {
       try {
         const answer = await deps.askUser(params.question);
         return { success: true, output: answer };
-      } catch (e: unknown) {
+      } catch (e: any) {
         return {
           success: false,
-          error: (e as Error).message ?? "Failed to get answer",
+          error: e.message ?? "Failed to get answer",
           code: "QUESTION_ERROR",
         };
       }

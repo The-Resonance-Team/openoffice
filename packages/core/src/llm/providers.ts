@@ -14,7 +14,6 @@ type ProviderConfig = {
   baseURL?: string;
   region?: string;
 };
-// oxlint-disable-next-line typescript/no-explicit-any
 type ProviderFactory = (config: ProviderConfig) => any;
 type ParsedProviderConfig = ReturnType<typeof ProviderConfigSchema.parse>;
 
@@ -144,7 +143,6 @@ export function resolveModel(
   modelString: string,
   config: Config,
   store: CredentialStore = new CredentialStore()
-  // oxlint-disable-next-line typescript/no-explicit-any
 ): any {
   const slash = modelString.indexOf("/");
   if (slash === -1) {

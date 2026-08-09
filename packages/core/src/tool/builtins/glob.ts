@@ -30,10 +30,10 @@ export function createGlobTool(): ToolDefinition {
           output: matches.length > 0 ? matches.join("\n") : "No files found",
           data: matches,
         };
-      } catch (e: unknown) {
+      } catch (e: any) {
         return {
           success: false,
-          error: (e as Error).message ?? "Failed to search files",
+          error: e.message ?? "Failed to search files",
           code: "GLOB_ERROR",
         };
       }

@@ -1,17 +1,17 @@
-import { Module } from '@nestjs/common'
-import { APP_GUARD } from '@nestjs/core'
-import { ConfigModule, ConfigService } from '@nestjs/config'
-import { TerminusModule } from '@nestjs/terminus'
-import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler'
-import { LoggerModule } from 'nestjs-pino'
-import { AppController } from './app.controller'
-import { AppService } from './app.service'
-import { AuthModule } from '@/auth/auth.module'
-import { ApiKeyOrJwtGuard } from '@/auth/guards/api-key-or-jwt.guard'
-import { RolesGuard } from '@/auth/guards/roles.guard'
-import configuration, { validateEnv } from '@/config/configuration'
-import { HealthController } from '@/health/health.controller'
-import { PrismaModule } from '@/prisma/prisma.module'
+import { Module } from "@nestjs/common";
+import { APP_GUARD } from "@nestjs/core";
+import { ConfigModule, ConfigService } from "@nestjs/config";
+import { TerminusModule } from "@nestjs/terminus";
+import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
+import { LoggerModule } from "nestjs-pino";
+import { AppController } from "./app.controller";
+import { AppService } from "./app.service";
+import { AuthModule } from "@/auth/auth.module";
+import { ApiKeyOrJwtGuard } from "@/auth/guards/api-key-or-jwt.guard";
+import { RolesGuard } from "@/auth/guards/roles.guard";
+import configuration, { validateEnv } from "@/config/configuration";
+import { HealthController } from "@/health/health.controller";
+import { PrismaModule } from "@/prisma/prisma.module";
 
 @Module({
   imports: [
@@ -26,11 +26,11 @@ import { PrismaModule } from '@/prisma/prisma.module'
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
         pinoHttp: {
-          level: config.get<string>('logLevel'),
-          ...(config.get<string>('nodeEnv') !== 'production'
+          level: config.get<string>("logLevel"),
+          ...(config.get<string>("nodeEnv") !== "production"
             ? {
                 transport: {
-                  target: 'pino-pretty',
+                  target: "pino-pretty",
                   options: { singleLine: true },
                 },
               }

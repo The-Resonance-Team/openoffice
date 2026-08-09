@@ -161,16 +161,15 @@ export function createReadTool(deps: ReadDeps): ToolDefinition {
         try {
           const content = await deps.readPdf(file);
           return { success: true, output: content };
-        } catch (e: unknown) {
-          const err = e as { code?: string; message?: string };
+        } catch (e: any) {
           return {
             success: false,
-            error: err.message ?? "Failed to read PDF",
+            error: e.message ?? "Failed to read PDF",
             // ponytail: preserve known error codes — PDF_UNSUPPORTED_PLATFORM tells the agent what to install
             code:
-              err.code === "PDF_NO_TEXT_LAYER" ||
-              err.code === "PDF_UNSUPPORTED_PLATFORM"
-                ? err.code
+              e.code === "PDF_NO_TEXT_LAYER" ||
+              e.code === "PDF_UNSUPPORTED_PLATFORM"
+                ? e.code
                 : "PDF_READ_ERROR",
           };
         }
@@ -180,10 +179,10 @@ export function createReadTool(deps: ReadDeps): ToolDefinition {
         try {
           const content = await deps.readDocument(file, ctx);
           return { success: true, output: content };
-        } catch (e: unknown) {
+        } catch (e: any) {
           return {
             success: false,
-            error: (e as Error).message ?? "Failed to read office document",
+            error: e.message ?? "Failed to read office document",
             code: ext === ".pdf" ? "PDF_READ_ERROR" : "DOCUMENT_READ_ERROR",
           };
         }
@@ -193,10 +192,10 @@ export function createReadTool(deps: ReadDeps): ToolDefinition {
         try {
           const content = readFileSync(params.file, "utf-8");
           return { success: true, output: content };
-        } catch (e: unknown) {
+        } catch (e: any) {
           return {
             success: false,
-            error: (e as Error).message ?? "Failed to read file",
+            error: e.message ?? "Failed to read file",
             code: "READ_ERROR",
           };
         }
@@ -206,10 +205,10 @@ export function createReadTool(deps: ReadDeps): ToolDefinition {
       try {
         const content = readFileSync(params.file, "utf-8");
         return { success: true, output: content };
-      } catch (e: unknown) {
+      } catch (e: any) {
         return {
           success: false,
-          error: `Cannot read ${ext} files: ${(e as Error).message}`,
+          error: `Cannot read ${ext} files: ${e.message}`,
           code: "UNSUPPORTED_FORMAT",
         };
       }

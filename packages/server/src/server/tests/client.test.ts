@@ -1,4 +1,4 @@
-import { expect, test, afterAll } from "bun:test";
+import { describe, expect, test, afterAll } from "bun:test";
 import { OpenOfficeClient } from "../client";
 
 const server = Bun.serve({

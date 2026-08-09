@@ -6,7 +6,6 @@ import type { Config } from "../config";
 export interface ChatOptions {
   model: string;
   messages: ModelMessage[];
-  // oxlint-disable-next-line typescript/no-explicit-any
   tools?: Record<string, any>;
   system?: string;
   maxSteps?: number;
@@ -21,7 +20,6 @@ export function chat(options: ChatOptions, config: Config) {
   // ponytail: `steps: any[]` — mirrors StopCondition's parameter shape without
   // importing the AI SDK's deeply-generic StepResult type; the runtime check
   // is unchanged from isStepCount's own semantics.
-  // oxlint-disable-next-line typescript/no-explicit-any
   const stopWhen = (result: { steps: any[] }) => {
     if (capped(result)) {
       hitStepCap = true;

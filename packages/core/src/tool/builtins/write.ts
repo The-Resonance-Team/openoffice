@@ -31,10 +31,10 @@ export function createWriteTool(): ToolDefinition {
           success: true,
           output: `Wrote ${params.content.length} bytes to ${params.file}`,
         };
-      } catch (e: unknown) {
+      } catch (e: any) {
         return {
           success: false,
-          error: (e as Error).message ?? "Failed to write file",
+          error: e.message ?? "Failed to write file",
           code: "WRITE_ERROR",
         };
       }
