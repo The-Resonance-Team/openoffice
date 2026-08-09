@@ -9,7 +9,7 @@
   },
   "scripts": {
     "typecheck": "tsgo --noEmit",
-    "lint": "oxlint",
+    "lint": "oxlint -c ../../.oxlintrc.json",
     "test": "bun test --timeout=30000"
   },
   "dependencies": {

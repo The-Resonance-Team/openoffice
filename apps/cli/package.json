@@ -20,7 +20,7 @@
     "dev": "bun run src/index.ts",
     "build": "bun build --compile src/index.ts --outfile dist/openoffice --define:OOO_VERSION=\"$(node -p 'require(\"./package.json\").version')\"",
     "typecheck": "tsgo --noEmit",
-    "lint": "oxlint",
+    "lint": "oxlint -c ../../.oxlintrc.json",
     "test": "bun test --timeout=30000 --path-ignore-patterns=test/e2e",
     "test:e2e": "bun test --timeout=60000 test/e2e/",
     "test:coverage": "bun test --timeout=30000 --coverage --coverage-reporter=lcov --path-ignore-patterns=test/e2e && bun run scripts/check-coverage.ts",

@@ -5,6 +5,7 @@
   },
   "rules": {
     "no-explicit-any": "off",
+    "no-unused-vars": "warn",
     "no-duplicate-imports": "error",
     "import/no-duplicates": "error"
   }
