@@ -1,7 +1,6 @@
 import { z } from 'zod';
 import type { ToolDefinition, ToolResult } from '../tool';
 import type { DraftManager } from '../draft';
-import { errorMessage } from '../errors';
 
 const VERBS = [
   'open',

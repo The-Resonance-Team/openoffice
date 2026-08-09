@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { Todo } from '@openoffice/schema';
-import type { ToolContext, ToolDefinition, ToolResult } from '../types';
+import type { ToolContext, ToolResult } from '../types';
 import { emit } from '../../events';
 
 const todoSchema = z.object({

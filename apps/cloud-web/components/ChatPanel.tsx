@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useAIChat } from '@/lib/use-ai-chat';
+import { useAIChat } from '@/lib';
 
 export function ChatPanel() {
   const [input, setInput] = useState('');
