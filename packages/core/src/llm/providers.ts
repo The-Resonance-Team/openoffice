@@ -14,7 +14,7 @@ type ProviderConfig = {
   baseURL?: string;
   region?: string;
 };
-type ProviderFactory = (config: ProviderConfig) => any;
+type ProviderFactory = (config: ProviderConfig) => unknown;
 type ParsedProviderConfig = ReturnType<typeof ProviderConfigSchema.parse>;
 
 export const BUILTIN_PROVIDERS = [
@@ -143,7 +143,7 @@ export function resolveModel(
   modelString: string,
   config: Config,
   store: CredentialStore = new CredentialStore()
-): any {
+): unknown {
   const slash = modelString.indexOf("/");
   if (slash === -1) {
     throw new Error(

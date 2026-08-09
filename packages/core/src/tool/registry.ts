@@ -17,28 +17,28 @@ export class ToolRegistry {
     return [...this.tools.values()];
   }
 
-  // ponytail: return type is `any` — AI SDK v7's Tool type is deeply generic and
-  // not worth fighting. The runtime shape is correct; consumers pass this straight
-  // to streamText() which validates it.
-  toAITools(): Record<string, any> {
-    const out: Record<string, any> = {};
+  // ponytail: return type is `unknown` — AI SDK v7's Tool type is deeply generic
+  // and not worth importing. The runtime shape is correct; consumers pass this
+  // straight to streamText() which validates it.
+  toAITools(): Record<string, unknown> {
+    const out: Record<string, unknown> = {};
     for (const [name, def] of this.tools) {
       out[name] = tool({
         description: def.description,
         inputSchema: def.parameters,
-        execute: (params: any) => def.execute(params, { sessionID: "" }),
+        execute: (params: unknown) => def.execute(params, { sessionID: "" }),
       });
     }
     return out;
   }
 
-  toAIToolsWithEvents(sessionID: string, cwd?: string): Record<string, any> {
-    const out: Record<string, any> = {};
+  toAIToolsWithEvents(sessionID: string, cwd?: string): Record<string, unknown> {
+    const out: Record<string, unknown> = {};
     for (const [name, def] of this.tools) {
       out[name] = tool({
         description: def.description,
         inputSchema: def.parameters,
-        execute: async (params: any) => {
+        execute: async (params: unknown) => {
           emit("tool:start", { sessionID, tool: name, params });
           const result = await def.execute(params, { sessionID, cwd });
           emit("tool:done", { sessionID, tool: name, result });

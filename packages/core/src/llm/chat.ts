@@ -6,7 +6,7 @@ import type { Config } from "../config";
 export interface ChatOptions {
   model: string;
   messages: ModelMessage[];
-  tools?: Record<string, any>;
+  tools?: Record<string, unknown>;
   system?: string;
   maxSteps?: number;
   onRetry?: (info: RetryInfo) => void;
@@ -20,7 +20,7 @@ export function chat(options: ChatOptions, config: Config) {
   // ponytail: `steps: any[]` — mirrors StopCondition's parameter shape without
   // importing the AI SDK's deeply-generic StepResult type; the runtime check
   // is unchanged from isStepCount's own semantics.
-  const stopWhen = (result: { steps: any[] }) => {
+  const stopWhen = (result: { steps: unknown[] }) => {
     if (capped(result)) {
       hitStepCap = true;
       return true;

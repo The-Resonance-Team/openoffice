@@ -26,7 +26,7 @@ export interface GrepDeps {
 
 const MAX_OFFICE_EXTRACT_LIMIT = 20;
 
-function isNoMatch(error: any): boolean {
+function isNoMatch(error: { status?: number; code?: number | string }): boolean {
   return error.status === 1 || error.code === 1 || error.code === "1";
 }
 
@@ -56,8 +56,8 @@ async function listFiles(path: string, include?: string): Promise<string[]> {
   try {
     const output = await runRg(args);
     return output.trim() ? output.trim().split(/\r?\n/) : [];
-  } catch (e: any) {
-    if (isNoMatch(e)) return [];
+  } catch (e: unknown) {
+    if (isNoMatch(e as { status?: number; code?: number | string })) return [];
     throw e;
   }
 }
@@ -73,8 +73,8 @@ async function matchRg(
       content
     );
     return output.trim().split(/\r?\n/).filter(Boolean).map(format);
-  } catch (e: any) {
-    if (isNoMatch(e)) return [];
+  } catch (e: unknown) {
+    if (isNoMatch(e as { status?: number; code?: number | string })) return [];
     throw e;
   }
 }
@@ -185,8 +185,8 @@ export function createGrepTool(deps?: GrepDeps): ToolDefinition {
           try {
             const output = await runRg(args);
             plainMatches = output.trim() ? [output.trim()] : [];
-          } catch (e: any) {
-            if (!isNoMatch(e)) throw e;
+          } catch (e: unknown) {
+            if (!isNoMatch(e as { status?: number; code?: number | string })) throw e;
           }
         }
         const limit = Math.max(
@@ -342,8 +342,8 @@ export function createGrepTool(deps?: GrepDeps): ToolDefinition {
             ...notes,
           ].join("\n"),
         };
-      } catch (e: any) {
-        if (isNoMatch(e)) {
+      } catch (e: unknown) {
+        if (isNoMatch(e as { status?: number; code?: number | string })) {
           return { success: true, output: "No matches found" };
         }
         return {

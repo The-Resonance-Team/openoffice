@@ -308,8 +308,8 @@ export function createOfficeCliTool(deps: OfficeCliDeps): ToolDefinition {
           };
         }
         return { success: true, output, data: parsed };
-      } catch (e: any) {
-        if (e.code === "ENOENT") {
+      } catch (e: unknown) {
+        if ((e as { code?: string }).code === "ENOENT") {
           return {
             success: false,
             error:

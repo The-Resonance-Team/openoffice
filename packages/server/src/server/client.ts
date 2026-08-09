@@ -4,7 +4,6 @@ import type { Session } from "@openoffice/schema";
 import type {
   DaemonClient,
   StreamHandlers,
-  UpdateStatus,
   McpServerStatusInfo,
 } from "@openoffice/protocol";
 
@@ -191,7 +190,7 @@ export class OpenOfficeClient implements DaemonClient {
                 .split("\n")
                 .find((l) => l.startsWith("data: "));
               if (!dataLine) continue;
-              let event: any;
+              let event: Record<string, unknown>;
               try {
                 event = JSON.parse(dataLine.slice(6));
               } catch {

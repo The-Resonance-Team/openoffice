@@ -9,7 +9,7 @@ export interface ToolDefinition {
   name: string;
   description: string;
   parameters: z.ZodType;
-  execute: (params: any, ctx: ToolContext) => Promise<ToolResult>;
+  execute: (params: unknown, ctx: ToolContext) => Promise<ToolResult>;
 }
 
 export type ToolResult =
