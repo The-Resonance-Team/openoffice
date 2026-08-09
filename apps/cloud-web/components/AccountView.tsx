@@ -1,5 +1,6 @@
 'use client';
 
+import { format } from 'date-fns';
 import { useEffect, useState } from 'react';
 import {
   createApiKey,
@@ -12,6 +13,7 @@ import {
 } from '@/lib/api';
 import { FieldLabel, Modal, ModalActions, textInputStyle } from '@/components/Modal';
 import { ComingSoon } from '@/components/ComingSoon';
+import { useToast } from '@/components/ToastProvider';
 import { initials } from '@/lib/initials';
 
 const card: React.CSSProperties = {
@@ -35,12 +37,7 @@ const btnStyle: React.CSSProperties = {
 
 export function AccountView({ profile }: { profile: MemberProfile }) {
   const { user, member, org } = profile;
-  const [toast, setToast] = useState<string | null>(null);
-
-  function showToast(t: string) {
-    setToast(t);
-    setTimeout(() => setToast(null), 2600);
-  }
+  const showToast = useToast();
 
   return (
     <div
@@ -260,7 +257,7 @@ export function AccountView({ profile }: { profile: MemberProfile }) {
         </div>
       </section>
 
-      <ApiKeysSection showToast={showToast} />
+      <ApiKeysSection />
 
       <section id="sec-sessions" style={{ scrollMarginTop: 14, marginTop: 30 }}>
         <div
@@ -286,8 +283,6 @@ export function AccountView({ profile }: { profile: MemberProfile }) {
           detail="Listing and revoking active browser sessions needs a cloud-api endpoint that doesn't exist yet."
         />
       </section>
-
-      {toast && <Toast text={toast} />}
     </div>
   );
 }
@@ -348,35 +343,6 @@ export function SectionHeader({
   );
 }
 
-export function Toast({ text }: { text: string }) {
-  return (
-    <div
-      role="status"
-      className="fade-up"
-      style={{
-        position: 'fixed',
-        bottom: 24,
-        left: '50%',
-        transform: 'translateX(-50%)',
-        zIndex: 300,
-        background: 'var(--panel-2)',
-        color: 'var(--text)',
-        border: '1px solid var(--border-2)',
-        borderRadius: 11,
-        padding: '11px 18px',
-        fontSize: 13,
-        boxShadow: 'var(--shadow-lg)',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 10,
-      }}
-    >
-      <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--green)' }} />
-      {text}
-    </div>
-  );
-}
-
 const KeyIcon = (
   <svg
     width="26"
@@ -395,7 +361,8 @@ const KeyIcon = (
   </svg>
 );
 
-function ApiKeysSection({ showToast }: { showToast: (t: string) => void }) {
+function ApiKeysSection() {
+  const showToast = useToast();
   const [keys, setKeys] = useState<DaemonApiKey[] | null>(null);
   const [modal, setModal] = useState<'create' | 'created' | null>(null);
   const [name, setName] = useState('');
@@ -514,7 +481,7 @@ function ApiKeysSection({ showToast }: { showToast: (t: string) => void }) {
                 </div>
               </div>
               <span style={{ fontSize: 12.5, color: 'var(--faint)', flex: 'none' }}>
-                {new Date(k.createdAt).toLocaleDateString()}
+                {format(new Date(k.createdAt), 'MMM d, yyyy')}
               </span>
               <button
                 onClick={() => {

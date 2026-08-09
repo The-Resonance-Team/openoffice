@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Toast } from '@/components/AccountView';
+import { useToast } from '@/components/ToastProvider';
 
 const card: React.CSSProperties = {
   background: 'var(--panel)',
@@ -14,12 +14,7 @@ export function SettingsView() {
   const [notif, setNotif] = useState(true);
   const [updates, setUpdates] = useState(false);
   const [role, setRole] = useState('Owner');
-  const [toast, setToast] = useState<string | null>(null);
-
-  function showToast(t: string) {
-    setToast(t);
-    setTimeout(() => setToast(null), 2600);
-  }
+  const showToast = useToast();
 
   return (
     <div
@@ -161,8 +156,6 @@ export function SettingsView() {
           Delete
         </button>
       </div>
-
-      {toast && <Toast text={toast} />}
     </div>
   );
 }

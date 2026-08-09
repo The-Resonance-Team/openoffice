@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { createInvite, type MemberProfile, type Role } from '@/lib/api';
 import { FieldLabel, Modal, ModalActions, textInputStyle } from '@/components/Modal';
 import { ComingSoon } from '@/components/ComingSoon';
-import { Toast } from '@/components/AccountView';
+import { useToast } from '@/components/ToastProvider';
 import { initials } from '@/lib/initials';
 
 const card: React.CSSProperties = {
@@ -19,12 +19,7 @@ export function OrgView({ profile }: { profile: MemberProfile }) {
   const [inviteOpen, setInviteOpen] = useState(false);
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<Role>('MEMBER');
-  const [toast, setToast] = useState<string | null>(null);
-
-  function showToast(t: string) {
-    setToast(t);
-    setTimeout(() => setToast(null), 2600);
-  }
+  const showToast = useToast();
 
   async function submitInvite() {
     if (!email) return;
@@ -226,8 +221,6 @@ export function OrgView({ profile }: { profile: MemberProfile }) {
           />
         </Modal>
       )}
-
-      {toast && <Toast text={toast} />}
     </div>
   );
 }
