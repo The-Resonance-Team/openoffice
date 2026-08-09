@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { canManageOrg, getMe, isUnauthorized, type MemberProfile } from '@/lib/api';
+import { useRef, useState } from 'react';
+import { canManageOrg, isUnauthorized } from '@/lib/api';
+import { useMe } from '@/lib/use-api';
 import { initials } from '@/lib/initials';
 import { AccountView } from '@/components/AccountView';
 import { OrgView } from '@/components/OrgView';
@@ -80,8 +81,7 @@ const I = {
 };
 
 export function Dashboard() {
-  const [profile, setProfile] = useState<MemberProfile | null>(null);
-  const [status, setStatus] = useState<'loading' | 'ready' | 'unauthorized' | 'error'>('loading');
+  const { data, isLoading, error } = useMe();
   const [view, setView] = useState<View>('home');
   const [orgMenuOpen, setOrgMenuOpen] = useState(false);
   const [collapse, setCollapse] = useState<{ account: boolean; org: boolean }>({
@@ -90,14 +90,14 @@ export function Dashboard() {
   });
   const mainRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    getMe()
-      .then((r) => {
-        setProfile(r.profile);
-        setStatus('ready');
-      })
-      .catch((err) => setStatus(isUnauthorized(err) ? 'unauthorized' : 'error'));
-  }, []);
+  const profile = data?.profile ?? null;
+  const status = isLoading
+    ? 'loading'
+    : error
+      ? isUnauthorized(error)
+        ? 'unauthorized'
+        : 'error'
+      : 'ready';
 
   function nav(v: View) {
     setView(v);

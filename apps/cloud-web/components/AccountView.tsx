@@ -1,16 +1,9 @@
 'use client';
 
 import { format } from 'date-fns';
-import { useEffect, useState } from 'react';
-import {
-  createApiKey,
-  listApiKeys,
-  oauthConnectUrl,
-  resendVerification,
-  revokeApiKey,
-  type DaemonApiKey,
-  type MemberProfile,
-} from '@/lib/api';
+import { useState } from 'react';
+import { oauthConnectUrl, type MemberProfile } from '@/lib/api';
+import { useApiKeys, useCreateApiKey, useRevokeApiKey, useResendVerification } from '@/lib/use-api';
 import { FieldLabel, Modal, ModalActions, textInputStyle } from '@/components/Modal';
 import { ComingSoon } from '@/components/ComingSoon';
 import { useToast } from '@/components/ToastProvider';
@@ -38,6 +31,7 @@ const btnStyle: React.CSSProperties = {
 export function AccountView({ profile }: { profile: MemberProfile }) {
   const { user, member, org } = profile;
   const showToast = useToast();
+  const resendVerificationMutation = useResendVerification();
 
   return (
     <div
@@ -129,9 +123,11 @@ export function AccountView({ profile }: { profile: MemberProfile }) {
                     >
                       Unverified{' '}
                       <button
-                        onClick={async () => {
-                          await resendVerification(user.email);
-                          showToast('Verification email sent');
+                        onClick={() => {
+                          resendVerificationMutation.mutate(
+                            { email: user.email },
+                            { onSuccess: () => showToast('Verification email sent') },
+                          );
                         }}
                         style={{
                           cursor: 'pointer',
@@ -363,26 +359,24 @@ const KeyIcon = (
 
 function ApiKeysSection() {
   const showToast = useToast();
-  const [keys, setKeys] = useState<DaemonApiKey[] | null>(null);
+  const { data } = useApiKeys();
+  const createApiKeyMutation = useCreateApiKey();
+  const revokeApiKeyMutation = useRevokeApiKey();
   const [modal, setModal] = useState<'create' | 'created' | null>(null);
   const [name, setName] = useState('');
   const [fullKey, setFullKey] = useState('');
 
-  useEffect(() => {
-    listApiKeys().then((r) => setKeys(r.keys));
-  }, []);
+  const keys = data?.keys ?? null;
 
   async function submitCreate() {
-    const { key } = await createApiKey(name || 'New key');
+    const { key } = await createApiKeyMutation.mutateAsync({ name: name || 'New key' });
     setFullKey(key);
     setModal('created');
     setName('');
-    listApiKeys().then((r) => setKeys(r.keys));
   }
 
   async function revoke(id: string) {
-    await revokeApiKey(id);
-    setKeys((k) => k?.filter((x) => x.id !== id) ?? null);
+    await revokeApiKeyMutation.mutateAsync({ id });
     showToast('API key revoked');
   }
 

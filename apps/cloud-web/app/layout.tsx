@@ -1,5 +1,19 @@
 import './globals.css';
 import type { Metadata, Viewport } from 'next';
+import { Be_Vietnam_Pro, JetBrains_Mono } from 'next/font/google';
+import { QueryProvider } from '@/lib/query-provider';
+
+const beVietnamPro = Be_Vietnam_Pro({
+  subsets: ['latin'],
+  variable: '--font-be-vietnam',
+  weight: ['400', '500', '600', '700'],
+});
+
+const jetBrainsMono = JetBrains_Mono({
+  subsets: ['latin'],
+  variable: '--font-mono',
+  weight: ['400', '500', '600'],
+});
 
 export const metadata: Metadata = {};
 
@@ -9,16 +23,14 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-      </head>
+    <html lang="en" className={`${beVietnamPro.variable} ${jetBrainsMono.variable}`}>
       <body>
-        <a href="#main" className="skip-link">
-          Skip to content
-        </a>
-        {children}
+        <QueryProvider>
+          <a href="#main" className="skip-link">
+            Skip to content
+          </a>
+          {children}
+        </QueryProvider>
       </body>
     </html>
   );
