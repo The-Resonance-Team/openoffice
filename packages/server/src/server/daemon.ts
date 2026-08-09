@@ -22,6 +22,7 @@ import {
   createQuestionTool,
   createReadTool,
   createWriteTool,
+  createTodoTool,
   type ToolDefinition,
   AgentRegistry,
   createDefaultOfficeCliTool,
@@ -233,6 +234,7 @@ export async function startDaemon(): Promise<DaemonHandle> {
         ...convertDeps,
       })
     );
+    registry.register(createTodoTool({ store }));
 
     const runtime: SessionRuntime = {
       tools: registry,

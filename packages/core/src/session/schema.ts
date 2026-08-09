@@ -57,3 +57,19 @@ export const parts = sqliteTable(
     index("idx_parts_session").on(t.sessionId),
   ]
 );
+
+// The agent's structured task list for a session: one row per Todo, ordered by
+// position. Written wholesale (delete + reinsert), never merged.
+export const sessionTodos = sqliteTable(
+  "session_todos",
+  {
+    sessionId: text("session_id")
+      .notNull()
+      .references(() => sessions.id, { onDelete: "cascade" }),
+    position: integer("position").notNull(),
+    content: text("content").notNull(),
+    status: text("status").notNull(),
+    priority: text("priority").notNull(),
+  },
+  (t) => [index("idx_todos_session").on(t.sessionId, t.position)]
+);

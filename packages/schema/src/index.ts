@@ -94,3 +94,13 @@ export interface Session {
   updatedAt: number;
   endedAt?: number;
 }
+
+export type TodoStatus = "pending" | "in_progress" | "completed" | "cancelled";
+
+export type TodoPriority = "high" | "medium" | "low";
+
+export interface Todo {
+  content: string;
+  status: TodoStatus;
+  priority: TodoPriority;
+}

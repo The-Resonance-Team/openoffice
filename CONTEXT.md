@@ -38,7 +38,21 @@ _Avoid_: entry, record
 A structured task-list item the agent maintains during a session (`content`, `status`, `priority`), written wholesale via a `todo` tool call — not merged incrementally. Exactly one `in_progress` at a time. Session-scoped, independent of message-history compaction. Owned by #39.
 _Avoid_: task, checklist item
 
+**Step**:
+One model roundtrip within a Turn: the model emits a response, possibly with tool calls, and the tool results feed the next roundtrip. A turn's steps are capped by `maxSteps` (top-level config, default 50); at the cap the model can no longer continue tool work — it must produce a text summary instead. Owned by #39.
+_Avoid_: round, iteration
+
+**Step-limit**:
+The end state of a turn whose step cap was reached: the model is told tools are disabled, a forced text-only summary of work done and work remaining is produced (pulling from the session's Todo list if one exists), and the daemon emits a `session:step-limit` event. The summary message is persisted with finish `max-steps` — distinguishable from a natural finish or an interruption even after replay. Owned by #39.
+_Avoid_: max-steps (as a term; `maxSteps` is the config key)
+
 **Job**:
+A turn running detached from any connected client — started, then polled or cancelled rather than streamed to a blocking caller. Not a separate entity from Session: a Job is "this session's turn, running server-side, independent of whether a client is still attached." Owned by #25.
+_Avoid_: task, background task, worker
+
+**Attached client**:
+A client holding an open event stream on a session. Sessions ref-count attached clients in memory; an explicit end call ends the session only when the caller is the last attached client, and a plain disconnect only decrements the count — it never ends the session (crash recovery belongs to the heartbeat sweep). Owned by #39.
+_Avoid_: connected client, subscriber
 A turn running detached from any connected client — started, then polled or cancelled rather than streamed to a blocking caller. Not a separate entity from Session: a Job is "this session's turn, running server-side, independent of whether a client is still attached." Owned by #25.
 _Avoid_: task, background task, worker
 

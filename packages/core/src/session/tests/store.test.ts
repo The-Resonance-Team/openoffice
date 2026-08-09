@@ -109,4 +109,35 @@ describe("SessionStore", () => {
     expect(msgs[0].info.role).toBe("assistant");
     expect(msgs[0].info.finish).toBe("done");
   });
+
+  test("setTodos() replaces the full list, getTodos() returns it in position order", () => {
+    const session = makeSession("s1");
+    store.save(session);
+
+    store.setTodos("s1", [
+      { content: "first", status: "in_progress", priority: "high" },
+      { content: "second", status: "pending", priority: "low" },
+    ]);
+    expect(store.getTodos("s1")).toEqual([
+      { content: "first", status: "in_progress", priority: "high" },
+      { content: "second", status: "pending", priority: "low" },
+    ]);
+
+    // Replace-on-write: a second write is not a merge.
+    store.setTodos("s1", [
+      { content: "only", status: "completed", priority: "medium" },
+    ]);
+    expect(store.getTodos("s1")).toEqual([
+      { content: "only", status: "completed", priority: "medium" },
+    ]);
+  });
+
+  test("todos are isolated per session", () => {
+    store.save(makeSession("s1"));
+    store.save(makeSession("s2"));
+    store.setTodos("s1", [
+      { content: "a", status: "pending", priority: "high" },
+    ]);
+    expect(store.getTodos("s2")).toEqual([]);
+  });
 });

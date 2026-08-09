@@ -4,8 +4,13 @@ import { dirname } from "node:path";
 import { drizzle } from "drizzle-orm/bun-sqlite";
 import { eq, desc, sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
-import type { Session } from "./types";
-import { sessions, messages, parts } from "./schema";
+import type {
+  Session,
+  Todo,
+  TodoPriority,
+  TodoStatus,
+} from "@openoffice/schema";
+import { sessions, messages, parts, sessionTodos } from "./schema";
 import type {
   MessageInfo,
   Part,
@@ -175,6 +180,7 @@ export class SessionStore {
     if (!hasParent || !hasEndedAt) {
       this.drizzle.run("DROP TABLE IF EXISTS parts");
       this.drizzle.run("DROP TABLE IF EXISTS messages");
+      this.drizzle.run("DROP TABLE IF EXISTS session_todos");
       this.drizzle.run("DROP TABLE IF EXISTS sessions");
     }
     this.drizzle.run(/* sql */ `
@@ -219,6 +225,18 @@ export class SessionStore {
         timestamp INTEGER NOT NULL
       )
     `);
+    this.drizzle.run(/* sql */ `
+      CREATE TABLE IF NOT EXISTS session_todos (
+        session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+        position INTEGER NOT NULL,
+        content TEXT NOT NULL,
+        status TEXT NOT NULL,
+        priority TEXT NOT NULL
+      )
+    `);
+    this.drizzle.run(
+      /* sql */ "CREATE INDEX IF NOT EXISTS idx_todos_session ON session_todos(session_id, position)"
+    );
     this.drizzle.run(
       /* sql */ "CREATE INDEX IF NOT EXISTS idx_messages_session ON messages(session_id, seq)"
     );
@@ -383,6 +401,42 @@ export class SessionStore {
       .where(eq(messages.sessionId, sessionId))
       .get();
     return (row?.maxSeq ?? 0) + 1;
+  }
+
+  /** The session's todo list, in position order. */
+  getTodos(sessionId: string): Todo[] {
+    const rows = this.drizzle
+      .select()
+      .from(sessionTodos)
+      .where(eq(sessionTodos.sessionId, sessionId))
+      .orderBy(sessionTodos.position)
+      .all();
+    return rows.map((row) => ({
+      content: row.content,
+      status: row.status as TodoStatus,
+      priority: row.priority as TodoPriority,
+    }));
+  }
+
+  /** Replace-on-write: deletes the session's todos, then inserts the new list. */
+  setTodos(sessionId: string, todos: Todo[]): void {
+    this.drizzle.transaction((tx) => {
+      tx.delete(sessionTodos)
+        .where(eq(sessionTodos.sessionId, sessionId))
+        .run();
+      todos.forEach((todo, position) => {
+        tx.insert(sessionTodos)
+          .values({
+            sessionId,
+            position,
+            content: todo.content,
+            status: todo.status,
+            priority: todo.priority,
+          })
+          .run();
+      });
+    });
+    this.touch(sessionId, Date.now());
   }
 
   private touch(sessionId: string, at: number): void {

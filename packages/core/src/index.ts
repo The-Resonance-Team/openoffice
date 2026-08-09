@@ -147,6 +147,7 @@ export {
   createGrepTool,
   createQuestionTool,
   createConvertTool,
+  createTodoTool,
 } from "./tool";
 export type {
   ToolDefinition,
