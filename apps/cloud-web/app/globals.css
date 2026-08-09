@@ -1,4 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 :root {
   --bg: #1c1a18;
@@ -80,6 +81,16 @@ a:hover {
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+@keyframes blink {
+  0%,
+  50% {
+    opacity: 1;
+  }
+  50.01%,
+  100% {
+    opacity: 0;
+  }
+}
 @keyframes fadeup {
   from {
     opacity: 0;
@@ -125,4 +136,52 @@ a:hover {
 
 button {
   cursor: pointer;
+}
+
+/* Public marketing/docs shell — the design (openoffice.dc.html) ships its own
+   cool-dark/blue palette on the same token names the app shell already
+   defines on :root (warm-dark/orange, see above). Scope it here instead of
+   redefining :root so the two don't clobber each other. */
+.public-shell {
+  --bg: #0a0a0b;
+  --panel: #0f0f11;
+  --elev: #151517;
+  --elev2: #1b1b1f;
+  --hover: #202026;
+  --border: #2a2a30;
+  --border-soft: #1c1c21;
+  --text: #e9e9ea;
+  --dim: #9b9ba2;
+  --faint: #63636b;
+  --accent: #2f6bed;
+  --accent-h: #4a80f4;
+  --accent-soft: #16233f;
+  --accent-fg: #ffffff;
+  --green: #26c165;
+  --amber: #e0a13a;
+  --teal: #4f9a9a;
+  --mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  background: var(--bg);
+  color: var(--text);
+  font-family:
+    'Be Vietnam Pro',
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    Helvetica,
+    Arial,
+    sans-serif;
+  font-size: 13px;
+  line-height: 1.5;
+  min-height: 100vh;
+}
+.public-shell a {
+  color: var(--accent);
+}
+.public-shell a:hover {
+  color: var(--accent-h);
+}
+.public-shell .doc-toc-link:hover {
+  color: var(--text) !important;
 }
