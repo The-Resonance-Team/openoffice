@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
-import { findDoc } from '@/lib/docs';
-import { DocsShell } from '@/components/DocsShell';
+import { findDoc } from '@/lib';
+import { DocsShell } from '@/components';
 
 export const metadata: Metadata = {
   title: 'Changelog — openoffice',

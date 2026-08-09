@@ -1,9 +1,9 @@
 'use client';
 
-import { useUiStore } from '@/lib/store';
-import type { ChatMessage } from '@/lib/use-session';
+import { useUiStore } from '@/lib';
+import type { ChatMessage } from '@/lib';
 import { Composer } from './Composer';
-import { Icon, IconFill } from '@/lib/icons';
+import { Icon, IconFill } from '@/lib';
 
 export function ChatPanel({
   messages,

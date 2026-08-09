@@ -1,7 +1,7 @@
 import './globals.css';
 import type { Metadata, Viewport } from 'next';
 import { Be_Vietnam_Pro, JetBrains_Mono } from 'next/font/google';
-import { QueryProvider } from '@/lib/query-provider';
+import { QueryProvider } from '@/lib';
 
 const beVietnamPro = Be_Vietnam_Pro({
   subsets: ['latin'],

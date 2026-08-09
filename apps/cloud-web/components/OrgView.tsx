@@ -1,11 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { createInvite, type MemberProfile, type Role } from '@/lib/api';
-import { FieldLabel, Modal, ModalActions, textInputStyle } from '@/components/Modal';
-import { ComingSoon } from '@/components/ComingSoon';
-import { useToast } from '@/components/ToastProvider';
-import { initials } from '@/lib/initials';
+import { createInvite, type MemberProfile, type Role } from '@/lib';
+import { FieldLabel, Modal, ModalActions, textInputStyle } from './Modal';
+import { ComingSoon } from './ComingSoon';
+import { useToast } from './ToastProvider';
+import { initials } from '@/lib';
 
 const card: React.CSSProperties = {
   background: 'var(--panel)',

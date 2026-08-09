@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { DOCS, DOC_SECTIONS, docHref, tagStyle, type Doc } from '@/lib/docs';
+import { DOCS, DOC_SECTIONS, docHref, tagStyle, type Doc } from '@/lib';
 
 export function DocsShell({ doc }: { doc: Doc }) {
   const [query, setQuery] = useState('');

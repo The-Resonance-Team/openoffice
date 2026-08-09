@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useToast } from '@/components/ToastProvider';
+import { useToast } from './ToastProvider';
 
 const card: React.CSSProperties = {
   background: 'var(--panel)',

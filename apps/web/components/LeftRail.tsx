@@ -2,15 +2,15 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { navPrimary, pinned } from '@/lib/mock';
-import { Icon } from '@/lib/icons';
+import { navPrimary, pinned } from '@/lib';
+import { Icon } from '@/lib';
 import {
   getUpdateStatus,
   listSessions,
   deleteSession,
   renameSession,
   type SessionDto,
-} from '@/lib/api';
+} from '@/lib';
 
 const navBase =
   'flex items-center gap-3 rounded-[9px] px-[11px] py-2 text-left text-[14px] font-medium text-muted hover:bg-panel2 hover:text-ink w-full';

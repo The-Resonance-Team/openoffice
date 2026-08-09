@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
-import { DOCS, findDoc } from '@/lib/docs'
-import { DocsShell } from '@/components/DocsShell'
+import { DOCS, findDoc } from '@/lib'
+import { DocsShell } from '@/components'
 
 export function generateStaticParams() {
   return DOCS.filter((d) => d.id !== 'docs' && d.id !== 'changelog').map((d) => ({ slug: [d.id] }))

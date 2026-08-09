@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { docHref } from '@/lib/docs';
+import { docHref } from '@/lib';
 
 export function PublicFooter() {
   return (

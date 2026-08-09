@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { loadAuth, saveAuth } from '@/lib/api';
-import { Icon } from '@/lib/icons';
+import { loadAuth, saveAuth } from '@/lib';
+import { Icon } from '@/lib';
 
 export function LoginDialog({ onClose }: { onClose: () => void }) {
   const existing = loadAuth();

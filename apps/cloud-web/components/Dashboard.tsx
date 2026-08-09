@@ -1,14 +1,14 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { canManageOrg, isUnauthorized } from '@/lib/api';
-import { useMe } from '@/lib/use-api';
-import { initials } from '@/lib/initials';
-import { AccountView } from '@/components/AccountView';
-import { OrgView } from '@/components/OrgView';
-import { SettingsView } from '@/components/SettingsView';
-import { DashboardHome } from '@/components/DashboardHome';
-import { ToastProvider } from '@/components/ToastProvider';
+import { canManageOrg, isUnauthorized } from '@/lib';
+import { useMe } from '@/lib';
+import { initials } from '@/lib';
+import { AccountView } from './AccountView';
+import { OrgView } from './OrgView';
+import { SettingsView } from './SettingsView';
+import { DashboardHome } from './DashboardHome';
+import { ToastProvider } from './ToastProvider';
 
 type View = 'home' | 'account' | 'org' | 'settings';
 

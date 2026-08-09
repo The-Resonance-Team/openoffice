@@ -1,14 +1,14 @@
 'use client';
 
 import { useMutation } from '@tanstack/react-query';
-import { useUiStore } from '@/lib/store';
-import { files, pageCounts, sheetNames, sheetOrder, slides, turnOrder } from '@/lib/mock';
-import { CheckSm, GDriveIcon, Icon } from '@/lib/icons';
-import { DocxBody } from './viewer/Docx';
-import { XlsxBody } from './viewer/Xlsx';
-import { PptxBody } from './viewer/Pptx';
-import { PdfBody } from './viewer/Pdf';
-import { FallbackBody } from './viewer/Fallback';
+import { useUiStore } from '@/lib';
+import { files, pageCounts, sheetNames, sheetOrder, slides, turnOrder } from '@/lib';
+import { CheckSm, GDriveIcon, Icon } from '@/lib';
+import { DocxBody } from './viewers';
+import { XlsxBody } from './viewers';
+import { PptxBody } from './viewers';
+import { PdfBody } from './viewers';
+import { FallbackBody } from './viewers';
 
 // TODO: session is mocked (lib/use-session.ts) so there's no real daemon
 // session to accept/undo against yet — simulate the round trip locally. Takes

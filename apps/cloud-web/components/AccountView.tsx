@@ -2,12 +2,12 @@
 
 import { format } from 'date-fns';
 import { useState } from 'react';
-import { oauthConnectUrl, type MemberProfile } from '@/lib/api';
-import { useApiKeys, useCreateApiKey, useRevokeApiKey, useResendVerification } from '@/lib/use-api';
-import { FieldLabel, Modal, ModalActions, textInputStyle } from '@/components/Modal';
-import { ComingSoon } from '@/components/ComingSoon';
-import { useToast } from '@/components/ToastProvider';
-import { initials } from '@/lib/initials';
+import { oauthConnectUrl, type MemberProfile } from '@/lib';
+import { useApiKeys, useCreateApiKey, useRevokeApiKey, useResendVerification } from '@/lib';
+import { FieldLabel, Modal, ModalActions, textInputStyle } from './Modal';
+import { ComingSoon } from './ComingSoon';
+import { useToast } from './ToastProvider';
+import { initials } from '@/lib';
 
 const card: React.CSSProperties = {
   background: 'var(--panel)',
