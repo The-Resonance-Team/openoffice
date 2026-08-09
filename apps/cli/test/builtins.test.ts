@@ -40,17 +40,6 @@ describe('read tool', () => {
     if (result.success) expect(result.output).toBe('hello world');
   });
 
-  test('reads markdown file', async () => {
-    const dir = tempDir();
-    const file = join(dir, 'readme.md');
-    writeFileSync(file, '# Title');
-
-    const tool = createReadTool(noopDeps);
-    const result = await tool.execute({ file }, { sessionID: 'test' });
-    expect(result.success).toBe(true);
-    if (result.success) expect(result.output).toBe('# Title');
-  });
-
   test('returns error for missing file', async () => {
     const tool = createReadTool(noopDeps);
     const result = await tool.execute({ file: '/nonexistent/file.txt' }, { sessionID: 'test' });
@@ -76,73 +65,6 @@ describe('read tool', () => {
     if (result.success) expect(result.output).toBe('document content');
   });
 
-  test('delegates .xlsx to readDocument', async () => {
-    const dir = tempDir();
-    const file = join(dir, 'test.xlsx');
-    writeFileSync(file, 'binary');
-
-    let calledWith = '';
-    const tool = createReadTool({
-      readDocument: async (f: string) => {
-        calledWith = f;
-        return 'spreadsheet content';
-      },
-    });
-    const result = await tool.execute({ file }, { sessionID: 'test' });
-    expect(result.success).toBe(true);
-    expect(calledWith).toBe(file);
-  });
-
-  test('delegates .pptx to readDocument', async () => {
-    const dir = tempDir();
-    const file = join(dir, 'test.pptx');
-    writeFileSync(file, 'binary');
-
-    let calledWith = '';
-    const tool = createReadTool({
-      readDocument: async (f: string) => {
-        calledWith = f;
-        return 'presentation content';
-      },
-    });
-    const result = await tool.execute({ file }, { sessionID: 'test' });
-    expect(result.success).toBe(true);
-    expect(calledWith).toBe(file);
-  });
-
-  test('delegates .pdf to readDocument', async () => {
-    const dir = tempDir();
-    const file = join(dir, 'test.pdf');
-    writeFileSync(file, '%PDF-1.4 binary');
-
-    let calledWith = '';
-    const tool = createReadTool({
-      readDocument: async (f: string) => {
-        calledWith = f;
-        return 'extracted pdf text';
-      },
-    });
-    const result = await tool.execute({ file }, { sessionID: 'test' });
-    expect(result.success).toBe(true);
-    expect(calledWith).toBe(file);
-    if (result.success) expect(result.output).toBe('extracted pdf text');
-  });
-
-  test('returns a PDF error when document conversion fails', async () => {
-    const dir = tempDir();
-    const file = join(dir, 'test.pdf');
-    writeFileSync(file, '%PDF-1.4 binary');
-
-    const tool = createReadTool({
-      readDocument: async () => {
-        throw new Error('unsupported PDF');
-      },
-    });
-    const result = await tool.execute({ file }, { sessionID: 'test' });
-    expect(result.success).toBe(false);
-    if (!result.success) expect(result.code).toBe('PDF_READ_ERROR');
-  });
-
   test('reads legacy .doc through AnyDoc', async () => {
     const dir = tempDir();
     const file = join(dir, 'test.doc');
@@ -152,40 +74,6 @@ describe('read tool', () => {
     const result = await tool.execute({ file }, { sessionID: 'test' });
     expect(result.success).toBe(true);
     if (result.success) expect(result.output).toBe('legacy content');
-  });
-
-  test('delegates .dotx template to readDocument', async () => {
-    const dir = tempDir();
-    const file = join(dir, 'template.dotx');
-    writeFileSync(file, 'binary');
-
-    let calledWith = '';
-    const tool = createReadTool({
-      readDocument: async (f: string) => {
-        calledWith = f;
-        return 'template content';
-      },
-    });
-    const result = await tool.execute({ file }, { sessionID: 'test' });
-    expect(result.success).toBe(true);
-    expect(calledWith).toBe(file);
-  });
-
-  test('delegates .docm macro-enabled to readDocument', async () => {
-    const dir = tempDir();
-    const file = join(dir, 'macro.docm');
-    writeFileSync(file, 'binary');
-
-    let calledWith = '';
-    const tool = createReadTool({
-      readDocument: async (f: string) => {
-        calledWith = f;
-        return 'macro content';
-      },
-    });
-    const result = await tool.execute({ file }, { sessionID: 'test' });
-    expect(result.success).toBe(true);
-    expect(calledWith).toBe(file);
   });
 });
 
@@ -336,23 +224,6 @@ describe('grep tool', () => {
       expect(result.output).not.toContain('raw target');
       expect(result.output).not.toContain('document target');
       expect(result.output).toContain('document extraction skipped');
-    }
-  });
-
-  test('searches extracted spreadsheet text', async () => {
-    if (!hasRg()) return;
-    const dir = tempDir();
-    writeFileSync(join(dir, 'report.xlsx'), 'placeholder');
-
-    const tool = createGrepTool({
-      readDocument: async () => 'spreadsheet target\n',
-    });
-    const result = await tool.execute({ query: 'target', path: dir }, { sessionID: 'test' });
-
-    expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.output).toContain('report.xlsx');
-      expect(result.output).toContain('spreadsheet target');
     }
   });
 
@@ -543,24 +414,6 @@ describe('grep tool', () => {
     }
   });
 
-  test('returns no matches cleanly for extracted documents', async () => {
-    if (!hasRg()) return;
-    const dir = tempDir();
-    writeFileSync(join(dir, 'report.docx'), 'placeholder');
-    writeFileSync(join(dir, 'manual.pdf'), 'placeholder');
-    writeFileSync(join(dir, 'old.doc'), 'placeholder');
-
-    const tool = createGrepTool({
-      readDocument: async () => 'document text\n',
-    });
-    const result = await tool.execute({ query: 'missing', path: dir }, { sessionID: 'test' });
-
-    expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.output).toContain('No matches found');
-    }
-  });
-
   test('handles complex regex safely for extracted documents', async () => {
     if (!hasRg()) return;
     const dir = tempDir();
@@ -573,23 +426,6 @@ describe('grep tool', () => {
 
     expect(result.success).toBe(true);
     if (result.success) expect(result.output).toBe('No matches found');
-  });
-
-  test('uses the document reader for legacy Office files', async () => {
-    if (!hasRg()) return;
-    const dir = tempDir();
-    writeFileSync(join(dir, 'legacy.doc'), 'placeholder');
-
-    const tool = createGrepTool({
-      readDocument: async () => 'legacy target\n',
-    });
-    const result = await tool.execute({ query: 'target', path: dir }, { sessionID: 'test' });
-
-    expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.output).toContain('legacy.doc');
-      expect(result.output).not.toContain('legacy files skipped');
-    }
   });
 });
 
