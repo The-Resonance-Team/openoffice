@@ -58,14 +58,15 @@ function rasterizePdf(pdfPath: string, outDir: string, pageLimit: number): { fil
       ["-png", "-r", "300", "-f", "1", "-l", String(pageLimit), pdfPath, join(outDir, "page")],
       { timeout: 60000, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }
     );
-  } catch (err: any) {
-    if (err.code === "ENOENT") {
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (typeof err === "object" && err !== null && "code" in err && (err as { code: string }).code === "ENOENT") {
       throw new OcrError(
         "PDFTOPPM_NOT_INSTALLED",
         "pdftoppm not found. Install poppler-utils: brew install poppler (macOS) / apt install poppler-utils (Linux)"
       );
     }
-    throw new OcrError("OCR_FAILED", `pdftoppm failed: ${err.message}`);
+    throw new OcrError("OCR_FAILED", `pdftoppm failed: ${msg}`);
   }
 
   const files = readdirSync(outDir)
@@ -82,14 +83,15 @@ function ocrImage(imagePath: string, lang: string): string {
       encoding: "utf-8",
       stdio: ["pipe", "pipe", "pipe"],
     }).trim();
-  } catch (err: any) {
-    if (err.code === "ENOENT") {
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (typeof err === "object" && err !== null && "code" in err && (err as { code: string }).code === "ENOENT") {
       throw new OcrError(
         "TESSERACT_NOT_INSTALLED",
         "Tesseract not found. Install: brew install tesseract (macOS) / apt install tesseract-ocr (Linux)"
       );
     }
-    throw new OcrError("OCR_FAILED", `Tesseract failed: ${err.message}`);
+    throw new OcrError("OCR_FAILED", `Tesseract failed: ${msg}`);
   }
 }
 
