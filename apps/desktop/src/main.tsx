@@ -10,7 +10,7 @@ import "@fontsource/source-serif-4/700.css";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
-import { QueryProvider } from "./lib/query-provider";
+import { QueryProvider } from "@openoffice/ui";
 import "./styles.css";
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
