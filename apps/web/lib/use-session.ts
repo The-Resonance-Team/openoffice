@@ -11,17 +11,38 @@ import {
   type StreamEvent,
 } from "./api";
 
+export type ChatPart =
+  | { kind: "text"; text: string }
+  | {
+      kind: "tool";
+      tool: string;
+      params?: unknown;
+      status: "running" | "done" | "error";
+      result?: unknown;
+    };
+
 export interface ChatMessage {
   role: string;
   content: string;
+  parts: ChatPart[];
 }
 
 // A daemon message is WithParts: { info: { role }, parts: Part[] }. The web
 // client owns no shared types with apps/cli (ADR 0024), so this shape is
-// read structurally rather than imported.
+// read structurally rather than imported. Tool parts mirror
+// packages/core/src/session/loop.ts's ToolPart (state.status is
+// "pending" | "completed" | "error"; "pending" reads as still-running since
+// a persisted turn is always finished by the time it's fetched).
 interface RemotePart {
   type: string;
   text?: string;
+  tool?: string;
+  state?: {
+    status: string;
+    input?: unknown;
+    output?: unknown;
+    error?: { message: string };
+  };
 }
 interface RemoteMessage {
   info: { role: string };
@@ -30,23 +51,86 @@ interface RemoteMessage {
 
 const ACTIVE_SESSION_KEY = "oo-active-session";
 
+// A "completed" tool part can still represent a graceful tool failure — core
+// tools return `{success:false, error}` rather than throwing, so the AI SDK
+// (and loop.ts) see a normal completion. `state.output` is that ToolResult
+// JSON-stringified; unwrap it to tell a real failure from a real success.
+function completedResult(output: unknown): {
+  status: "done" | "error";
+  result: unknown;
+} {
+  if (typeof output === "string") {
+    try {
+      const parsed = JSON.parse(output);
+      if (parsed && typeof parsed === "object" && parsed.success === false) {
+        return { status: "error", result: parsed };
+      }
+    } catch {
+      // not JSON — a plain-text tool result, leave as done
+    }
+  }
+  return { status: "done", result: output };
+}
+
+function toChatParts(parts: RemotePart[]): ChatPart[] {
+  const out: ChatPart[] = [];
+  for (const p of parts) {
+    if (p.type === "text" && typeof p.text === "string" && p.text.length > 0) {
+      out.push({ kind: "text", text: p.text });
+    } else if (p.type === "tool" && p.tool) {
+      if (p.state?.status === "error") {
+        out.push({
+          kind: "tool",
+          tool: p.tool,
+          params: p.state.input,
+          status: "error",
+          result: p.state.error,
+        });
+      } else if (p.state?.status === "completed") {
+        const { status, result } = completedResult(p.state.output);
+        out.push({
+          kind: "tool",
+          tool: p.tool,
+          params: p.state.input,
+          status,
+          result,
+        });
+      } else {
+        out.push({
+          kind: "tool",
+          tool: p.tool,
+          params: p.state?.input,
+          status: "running",
+        });
+      }
+    }
+  }
+  return out;
+}
+
 function toChatMessages(session: SessionDto): ChatMessage[] {
   return (session.messages as RemoteMessage[])
-    .map((m) => ({
-      role: m.info.role,
-      content: m.parts
-        .filter((p) => p.type === "text" && typeof p.text === "string")
-        .map((p) => p.text)
-        .join(""),
-    }))
-    .filter((m) => m.content.length > 0);
+    .map((m) => {
+      const parts = toChatParts(m.parts);
+      return {
+        role: m.info.role,
+        content: parts
+          .filter(
+            (p): p is Extract<ChatPart, { kind: "text" }> => p.kind === "text"
+          )
+          .map((p) => p.text)
+          .join(""),
+        parts,
+      };
+    })
+    .filter((m) => m.parts.length > 0);
 }
 
 export function useSession() {
   const queryClient = useQueryClient();
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [streaming, setStreaming] = useState("");
+  const [streamingParts, setStreamingParts] = useState<ChatPart[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -87,7 +171,7 @@ export function useSession() {
     async (id: string) => {
       abortRef.current?.abort();
       window.localStorage.setItem(ACTIVE_SESSION_KEY, id);
-      setStreaming("");
+      setStreamingParts([]);
       setError(null);
       await load(id);
       setSessionId(id);
@@ -100,7 +184,7 @@ export function useSession() {
     const session = await createSession();
     window.localStorage.setItem(ACTIVE_SESSION_KEY, session.id);
     setMessages([]);
-    setStreaming("");
+    setStreamingParts([]);
     setError(null);
     setSessionId(session.id);
     return session.id;
@@ -108,24 +192,66 @@ export function useSession() {
 
   async function send(message: string) {
     if (!sessionId || !message.trim() || busy) return;
-    setMessages((m) => [...m, { role: "user", content: message }]);
+    setMessages((m) => [
+      ...m,
+      {
+        role: "user",
+        content: message,
+        parts: [{ kind: "text", text: message }],
+      },
+    ]);
     setBusy(true);
     setError(null);
-    setStreaming("");
+    setStreamingParts([]);
 
     const controller = new AbortController();
     abortRef.current = controller;
-    let acc = "";
+    const parts: ChatPart[] = [];
 
-    // Tokens stream over SSE while the turn runs server-side; postTurn's own
-    // response is the source of truth for the persisted message, the stream
-    // is purely for the live typing effect.
+    // Tokens/tool events stream over SSE while the turn runs server-side, for
+    // the live typing + tool-activity effect; postTurn's own response is the
+    // source of truth for the persisted message text.
     const streamDone = streamSession(
       sessionId,
       (ev: StreamEvent) => {
         if (ev.type === "token") {
-          acc += ev.token;
-          setStreaming(acc);
+          const last = parts[parts.length - 1];
+          if (last?.kind === "text") {
+            parts[parts.length - 1] = {
+              kind: "text",
+              text: last.text + ev.token,
+            };
+          } else {
+            parts.push({ kind: "text", text: ev.token });
+          }
+          setStreamingParts([...parts]);
+        } else if (ev.type === "toolStart") {
+          parts.push({
+            kind: "tool",
+            tool: ev.tool,
+            params: ev.params,
+            status: "running",
+          });
+          setStreamingParts([...parts]);
+        } else if (ev.type === "toolDone") {
+          const idx = parts.findLastIndex(
+            (p) =>
+              p.kind === "tool" && p.tool === ev.tool && p.status === "running"
+          );
+          const result = ev.result as { success?: boolean } | undefined;
+          const status = result?.success === false ? "error" : "done";
+          const prev = idx >= 0 ? parts[idx] : undefined;
+          if (prev?.kind === "tool") {
+            parts[idx] = { ...prev, status, result: ev.result };
+          } else {
+            parts.push({
+              kind: "tool",
+              tool: ev.tool,
+              status,
+              result: ev.result,
+            });
+          }
+          setStreamingParts([...parts]);
         }
       },
       controller.signal
@@ -133,13 +259,20 @@ export function useSession() {
 
     try {
       const { text } = await postTurn(sessionId, message);
-      setMessages((m) => [...m, { role: "assistant", content: text }]);
+      const toolParts = parts.filter((p) => p.kind === "tool");
+      const finalParts: ChatPart[] = text
+        ? [...toolParts, { kind: "text", text }]
+        : toolParts;
+      setMessages((m) => [
+        ...m,
+        { role: "assistant", content: text, parts: finalParts },
+      ]);
     } catch (e) {
       setError(e instanceof Error ? e.message : "turn failed");
     } finally {
       controller.abort();
       await streamDone;
-      setStreaming("");
+      setStreamingParts([]);
       setBusy(false);
     }
   }
@@ -147,7 +280,7 @@ export function useSession() {
   return {
     sessionId,
     messages,
-    streaming,
+    streamingParts,
     busy,
     error,
     send,

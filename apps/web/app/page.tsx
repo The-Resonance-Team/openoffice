@@ -32,7 +32,7 @@ export default function Home() {
   const {
     sessionId,
     messages,
-    streaming,
+    streamingParts,
     busy,
     error,
     send,
@@ -90,7 +90,7 @@ export default function Home() {
         >
           <ChatPanel
             messages={messages}
-            streaming={streaming}
+            streamingParts={streamingParts}
             busy={busy}
             error={error}
             send={send}
