@@ -158,7 +158,10 @@ describe("runTurn persistence with foreign keys enforced", () => {
     expect(text).toContain("SUMMARY");
     const msgs = store.messages("s1");
     const summary = msgs.find(
-      (m) => m.info.role === "assistant" && m.info.finish === "max-steps"
+      (m) =>
+        m.info.role === "assistant" &&
+        m.info.finish === "max-steps" &&
+        m.parts.some((p) => p.type === "text" && p.text === "SUMMARY")
     );
     expect(summary).toBeDefined();
     expect((summary!.parts[0] as { text: string }).text).toBe("SUMMARY");
@@ -206,12 +209,14 @@ describe("runTurn persistence with foreign keys enforced", () => {
     expect(text).toContain("Reached the step limit");
     const msgs = store.messages("s1");
     const summary = msgs.find(
-      (m) => m.info.role === "assistant" && m.info.finish === "max-steps"
+      (m) =>
+        m.info.role === "assistant" &&
+        m.info.finish === "max-steps" &&
+        m.parts.some(
+          (p) => p.type === "text" && p.text.includes("Reached the step limit")
+        )
     );
     expect(summary).toBeDefined();
-    expect((summary!.parts[0] as { text: string }).text).toContain(
-      "Reached the step limit"
-    );
     expect(events).toHaveLength(1);
   });
 });

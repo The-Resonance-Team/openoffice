@@ -53,8 +53,6 @@ _Avoid_: task, background task, worker
 **Attached client**:
 A client holding an open event stream on a session. Sessions ref-count attached clients in memory; an explicit end call ends the session only when the caller is the last attached client, and a plain disconnect only decrements the count — it never ends the session (crash recovery belongs to the heartbeat sweep). Owned by #39.
 _Avoid_: connected client, subscriber
-A turn running detached from any connected client — started, then polled or cancelled rather than streamed to a blocking caller. Not a separate entity from Session: a Job is "this session's turn, running server-side, independent of whether a client is still attached." Owned by #25.
-_Avoid_: task, background task, worker
 
 **Tool**:
 A callable unit exposed to the agent to perform an action. Defined with a Zod `inputSchema` and an `execute` function. Converted to AI SDK format via the `tool()` helper before passing to `streamText()`. Tools can reference other tools for chaining (e.g., a document reader delegates to pdf-inspector (PDF) or anydoc (other formats) based on file extension). MCP tools are the exception: they carry their server's JSON Schema (not Zod) and the AI SDK accepts it directly.

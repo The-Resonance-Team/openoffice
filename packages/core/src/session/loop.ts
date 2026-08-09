@@ -287,7 +287,9 @@ export async function runTurn(options: RunTurnOptions) {
       role: "assistant",
       agent: session.agent,
       model: splitModelRef(session.model),
-      finish: "done",
+      // A step-capped turn's last message was cut off mid-work: it is not a
+      // natural "done" — mark it with the cap reason like the summary.
+      finish: result.hitStepCap() ? "max-steps" : "done",
       time: { created: Date.now() },
       tokens: {
         input: usage.inputTokens ?? 0,
