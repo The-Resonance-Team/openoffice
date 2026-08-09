@@ -348,7 +348,7 @@ export function createGrepTool(deps?: GrepDeps): ToolDefinition {
         }
         return {
           success: false,
-          error: e.message ?? "Failed to search",
+          error: (e as Error).message ?? "Failed to search",
           code: "GREP_ERROR",
         };
       }

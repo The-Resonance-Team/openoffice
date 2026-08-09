@@ -318,7 +318,7 @@ export function createOfficeCliTool(deps: OfficeCliDeps): ToolDefinition {
           };
         }
 
-        const stdout = e.stdout ?? "";
+        const stdout = (e as { stdout?: string }).stdout ?? "";
         const parsed = parseError(stdout);
         return {
           success: false,

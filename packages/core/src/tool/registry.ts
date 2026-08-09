@@ -17,28 +17,34 @@ export class ToolRegistry {
     return [...this.tools.values()];
   }
 
-  // ponytail: return type is `unknown` — AI SDK v7's Tool type is deeply generic
-  // and not worth importing. The runtime shape is correct; consumers pass this
-  // straight to streamText() which validates it.
-  toAITools(): Record<string, unknown> {
-    const out: Record<string, unknown> = {};
+  // ponytail: return type is `any` — AI SDK v7's Tool type is deeply generic and
+  // not worth fighting. The runtime shape is correct; consumers pass this straight
+  // to streamText() which validates it.
+  // oxlint-disable-next-line typescript/no-explicit-any
+  toAITools(): Record<string, any> {
+    // oxlint-disable-next-line typescript/no-explicit-any
+    const out: Record<string, any> = {};
     for (const [name, def] of this.tools) {
       out[name] = tool({
         description: def.description,
         inputSchema: def.parameters,
-        execute: (params: unknown) => def.execute(params, { sessionID: "" }),
+        // oxlint-disable-next-line typescript/no-explicit-any
+        execute: (params: any) => def.execute(params, { sessionID: "" }),
       });
     }
     return out;
   }
 
-  toAIToolsWithEvents(sessionID: string, cwd?: string): Record<string, unknown> {
-    const out: Record<string, unknown> = {};
+  // oxlint-disable-next-line typescript/no-explicit-any
+  toAIToolsWithEvents(sessionID: string, cwd?: string): Record<string, any> {
+    // oxlint-disable-next-line typescript/no-explicit-any
+    const out: Record<string, any> = {};
     for (const [name, def] of this.tools) {
       out[name] = tool({
         description: def.description,
         inputSchema: def.parameters,
-        execute: async (params: unknown) => {
+        // oxlint-disable-next-line typescript/no-explicit-any
+        execute: async (params: any) => {
           emit("tool:start", { sessionID, tool: name, params });
           const result = await def.execute(params, { sessionID, cwd });
           emit("tool:done", { sessionID, tool: name, result });
