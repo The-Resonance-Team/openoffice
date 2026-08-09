@@ -1,173 +1,158 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  DaemonClient,
-  textOf,
-  type Session,
-  type StreamEvent,
-} from "./api/daemon";
-import { SessionList } from "./components/SessionList";
-import { ChatWindow } from "./components/ChatWindow";
+import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useUiStore } from "@/lib/store";
+import { useSession } from "@/lib/use-session";
+import { LeftRail } from "@/components/LeftRail";
+import { ChatPanel } from "@/components/ChatPanel";
+import { Sidebar } from "@/components/Sidebar";
+import { Viewer } from "@/components/Viewer";
+import { ProviderDialog } from "@/components/ProviderDialog";
+import { LoginDialog } from "@/components/LoginDialog";
+import { ResizeHandle } from "@/components/ResizeHandle";
+import { Icon } from "@/lib/icons";
 
-interface Ask {
-  promptID: string;
-  question: string;
-}
+const RIGHT_MIN = 300;
+const RIGHT_MAX = 900;
 
-export default function App() {
-  const [client, setClient] = useState<DaemonClient | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [sessions, setSessions] = useState<Session[]>([]);
-  const [activeId, setActiveId] = useState<string | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
-  const [streamText, setStreamText] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [asks, setAsks] = useState<Ask[]>([]);
-  const abortRef = useRef<(() => void) | null>(null);
+export default function Home() {
+  const [loginOpen, setLoginOpen] = useState(false);
+  const [draggingRight, setDraggingRight] = useState(false);
+  const viewerOpen = useUiStore((s) => s.viewerOpen);
+  const viewerExpanded = useUiStore((s) => s.viewerExpanded);
+  const rightRegion = useUiStore((s) => s.rightRegion);
+  const leftRailOpen = useUiStore((s) => s.leftRailOpen);
+  const toggleLeftRail = useUiStore((s) => s.toggleLeftRail);
+  const leftRailWidth = useUiStore((s) => s.leftRailWidth);
+  const sidebarWidth = useUiStore((s) => s.sidebarWidth);
+  const setSidebarWidth = useUiStore((s) => s.setSidebarWidth);
+  const viewerWidth = useUiStore((s) => s.viewerWidth);
+  const setViewerWidth = useUiStore((s) => s.setViewerWidth);
+  const {
+    sessionId,
+    messages,
+    streamingParts,
+    busy,
+    error,
+    send,
+    switchSession,
+    startSession,
+  } = useSession();
+  const queryClient = useQueryClient();
 
-  const subscribe = useCallback((c: DaemonClient, id: string) => {
-    const stream: StreamEvent[] = [];
-    abortRef.current?.();
-    setStreamText("");
-    setAsks([]);
-    const push = (ev: StreamEvent) => {
-      stream.push(ev);
-      // session:message events carry persisted user turns; the streaming
-      // assistant text accumulates tokens until done, then we refetch.
-      setStreamText(
-        stream
-          .filter((e) => e.type === "token")
-          .map((e) => (e as { token: string }).token)
-          .join("")
-      );
-    };
-    const off = c.stream(id, {
-      token: (token) => push({ type: "token", token }),
-      done: () => {
-        void c
-          .getSession(id)
-          .then(setSession)
-          .catch(() => undefined);
-        setStreamText("");
-        stream.length = 0;
-      },
-      ask: (promptID, question) =>
-        setAsks((a) => [...a, { promptID, question }]),
-      message: (role, content) => push({ type: "message", role, content }),
-    });
-    abortRef.current = off;
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    DaemonClient.connect()
-      .then(async (c) => {
-        if (cancelled) return;
-        setClient(c);
-        const list = await c.listSessions();
-        if (cancelled) return;
-        setSessions(list);
-        if (list.length > 0) selectSession(c, list[0].id);
-      })
-      .catch((e) => setError(e instanceof Error ? e.message : String(e)));
-    return () => {
-      cancelled = true;
-      abortRef.current?.();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const selectSession = useCallback(
-    async (c: DaemonClient, id: string) => {
-      setActiveId(id);
-      const s = await c.getSession(id);
-      setSession(s);
-      subscribe(c, id);
-    },
-    [subscribe]
-  );
-
-  const handleSelect = (id: string) => {
-    if (!client || id === activeId) return;
-    void selectSession(client, id);
-  };
-
-  const handleNew = async () => {
-    if (!client) return;
-    const s = await client.createSession();
-    setSessions((prev) => [s, ...prev]);
-    await selectSession(client, s.id);
-  };
-
-  const handleSend = async (text: string) => {
-    if (!client || !session || busy) return;
-    const input = text.trim();
-    if (!input) return;
-
-    // Slash commands (CLI parity: accept/undo a draft by path).
-    const cmd = input.match(/^\/(accept|undo)\s+(.+)$/);
-    if (cmd) {
-      const [, kind, filePath] = cmd;
-      try {
-        if (kind === "accept") await client.accept(session.id, filePath);
-        else await client.undo(session.id, filePath);
-      } catch (e) {
-        setError(e instanceof Error ? e.message : String(e));
-      }
-      return;
-    }
-
-    setBusy(true);
-    try {
-      await client.turn(session.id, input);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const handleAskAnswer = async (promptID: string, answer: string) => {
-    if (!client || !session) return;
-    await client.askAnswer(session.id, promptID, answer);
-    setAsks((a) => a.filter((q) => q.promptID !== promptID));
-  };
-
-  if (error) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-zinc-950 text-zinc-200">
-        <div className="max-w-md rounded-lg border border-red-800 bg-red-950/40 p-4">
-          <p className="font-semibold text-red-300">Failed to start</p>
-          <p className="mt-1 text-sm text-zinc-400">{error}</p>
-        </div>
-      </div>
-    );
+  async function handleNewSession() {
+    await startSession();
+    queryClient.invalidateQueries({ queryKey: ["sessions"] });
   }
 
-  if (!client || !session) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-zinc-950 text-zinc-400">
-        Starting daemon…
-      </div>
-    );
-  }
+  const showViewer = viewerOpen;
+  const showSidebar = !viewerOpen && rightRegion === "sidebar";
+  const rightVisible = showViewer || showSidebar;
+  const chatVisible = !(showViewer && viewerExpanded);
+  const rightResizable = rightVisible && !(showViewer && viewerExpanded);
+  const rightWidth = showViewer ? viewerWidth : sidebarWidth;
+  const setRightWidth = showViewer ? setViewerWidth : setSidebarWidth;
 
   return (
-    <div className="flex h-screen bg-zinc-950 text-zinc-200">
-      <SessionList
-        sessions={sessions}
-        activeId={activeId}
-        onSelect={handleSelect}
-        onNew={() => void handleNew()}
-      />
-      <ChatWindow
-        session={session}
-        streamText={streamText}
-        busy={busy}
-        ask={asks[0] ?? null}
-        onSend={(t) => void handleSend(t)}
-        onAskAnswer={(id, a) => void handleAskAnswer(id, a)}
-        previewOf={textOf}
-      />
+    <div className="flex h-screen w-full overflow-hidden text-ink">
+      <div
+        className={`flex flex-none overflow-hidden transition-[width,opacity,padding] duration-300 ease-in-out`}
+        style={
+          leftRailOpen
+            ? { width: leftRailWidth + 8, padding: "8px 0 8px 8px", opacity: 1 }
+            : { width: 0, padding: 0, opacity: 0 }
+        }
+      >
+        <LeftRail
+          onToggleLeftRail={toggleLeftRail}
+          width={leftRailWidth}
+          activeSessionId={sessionId}
+          onSwitchSession={switchSession}
+          onNewSession={handleNewSession}
+        />
+      </div>
+      <button
+        type="button"
+        title="Toggle panel"
+        onClick={toggleLeftRail}
+        className={`fixed left-2 top-3 z-40 grid h-[30px] w-[30px] flex-none place-items-center rounded-lg text-muted transition-opacity duration-300 ease-in-out hover:bg-panel2 hover:text-ink ${
+          leftRailOpen ? "pointer-events-none opacity-0" : "opacity-100"
+        }`}
+      >
+        <Icon name="panelLeft" size={18} />
+      </button>
+      <div className="flex min-w-0 flex-1 p-[8px_8px_8px_0]">
+        <div
+          className={`flex min-w-0 overflow-hidden ${
+            draggingRight ? "" : "transition-all duration-300 ease-in-out"
+          } ${chatVisible ? "flex-1 opacity-100" : "w-0 flex-none opacity-0"}`}
+        >
+          <ChatPanel
+            messages={messages}
+            streamingParts={streamingParts}
+            busy={busy}
+            error={error}
+            send={send}
+          />
+        </div>
+        {rightResizable && (
+          <div className="group/right flex">
+            <ResizeHandle
+              side="right"
+              width={rightWidth}
+              min={RIGHT_MIN}
+              max={RIGHT_MAX}
+              onResize={setRightWidth}
+              onDragStart={() => setDraggingRight(true)}
+              onDragEnd={() => setDraggingRight(false)}
+            />
+            <div
+              className={`relative flex flex-col overflow-hidden ${
+                draggingRight
+                  ? ""
+                  : "transition-[width,opacity] duration-300 ease-in-out"
+              } ${
+                rightVisible
+                  ? showViewer && viewerExpanded
+                    ? "min-w-0 flex-1 opacity-100"
+                    : "flex-none opacity-100"
+                  : "w-0 flex-none opacity-0"
+              }`}
+              style={
+                rightVisible && !(showViewer && viewerExpanded)
+                  ? { width: rightWidth }
+                  : undefined
+              }
+            >
+              <div
+                className="pointer-events-none absolute inset-0 z-10 rounded-[18px] opacity-0 transition-opacity duration-200 group-hover/right:opacity-100"
+                style={{
+                  background:
+                    "linear-gradient(to right, var(--color-accent2) 0%, transparent 60%)",
+                  mask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
+                  maskComposite: "exclude",
+                  padding: "1px",
+                }}
+              />
+              <div className="flex flex-1 flex-col overflow-hidden rounded-[18px] border border-line2 bg-panel shadow-2xl">
+                {showSidebar && <Sidebar />}
+                {showViewer && <Viewer sessionId={sessionId} />}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <button
+        type="button"
+        title="Connect to daemon"
+        onClick={() => setLoginOpen(true)}
+        className="fixed bottom-4 right-4 z-40 grid h-9 w-9 place-items-center rounded-full border border-line2 bg-panel text-muted shadow-lg hover:bg-panel2 hover:text-ink"
+      >
+        <Icon name="sliders" size={16} />
+      </button>
+
+      <ProviderDialog />
+      {loginOpen && <LoginDialog onClose={() => setLoginOpen(false)} />}
     </div>
   );
 }
