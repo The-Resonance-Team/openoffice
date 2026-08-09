@@ -1,7 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { createTodoTool } from "./todo";
+import { createTodoTool, type TodoDeps } from "./todo";
 import { on } from "../../events";
-import type { TodoDeps } from "./todo";
 
 function fakeStore(): TodoDeps & {
   writes: unknown[][];
