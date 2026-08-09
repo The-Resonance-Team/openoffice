@@ -12,7 +12,6 @@ const envSchema = z.object({
   CORS_ORIGINS: z.string().default(''),
   JWT_SECRET: z.string().min(8),
   JWT_EXPIRES_IN: z.string().default('15m'),
-  SWAGGER_ENABLED: z.string().default('false'),
   // Email boundary (cloud ADR 0006): without RESEND_API_KEY the MailerService
   // logs instead of sending — local dev and tests never need a provider.
   RESEND_API_KEY: z.string().optional(),
@@ -73,6 +72,5 @@ export default function configuration() {
       clientId: process.env.GITHUB_CLIENT_ID,
       clientSecret: process.env.GITHUB_CLIENT_SECRET,
     },
-    swaggerEnabled: (process.env.SWAGGER_ENABLED ?? 'false') === 'true',
   };
 }
