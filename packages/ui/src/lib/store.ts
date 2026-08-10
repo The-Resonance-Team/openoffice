@@ -1,8 +1,8 @@
-"use client";
+'use client';
 
-import { create } from "zustand";
+import { create } from 'zustand';
 
-export type RightRegion = "sidebar" | "empty";
+export type RightRegion = 'sidebar' | 'empty';
 
 interface UiState {
   rightRegion: RightRegion;
@@ -49,29 +49,29 @@ interface UiState {
 }
 
 export const useUiStore = create<UiState>((set) => ({
-  rightRegion: "sidebar",
+  rightRegion: 'sidebar',
   leftRailOpen: true,
   leftRailWidth: 284,
   sidebarWidth: 376,
   viewerWidth: 648,
   viewerOpen: false,
   viewerExpanded: false,
-  activeId: "docx",
-  fbName: "file.bin",
+  activeId: 'docx',
+  fbName: 'file.bin',
   progressOpen: true,
-  activeSheet: "summary",
+  activeSheet: 'summary',
   activeSlide: 0,
   docPage: 1,
   accepted: {},
   discarded: {},
   modelMenuOpen: false,
   providerDialogOpen: false,
-  activeModel: "pro-max",
+  activeModel: 'pro-max',
   providersConnected: { openoffice: true },
 
   toggleSidebar: () =>
     set((s) => ({
-      rightRegion: s.rightRegion === "sidebar" ? "empty" : "sidebar",
+      rightRegion: s.rightRegion === 'sidebar' ? 'empty' : 'sidebar',
     })),
   toggleLeftRail: () => set((s) => ({ leftRailOpen: !s.leftRailOpen })),
   setLeftRailWidth: (w) => set({ leftRailWidth: w }),
@@ -82,9 +82,9 @@ export const useUiStore = create<UiState>((set) => ({
     set({
       viewerOpen: true,
       activeId: id,
-      fbName: name ?? "file.bin",
+      fbName: name ?? 'file.bin',
       docPage: 1,
-      activeSheet: "summary",
+      activeSheet: 'summary',
       activeSlide: 0,
     }),
   closeViewer: () => set({ viewerOpen: false }),
@@ -92,8 +92,7 @@ export const useUiStore = create<UiState>((set) => ({
   switchFile: (id) => set({ activeId: id, docPage: 1 }),
   setSheet: (k) => set({ activeSheet: k }),
   setSlide: (i) => set({ activeSlide: i }),
-  acceptFile: () =>
-    set((s) => ({ accepted: { ...s.accepted, [s.activeId]: true } })),
+  acceptFile: () => set((s) => ({ accepted: { ...s.accepted, [s.activeId]: true } })),
   undoFile: () =>
     set((s) => ({
       discarded: { ...s.discarded, [s.activeId]: true },
@@ -102,11 +101,10 @@ export const useUiStore = create<UiState>((set) => ({
   toggleModelMenu: () => set((s) => ({ modelMenuOpen: !s.modelMenuOpen })),
   closeModelMenu: () => set({ modelMenuOpen: false }),
   pickModel: (id) => set({ activeModel: id, modelMenuOpen: false }),
-  openProviderDialog: () =>
-    set({ providerDialogOpen: true, modelMenuOpen: false }),
+  openProviderDialog: () => set({ providerDialogOpen: true, modelMenuOpen: false }),
   closeProviderDialog: () => set({ providerDialogOpen: false }),
   toggleProvider: (id) => {
-    if (id === "openoffice") return;
+    if (id === 'openoffice') return;
     set((s) => ({
       providersConnected: {
         ...s.providersConnected,

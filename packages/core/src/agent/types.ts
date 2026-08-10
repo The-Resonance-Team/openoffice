@@ -1,4 +1,4 @@
-import type { Ruleset } from "./permission";
+import type { Ruleset } from './permission';
 
 export interface Agent {
   name: string;

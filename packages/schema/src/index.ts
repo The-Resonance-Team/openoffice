@@ -3,7 +3,7 @@
 // and the web/cloud clients. Ported from opencode's SessionV1 part model
 // (`@opencode-ai/core/v1/session`) and `util/token`.
 
-export type Role = "user" | "assistant" | "tool" | "system";
+export type Role = 'user' | 'assistant' | 'tool' | 'system';
 
 export interface ModelRef {
   providerID: string;
@@ -23,7 +23,7 @@ export interface MessageInfo {
   agent?: string;
   model?: ModelRef;
   summary?: boolean;
-  finish?: "done" | "error";
+  finish?: 'done' | 'error' | 'max-steps';
   error?: { message: string };
   time: { created: number };
   tokens?: TokenUsage;
@@ -37,7 +37,7 @@ export interface PartBase {
 }
 
 export interface TextPart extends PartBase {
-  type: "text";
+  type: 'text';
   text: string;
   synthetic?: boolean;
   metadata?: Record<string, unknown>;
@@ -45,32 +45,32 @@ export interface TextPart extends PartBase {
 
 export type ToolState =
   | {
-      status: "pending";
+      status: 'pending';
       input: string | Record<string, unknown>;
       time?: { compacted?: number };
     }
   | {
-      status: "completed";
+      status: 'completed';
       input: string | Record<string, unknown>;
       output: string;
       time?: { compacted?: number };
     }
   | {
-      status: "error";
+      status: 'error';
       input: string | Record<string, unknown>;
       error: { message: string };
       time?: { compacted?: number };
     };
 
 export interface ToolPart extends PartBase {
-  type: "tool";
+  type: 'tool';
   tool: string;
   callID?: string;
   state: ToolState;
 }
 
 export interface CompactionPart extends PartBase {
-  type: "compaction";
+  type: 'compaction';
   auto: boolean;
   overflow?: boolean;
   tail_start_id?: string;
@@ -93,4 +93,15 @@ export interface Session {
   createdAt: number;
   updatedAt: number;
   endedAt?: number;
+  lastActiveAt?: number;
+}
+
+export type TodoStatus = 'pending' | 'in_progress' | 'completed' | 'cancelled';
+
+export type TodoPriority = 'high' | 'medium' | 'low';
+
+export interface Todo {
+  content: string;
+  status: TodoStatus;
+  priority: TodoPriority;
 }

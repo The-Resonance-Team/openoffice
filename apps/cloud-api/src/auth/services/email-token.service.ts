@@ -1,10 +1,10 @@
-import { Injectable, UnauthorizedException } from "@nestjs/common";
-import { addHours } from "date-fns";
-import argon2 from "argon2";
-import { EmailTokenType } from "@/generated/client";
-import { PrismaService } from "@/prisma/prisma.service";
-import { MailerService } from "./mailer.service";
-import { randomToken, sha256Hex } from "./tokens";
+import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { addHours } from 'date-fns';
+import argon2 from 'argon2';
+import { EmailTokenType } from '@/generated/client';
+import { PrismaService } from '@/prisma/prisma.service';
+import { MailerService } from './mailer.service';
+import { randomToken, sha256Hex } from './tokens';
 
 // TTL per token purpose (cloud ADR 0006: short-lived, single-use).
 const TOKEN_TTL_HOURS: Record<EmailTokenType, number> = {
@@ -16,7 +16,7 @@ const TOKEN_TTL_HOURS: Record<EmailTokenType, number> = {
 export class EmailTokenService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly mailer: MailerService
+    private readonly mailer: MailerService,
   ) {}
 
   /** Creates a token row (sha256 at rest) and returns the raw token. */
@@ -53,8 +53,8 @@ export class EmailTokenService {
     const token = await this.createToken(userId, EmailTokenType.VERIFY_EMAIL);
     await this.mailer.send({
       to: email,
-      subject: "Verify your email",
-      text: `Verify your OpenOffice email:\n${this.mailer.link("/verify-email", token)}`,
+      subject: 'Verify your email',
+      text: `Verify your OpenOffice email:\n${this.mailer.link('/verify-email', token)}`,
     });
   }
 
@@ -77,14 +77,11 @@ export class EmailTokenService {
       where: { email: email.toLowerCase() },
     });
     if (!user) return;
-    const token = await this.createToken(
-      user.id,
-      EmailTokenType.RESET_PASSWORD
-    );
+    const token = await this.createToken(user.id, EmailTokenType.RESET_PASSWORD);
     await this.mailer.send({
       to: user.email,
-      subject: "Reset your password",
-      text: `Reset your OpenOffice password:\n${this.mailer.link("/reset-password", token)}`,
+      subject: 'Reset your password',
+      text: `Reset your OpenOffice password:\n${this.mailer.link('/reset-password', token)}`,
     });
   }
 
@@ -108,7 +105,7 @@ export class EmailTokenService {
       where: { tokenHash: sha256Hex(rawToken), type, usedAt: null },
     });
     if (!row || row.expiresAt <= new Date()) {
-      throw new UnauthorizedException("Invalid or expired token");
+      throw new UnauthorizedException('Invalid or expired token');
     }
     await this.prisma.emailToken.update({
       where: { id: row.id },

@@ -1,16 +1,13 @@
-"use client";
+'use client';
 
-import type { IconName } from "./mock";
+import type { IconName } from './mock';
 
 const P: Record<IconName, string> = {
-  panelRight:
-    '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M15 3v18"/>',
-  panelLeft:
-    '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/>',
+  panelRight: '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M15 3v18"/>',
+  panelLeft: '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/>',
   search: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
   home: '<path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/>',
-  codeXml:
-    '<path d="m18 16 4-4-4-4"/><path d="m6 8-4 4 4 4"/><path d="m14.5 4-5 16"/>',
+  codeXml: '<path d="m18 16 4-4-4-4"/><path d="m6 8-4 4 4 4"/><path d="m14.5 4-5 16"/>',
   plus: '<path d="M5 12h14"/><path d="M12 5v14"/>',
   grid: '<rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/>',
   shapes:
@@ -59,8 +56,7 @@ const P: Record<IconName, string> = {
   arrowUp: '<path d="m5 12 7-7 7 7"/><path d="M12 19V5"/>',
   modeAuto: '<path d="m6 17 5-5-5-5"/><path d="m13 17 5-5-5-5"/>',
   copy: '<rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>',
-  volume:
-    '<path d="M11 4.7 6.3 9H2v6h4.3l4.7 4.3z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/>',
+  volume: '<path d="M11 4.7 6.3 9H2v6h4.3l4.7 4.3z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/>',
   thumbUp:
     '<path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z"/>',
   thumbDown:
@@ -95,8 +91,8 @@ export function Icon({
       strokeLinecap="round"
       strokeLinejoin="round"
       className={className}
-      style={{ display: "block", flex: "none" }}
-      dangerouslySetInnerHTML={{ __html: P[name] ?? "" }}
+      style={{ display: 'block', flex: 'none' }}
+      dangerouslySetInnerHTML={{ __html: P[name] ?? '' }}
     />
   );
 }
@@ -118,8 +114,8 @@ export function IconFill({
       fill="currentColor"
       stroke="none"
       className={className}
-      style={{ display: "block", flex: "none" }}
-      dangerouslySetInnerHTML={{ __html: P[name] ?? "" }}
+      style={{ display: 'block', flex: 'none' }}
+      dangerouslySetInnerHTML={{ __html: P[name] ?? '' }}
     />
   );
 }
@@ -130,7 +126,7 @@ export function GDriveIcon({ size = 16 }: { size?: number }) {
       width={size}
       height={size}
       viewBox="0 0 87.3 78"
-      style={{ display: "block", flex: "none" }}
+      style={{ display: 'block', flex: 'none' }}
     >
       <path
         fill="#0066da"
@@ -171,7 +167,7 @@ export function CheckSm() {
       strokeWidth={3}
       strokeLinecap="round"
       strokeLinejoin="round"
-      style={{ display: "block" }}
+      style={{ display: 'block' }}
     >
       <path d="M20 6 9 17l-5-5" />
     </svg>

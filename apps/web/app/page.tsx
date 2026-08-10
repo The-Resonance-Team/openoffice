@@ -1,6 +1,6 @@
-"use client";
+'use client';
 
-import { Shell } from "@openoffice/ui";
+import { Shell } from '@openoffice/ui';
 
 export default function Home() {
   return <Shell />;

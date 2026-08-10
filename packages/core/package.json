@@ -9,7 +9,7 @@
   },
   "scripts": {
     "typecheck": "tsgo --noEmit",
-    "lint": "oxlint",
+    "lint": "oxlint -c ../../.oxlintrc.json",
     "test": "bun test --timeout=30000"
   },
   "dependencies": {
@@ -22,6 +22,7 @@
     "@openoffice/protocol": "workspace:*",
     "@openoffice/schema": "workspace:*",
     "ai": "^7.0.44",
+    "date-fns": "^4.4.0",
     "drizzle-orm": "^0.45.2",
     "ollama-ai-provider": "^1.2.0",
     "zod": "^4.4.3"

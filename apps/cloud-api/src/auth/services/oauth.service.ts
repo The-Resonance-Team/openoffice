@@ -1,8 +1,8 @@
-import { Injectable, UnauthorizedException } from "@nestjs/common";
-import { Provider, Role } from "@/generated/client";
-import { PrismaService } from "@/prisma/prisma.service";
-import { uniqueOrgSlug } from "./unique-org-slug";
-import type { OAuthProfile } from "./oauth.type";
+import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Provider, Role } from '@/generated/client';
+import { PrismaService } from '@/prisma/prisma.service';
+import { uniqueOrgSlug } from './unique-org-slug';
+import type { OAuthProfile } from './oauth.type';
 
 /** Normalized provider profile (strategies map passport profiles to this). */
 @Injectable()
@@ -15,10 +15,7 @@ export class OAuthService {
    * same email when the provider verified it; else create a fresh User.
    * Requires a provider-verified email — no synthetic addresses.
    */
-  async linkOrCreateUser(
-    provider: Provider,
-    profile: OAuthProfile
-  ): Promise<string> {
+  async linkOrCreateUser(provider: Provider, profile: OAuthProfile): Promise<string> {
     const existing = await this.prisma.oAuthAccount.findUnique({
       where: {
         provider_providerUserId: {
@@ -31,9 +28,7 @@ export class OAuthService {
 
     const email = profile.email?.toLowerCase();
     if (!email || !profile.emailVerified) {
-      throw new UnauthorizedException(
-        "Provider did not return a verified email"
-      );
+      throw new UnauthorizedException('Provider did not return a verified email');
     }
 
     const user =
@@ -75,10 +70,7 @@ export class OAuthService {
     if (count > 0) return;
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new UnauthorizedException();
-    const slug = await uniqueOrgSlug(
-      this.prisma,
-      user.name ?? user.email.split("@")[0] ?? "org"
-    );
+    const slug = await uniqueOrgSlug(this.prisma, user.name ?? user.email.split('@')[0] ?? 'org');
     await this.prisma.$transaction(async (tx) => {
       const org = await tx.org.create({
         data: { slug, name: user.name ?? user.email },

@@ -2,23 +2,13 @@
 // implementation, spawn/lifecycle, self-update, version, data dir.
 // The engine lives in @openoffice/core; the wire contract in @openoffice/protocol.
 
-export { AskChannel, createApp } from "./server";
-export type { SessionRuntime, ServerDeps } from "./server";
-export {
-  loadAuthConfig,
-  authRequired,
-  createAuthMiddleware,
-  authHeaders,
-} from "./server/auth";
-export type { ServerAuthConfig } from "./server/auth";
-export { loadCorsOrigins, createCorsMiddleware } from "./server/cors";
-export { OpenOfficeClient, connectClient } from "./server/client";
-export {
-  startDaemon,
-  readDaemonInfo,
-  isAlive,
-  spawnDaemon,
-} from "./server/daemon";
+export { AskChannel, createApp } from './server';
+export type { SessionRuntime, ServerDeps } from './server';
+export { loadAuthConfig, authRequired, createAuthMiddleware, authHeaders } from './server/auth';
+export type { ServerAuthConfig } from './server/auth';
+export { loadCorsOrigins, createCorsMiddleware } from './server/cors';
+export { OpenOfficeClient, connectClient } from './server/client';
+export { startDaemon, readDaemonInfo, isAlive, spawnDaemon } from './server/daemon';
 export {
   parseVersion,
   compareVersions,
@@ -36,14 +26,9 @@ export {
   checkForUpdate,
   performUpdate,
   REPO,
-} from "./update";
-export type {
-  FetchFn,
-  ReleaseInfo,
-  UpdateStatus,
-  ParsedVersion,
-} from "./update";
-export { VERSION } from "./version";
-export { getDataDir } from "./data-dir";
-export { readPdf, PdfError } from "./read-pdf";
-export type { PdfErrorCode } from "./read-pdf";
+} from './update';
+export type { FetchFn, ReleaseInfo, UpdateStatus, ParsedVersion } from './update';
+export { VERSION } from './version';
+export { getDataDir } from './data-dir';
+export { readPdf, PdfError } from './read-pdf';
+export type { PdfErrorCode } from './read-pdf';

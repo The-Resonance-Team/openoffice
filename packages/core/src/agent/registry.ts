@@ -1,6 +1,6 @@
-import type { Agent } from "./types";
-import { evaluate, type Ruleset } from "./permission";
-import type { ToolDefinition } from "../tool/types";
+import type { Agent } from './types';
+import { evaluate, type Ruleset } from './permission';
+import type { ToolDefinition } from '../tool/types';
 
 const OFFICE_SYSTEM = `You are an office document assistant. You help users create, read, and edit Word (.docx), Excel (.xlsx), and PowerPoint (.pptx) documents using the officecli tool.
 
@@ -24,26 +24,26 @@ You must:
 
 const BUILT_IN_AGENTS: Agent[] = [
   {
-    name: "office",
-    description: "Office document assistant",
+    name: 'office',
+    description: 'Office document assistant',
     system: OFFICE_SYSTEM,
     permission: [
-      { tool: "*", action: "allow" },
-      { tool: "bash", action: "deny" },
-      { tool: "edit", action: "deny" },
+      { tool: '*', action: 'allow' },
+      { tool: 'bash', action: 'deny' },
+      { tool: 'edit', action: 'deny' },
     ],
   },
   {
-    name: "developer",
-    description: "Development assistant with full capabilities",
+    name: 'developer',
+    description: 'Development assistant with full capabilities',
     system: DEVELOPER_SYSTEM,
-    permission: [{ tool: "*", action: "allow" }],
+    permission: [{ tool: '*', action: 'allow' }],
   },
   {
-    name: "compaction",
-    description: "Session compaction summarizer",
+    name: 'compaction',
+    description: 'Session compaction summarizer',
     system: COMPACTION_SYSTEM,
-    permission: [{ tool: "*", action: "deny" }],
+    permission: [{ tool: '*', action: 'deny' }],
   },
 ];
 
@@ -61,7 +61,7 @@ export class AgentRegistry {
   }
 
   getDefault(): Agent {
-    return this.agents.get("office")!;
+    return this.agents.get('office')!;
   }
 
   list(): Agent[] {
@@ -69,6 +69,6 @@ export class AgentRegistry {
   }
 
   filterTools(tools: ToolDefinition[], permission: Ruleset): ToolDefinition[] {
-    return tools.filter((t) => evaluate(t.name, permission) === "allow");
+    return tools.filter((t) => evaluate(t.name, permission) === 'allow');
   }
 }

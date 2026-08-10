@@ -1,11 +1,11 @@
-import { describe, expect, test, beforeEach, afterEach } from "bun:test";
-import { rmSync } from "node:fs";
-import { join } from "node:path";
-import { tmpdir } from "node:os";
-import { SessionStore } from "../store";
-import type { Session } from "../types";
+import { describe, expect, test, beforeEach, afterEach } from 'bun:test';
+import { rmSync } from 'node:fs';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
+import { SessionStore } from '../store';
+import type { Session } from '../types';
 
-describe("SessionStore", () => {
+describe('SessionStore', () => {
   let dbPath: string;
   let store: SessionStore;
 
@@ -28,85 +28,132 @@ describe("SessionStore", () => {
 
   const makeSession = (id: string): Session => ({
     id,
-    agent: "test",
-    model: "test/model",
-    title: "Test",
-    cwd: "/tmp",
+    agent: 'test',
+    model: 'test/model',
+    title: 'Test',
+    cwd: '/tmp',
     messages: [],
     createdAt: Date.now(),
     updatedAt: Date.now(),
   });
 
-  test("messages() returns empty array for new session", () => {
-    const session = makeSession("s1");
+  test('messages() returns empty array for new session', () => {
+    const session = makeSession('s1');
     store.save(session);
-    expect(store.messages("s1")).toEqual([]);
+    expect(store.messages('s1')).toEqual([]);
   });
 
-  test("messages() groups parts by message", () => {
-    const session = makeSession("s1");
+  test('messages() groups parts by message', () => {
+    const session = makeSession('s1');
     store.save(session);
 
-    const msgId = "m1";
-    store.updateMessage("s1", {
+    const msgId = 'm1';
+    store.updateMessage('s1', {
       id: msgId,
-      role: "user",
-      agent: "test",
-      model: { providerID: "test", modelID: "model" },
+      role: 'user',
+      agent: 'test',
+      model: { providerID: 'test', modelID: 'model' },
       time: { created: Date.now() },
     });
-    store.updatePart("s1", msgId, { type: "text", text: "Hello" });
-    store.updatePart("s1", msgId, { type: "text", text: "World" });
+    store.updatePart('s1', msgId, { type: 'text', text: 'Hello' });
+    store.updatePart('s1', msgId, { type: 'text', text: 'World' });
 
-    const msgs = store.messages("s1");
+    const msgs = store.messages('s1');
     expect(msgs).toHaveLength(1);
     expect(msgs[0].info.id).toBe(msgId);
     expect(msgs[0].parts).toHaveLength(2);
-    expect(msgs[0].parts[0].type).toBe("text");
-    expect(msgs[0].parts[1].type).toBe("text");
+    expect(msgs[0].parts[0].type).toBe('text');
+    expect(msgs[0].parts[1].type).toBe('text');
   });
 
-  test("updatePart() upserts by part id", () => {
-    const session = makeSession("s1");
+  test('updatePart() upserts by part id', () => {
+    const session = makeSession('s1');
     store.save(session);
 
-    const msgId = "m1";
-    store.updateMessage("s1", {
+    const msgId = 'm1';
+    store.updateMessage('s1', {
       id: msgId,
-      role: "user",
+      role: 'user',
       time: { created: Date.now() },
     });
 
-    const partId = store.updatePart("s1", msgId, { type: "text", text: "v1" });
-    expect(store.messages("s1")[0].parts[0].type).toBe("text");
+    const partId = store.updatePart('s1', msgId, { type: 'text', text: 'v1' });
+    expect(store.messages('s1')[0].parts[0].type).toBe('text');
 
-    store.updatePart("s1", msgId, { id: partId, type: "text", text: "v2" });
-    const msgs = store.messages("s1");
+    store.updatePart('s1', msgId, { id: partId, type: 'text', text: 'v2' });
+    const msgs = store.messages('s1');
     expect(msgs[0].parts).toHaveLength(1);
-    expect((msgs[0].parts[0] as any).text).toBe("v2");
+    expect((msgs[0].parts[0] as any).text).toBe('v2');
   });
 
-  test("updateMessage() upserts by message id", () => {
-    const session = makeSession("s1");
+  test('updateMessage() upserts by message id', () => {
+    const session = makeSession('s1');
     store.save(session);
 
-    const msgId = "m1";
-    store.updateMessage("s1", {
+    const msgId = 'm1';
+    store.updateMessage('s1', {
       id: msgId,
-      role: "user",
+      role: 'user',
       time: { created: Date.now() },
     });
 
-    store.updateMessage("s1", {
+    store.updateMessage('s1', {
       id: msgId,
-      role: "assistant",
-      finish: "done",
+      role: 'assistant',
+      finish: 'done',
       time: { created: Date.now() },
     });
 
-    const msgs = store.messages("s1");
+    const msgs = store.messages('s1');
     expect(msgs).toHaveLength(1);
-    expect(msgs[0].info.role).toBe("assistant");
-    expect(msgs[0].info.finish).toBe("done");
+    expect(msgs[0].info.role).toBe('assistant');
+    expect(msgs[0].info.finish).toBe('done');
+  });
+
+  test('setTodos() replaces the full list, getTodos() returns it in position order', () => {
+    const session = makeSession('s1');
+    store.save(session);
+
+    store.setTodos('s1', [
+      { content: 'first', status: 'in_progress', priority: 'high' },
+      { content: 'second', status: 'pending', priority: 'low' },
+    ]);
+    expect(store.getTodos('s1')).toEqual([
+      { content: 'first', status: 'in_progress', priority: 'high' },
+      { content: 'second', status: 'pending', priority: 'low' },
+    ]);
+
+    // Replace-on-write: a second write is not a merge.
+    store.setTodos('s1', [{ content: 'only', status: 'completed', priority: 'medium' }]);
+    expect(store.getTodos('s1')).toEqual([
+      { content: 'only', status: 'completed', priority: 'medium' },
+    ]);
+  });
+
+  test('todos are isolated per session', () => {
+    store.save(makeSession('s1'));
+    store.save(makeSession('s2'));
+    store.setTodos('s1', [{ content: 'a', status: 'pending', priority: 'high' }]);
+    expect(store.getTodos('s2')).toEqual([]);
+  });
+
+  test('lastActiveAt is set by turn writes and survives save()', () => {
+    const session = makeSession('s1');
+    store.save(session);
+    expect(store.load('s1')!.lastActiveAt).toBeUndefined();
+
+    store.updateMessage('s1', {
+      id: 'm1',
+      role: 'user',
+      time: { created: 1000 },
+    });
+    expect(store.load('s1')!.lastActiveAt).toBe(1000);
+
+    // A later save() (e.g. the loop-end save) must not clobber the heartbeat.
+    const loaded = store.load('s1')!;
+    store.save({ ...loaded, title: 'renamed' });
+    expect(store.load('s1')!.lastActiveAt).toBe(1000);
+
+    expect(store.list()[0].lastActiveAt).toBe(1000);
   });
 });

@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import ReactMarkdown, { type Components } from "react-markdown";
-import remarkGfm from "remark-gfm";
+import ReactMarkdown, { type Components } from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 const components: Components = {
   p: ({ children }) => <p className="mb-3 last:mb-0">{children}</p>,
@@ -15,19 +15,11 @@ const components: Components = {
       {children}
     </a>
   ),
-  ul: ({ children }) => (
-    <ul className="mb-3 list-disc space-y-1 pl-5 last:mb-0">{children}</ul>
-  ),
-  ol: ({ children }) => (
-    <ol className="mb-3 list-decimal space-y-1 pl-5 last:mb-0">{children}</ol>
-  ),
+  ul: ({ children }) => <ul className="mb-3 list-disc space-y-1 pl-5 last:mb-0">{children}</ul>,
+  ol: ({ children }) => <ol className="mb-3 list-decimal space-y-1 pl-5 last:mb-0">{children}</ol>,
   li: ({ children }) => <li>{children}</li>,
-  h1: ({ children }) => (
-    <h1 className="mb-2 mt-4 text-[19px] font-bold first:mt-0">{children}</h1>
-  ),
-  h2: ({ children }) => (
-    <h2 className="mb-2 mt-4 text-[17px] font-bold first:mt-0">{children}</h2>
-  ),
+  h1: ({ children }) => <h1 className="mb-2 mt-4 text-[19px] font-bold first:mt-0">{children}</h1>,
+  h2: ({ children }) => <h2 className="mb-2 mt-4 text-[17px] font-bold first:mt-0">{children}</h2>,
   h3: ({ children }) => (
     <h3 className="mb-2 mt-3 text-[15.5px] font-bold first:mt-0">{children}</h3>
   ),
@@ -40,7 +32,7 @@ const components: Components = {
   strong: ({ children }) => <strong className="font-bold">{children}</strong>,
   em: ({ children }) => <em className="italic">{children}</em>,
   code: ({ className, children }) => {
-    const isBlock = /language-/.test(className ?? "");
+    const isBlock = /language-/.test(className ?? '');
     if (isBlock) {
       return <code className={className}>{children}</code>;
     }
@@ -60,15 +52,9 @@ const components: Components = {
       <table className="w-full border-collapse text-[14px]">{children}</table>
     </div>
   ),
-  thead: ({ children }) => (
-    <thead className="border-b border-line2 text-left">{children}</thead>
-  ),
-  th: ({ children }) => (
-    <th className="px-3 py-[6px] font-semibold">{children}</th>
-  ),
-  td: ({ children }) => (
-    <td className="border-t border-line px-3 py-[6px]">{children}</td>
-  ),
+  thead: ({ children }) => <thead className="border-b border-line2 text-left">{children}</thead>,
+  th: ({ children }) => <th className="px-3 py-[6px] font-semibold">{children}</th>,
+  td: ({ children }) => <td className="border-t border-line px-3 py-[6px]">{children}</td>,
 };
 
 export function Markdown({ text }: { text: string }) {

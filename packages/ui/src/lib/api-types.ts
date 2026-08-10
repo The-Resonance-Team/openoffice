@@ -21,12 +21,12 @@ export interface UpdateStatus {
 }
 
 export type StreamEvent =
-  | { type: "token"; token: string }
-  | { type: "done"; response: unknown }
-  | { type: "toolStart"; tool: string; params: unknown }
-  | { type: "toolDone"; tool: string; result: unknown }
-  | { type: "message"; role: string; content: unknown }
-  | { type: "ask"; promptID: string; question: string };
+  | { type: 'token'; token: string }
+  | { type: 'done'; response: unknown }
+  | { type: 'toolStart'; tool: string; params: unknown }
+  | { type: 'toolDone'; tool: string; result: unknown }
+  | { type: 'message'; role: string; content: unknown }
+  | { type: 'ask'; promptID: string; question: string };
 
 export interface StoredAuth {
   username: string;

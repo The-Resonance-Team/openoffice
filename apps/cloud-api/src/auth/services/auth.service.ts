@@ -3,23 +3,23 @@ import {
   ForbiddenException,
   Injectable,
   UnauthorizedException,
-} from "@nestjs/common";
-import { JwtService } from "@nestjs/jwt";
-import { addDays } from "date-fns";
-import argon2 from "argon2";
-import { Provider, Role } from "@/generated/client";
-import { PrismaService } from "@/prisma/prisma.service";
-import type { LoginDto } from "@/auth/dto/login.dto";
-import type { RegisterDto } from "@/auth/dto/register.dto";
-import type { SwitchOrgDto } from "@/auth/dto/switch-org.dto";
-import { EmailTokenService } from "./email-token.service";
-import { MailerService } from "./mailer.service";
-import { OAuthService } from "./oauth.service";
-import type { OAuthProfile } from "./oauth.type";
-import type { AuthResult, MemberProfile, Membership } from "./auth.type";
-import { uniqueOrgSlug } from "./unique-org-slug";
-import { REFRESH_TTL_DAYS } from "./auth.constants";
-import { randomToken, sha256Hex } from "./tokens";
+} from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
+import { addDays } from 'date-fns';
+import argon2 from 'argon2';
+import { Provider, Role } from '@/generated/client';
+import { PrismaService } from '@/prisma/prisma.service';
+import type { LoginDto } from '@/auth/dto/login.dto';
+import type { RegisterDto } from '@/auth/dto/register.dto';
+import type { SwitchOrgDto } from '@/auth/dto/switch-org.dto';
+import { EmailTokenService } from './email-token.service';
+import { MailerService } from './mailer.service';
+import { OAuthService } from './oauth.service';
+import type { OAuthProfile } from './oauth.type';
+import type { AuthResult, MemberProfile, Membership } from './auth.type';
+import { uniqueOrgSlug } from './unique-org-slug';
+import { REFRESH_TTL_DAYS } from './auth.constants';
+import { randomToken, sha256Hex } from './tokens';
 
 @Injectable()
 export class AuthService {
@@ -28,14 +28,14 @@ export class AuthService {
     private readonly jwt: JwtService,
     private readonly mailer: MailerService,
     private readonly emailTokens: EmailTokenService,
-    private readonly oauth: OAuthService
+    private readonly oauth: OAuthService,
   ) {}
 
   /** Self-serve signup: creates the User's own Org with them as Owner. */
   async register(dto: RegisterDto, ip: string): Promise<AuthResult> {
     const email = dto.email.toLowerCase();
     if (await this.prisma.user.findUnique({ where: { email } })) {
-      throw new ConflictException("Email already registered");
+      throw new ConflictException('Email already registered');
     }
     const passwordHash = await argon2.hash(dto.password);
     const slug = await uniqueOrgSlug(this.prisma, dto.orgName);
@@ -72,12 +72,12 @@ export class AuthService {
       where: { email: dto.email.toLowerCase() },
     });
     if (!user?.passwordHash) {
-      throw new UnauthorizedException("Invalid email or password");
+      throw new UnauthorizedException('Invalid email or password');
     }
     const ok = await argon2.verify(user.passwordHash, dto.password);
-    if (!ok) throw new UnauthorizedException("Invalid email or password");
+    if (!ok) throw new UnauthorizedException('Invalid email or password');
     if (!user.emailVerifiedAt) {
-      throw new UnauthorizedException("Email not verified");
+      throw new UnauthorizedException('Email not verified');
     }
     const membership = await this.resolveMembership(user.id);
     return this.issueSession(membership, ip);
@@ -94,19 +94,19 @@ export class AuthService {
         where: { id: reused.id },
         data: { revokedAt: new Date() },
       });
-      throw new UnauthorizedException("Session reused");
+      throw new UnauthorizedException('Session reused');
     }
 
     const session = await this.prisma.session.findFirst({
       where: { hashedRefresh: hash, revokedAt: null },
     });
     if (!session || session.expiresAt <= new Date()) {
-      throw new UnauthorizedException("Invalid session");
+      throw new UnauthorizedException('Invalid session');
     }
     const user = await this.prisma.user.findUnique({
       where: { id: session.userId },
     });
-    if (!user) throw new UnauthorizedException("Invalid session");
+    if (!user) throw new UnauthorizedException('Invalid session');
 
     const membership = await this.resolveMembership(user.id);
     const newRefresh = randomToken();
@@ -139,7 +139,7 @@ export class AuthService {
     dto: SwitchOrgDto,
     currentMemberId: string,
     currentRefreshToken: string,
-    ip: string
+    ip: string,
   ): Promise<AuthResult> {
     const principal = await this.prisma.member.findUnique({
       where: { id: currentMemberId },
@@ -150,15 +150,11 @@ export class AuthService {
     const session = await this.prisma.session.findFirst({
       where: { hashedRefresh: sha256Hex(currentRefreshToken), revokedAt: null },
     });
-    if (
-      !session ||
-      session.expiresAt <= new Date() ||
-      session.userId !== principal.userId
-    ) {
-      throw new UnauthorizedException("Valid session required");
+    if (!session || session.expiresAt <= new Date() || session.userId !== principal.userId) {
+      throw new UnauthorizedException('Valid session required');
     }
     const membership = await this.getMembership(dto.memberId, principal.userId);
-    if (!membership) throw new ForbiddenException("Not a member of this org");
+    if (!membership) throw new ForbiddenException('Not a member of this org');
     await this.logout(currentRefreshToken);
     await this.prisma.user.update({
       where: { id: principal.userId },
@@ -176,11 +172,7 @@ export class AuthService {
   }
 
   /** Completes an OAuth sign-in: link-or-create, personal org, session. */
-  async oauthSignIn(
-    provider: Provider,
-    profile: OAuthProfile,
-    ip: string
-  ): Promise<AuthResult> {
+  async oauthSignIn(provider: Provider, profile: OAuthProfile, ip: string): Promise<AuthResult> {
     const userId = await this.oauth.linkOrCreateUser(provider, profile);
     await this.oauth.ensureMembership(userId);
     return this.sessionForUser(userId, ip);
@@ -202,27 +194,21 @@ export class AuthService {
       include: { org: true, team: true, user: true },
     });
     if (memberships.length === 0) {
-      throw new UnauthorizedException("No org membership");
+      throw new UnauthorizedException('No org membership');
     }
     const user = memberships[0].user;
     const preferred = memberships.find((m) => m.orgId === user.lastOrgId);
     return (preferred ?? memberships[0]) as unknown as Membership;
   }
 
-  private async getMembership(
-    memberId: string,
-    userId: string
-  ): Promise<Membership | null> {
+  private async getMembership(memberId: string, userId: string): Promise<Membership | null> {
     return (await this.prisma.member.findFirst({
       where: { id: memberId, userId },
       include: { org: true, team: true, user: true },
     })) as unknown as Membership | null;
   }
 
-  private async issueSession(
-    membership: Membership,
-    ip: string
-  ): Promise<AuthResult> {
+  private async issueSession(membership: Membership, ip: string): Promise<AuthResult> {
     const refreshToken = randomToken();
     await this.prisma.session.create({
       data: {

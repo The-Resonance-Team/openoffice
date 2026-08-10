@@ -10,7 +10,6 @@ export function setTransport(t: Transport) {
 }
 
 export function getTransport(): Transport {
-  if (!transport)
-    throw new Error("Transport not set — call setTransport() first");
+  if (!transport) throw new Error('Transport not set — call setTransport() first');
   return transport;
 }

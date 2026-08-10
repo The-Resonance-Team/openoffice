@@ -1,0 +1,245 @@
+'use client';
+
+import { useState } from 'react';
+import { createInvite, type MemberProfile, type Role, initials } from '@/lib';
+import { FieldLabel, Modal, ModalActions, textInputStyle } from './Modal';
+import { ComingSoon } from './ComingSoon';
+import { useToast } from './ToastProvider';
+
+const card: React.CSSProperties = {
+  background: 'var(--panel)',
+  border: '1px solid var(--border)',
+  borderRadius: 18,
+  boxShadow: 'var(--shadow)',
+};
+
+export function OrgView({ profile }: { profile: MemberProfile }) {
+  const { org } = profile;
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [email, setEmail] = useState('');
+  const [role, setRole] = useState<Role>('MEMBER');
+  const showToast = useToast();
+
+  async function submitInvite() {
+    if (!email) return;
+    await createInvite(email, role);
+    showToast(`Invite sent to ${email}`);
+    setInviteOpen(false);
+    setEmail('');
+    setRole('MEMBER');
+  }
+
+  return (
+    <div
+      style={{ maxWidth: 800, margin: '0 auto', padding: '30px 28px 100px' }}
+      className="fade-in"
+    >
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          justifyContent: 'space-between',
+          gap: 20,
+          marginBottom: 24,
+        }}
+      >
+        <div>
+          <h1 style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-.01em', margin: 0 }}>
+            Organization
+          </h1>
+          <p style={{ color: 'var(--muted)', margin: '8px 0 0', fontSize: 14 }}>
+            Members, teams, roles and invitations for {org.name}.
+          </p>
+        </div>
+        <button
+          onClick={() => setInviteOpen(true)}
+          className="hover-btn"
+          style={{
+            flex: 'none',
+            background: 'var(--accent-grad)',
+            color: '#fff',
+            border: 'none',
+            borderRadius: 9,
+            padding: '9px 15px',
+            fontSize: 13,
+            fontWeight: 600,
+            boxShadow: '0 6px 15px -8px rgba(236,48,19,.6)',
+          }}
+        >
+          + Invite member
+        </button>
+      </div>
+
+      <section id="sec-org" style={{ scrollMarginTop: 14 }}>
+        <div style={{ ...card, padding: '19px 22px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 15 }}>
+            <div
+              style={{
+                width: 50,
+                height: 50,
+                borderRadius: 13,
+                background: 'var(--av-grad)',
+                color: '#fff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 17,
+                fontWeight: 800,
+                flex: 'none',
+              }}
+            >
+              {initials(org.name)}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-.01em' }}>
+                  {org.name}
+                </span>
+                <span
+                  style={{
+                    fontSize: 10.5,
+                    fontWeight: 600,
+                    letterSpacing: '.02em',
+                    color: 'var(--accent)',
+                    border: '1px solid var(--accent)',
+                    borderRadius: 6,
+                    padding: '2px 7px',
+                  }}
+                >
+                  Free plan
+                </span>
+              </div>
+              <div
+                style={{
+                  fontSize: 12.5,
+                  color: 'var(--faint)',
+                  marginTop: 4,
+                  fontFamily: 'var(--mono)',
+                }}
+              >
+                openoffice.ai/{org.slug}
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 24, flex: 'none' }}>
+              <OrgStat value="—" label="Members" />
+              <OrgStat value="—" label="Teams" />
+              <OrgStat value="—" label="Pending" />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="sec-members" style={{ scrollMarginTop: 14, marginTop: 30 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 12 }}>
+          <span style={{ fontSize: 16, fontWeight: 700, letterSpacing: '-.01em' }}>Members</span>
+        </div>
+        <ComingSoon
+          title="Member listing isn't wired up yet"
+          detail="Listing, editing, and removing org members needs a cloud-api endpoint that doesn't exist yet."
+        />
+      </section>
+
+      <section id="sec-teams" style={{ scrollMarginTop: 14, marginTop: 30 }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'flex-end',
+            justifyContent: 'space-between',
+            gap: 16,
+            marginBottom: 12,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+            <span style={{ fontSize: 16, fontWeight: 700, letterSpacing: '-.01em' }}>Teams</span>
+          </div>
+          <button
+            onClick={() => showToast('Team creation — coming soon')}
+            className="hover-ghost"
+            style={{
+              flex: 'none',
+              background: 'transparent',
+              color: 'var(--text)',
+              border: '1px solid var(--border-2)',
+              borderRadius: 9,
+              padding: '8px 13px',
+              fontSize: 13,
+              fontWeight: 600,
+            }}
+          >
+            Create team
+          </button>
+        </div>
+        <ComingSoon
+          title="Team management isn't wired up yet"
+          detail="The Team model exists, but cloud-api has no endpoint to list or create teams yet."
+        />
+      </section>
+
+      <section id="sec-invites" style={{ scrollMarginTop: 14, marginTop: 30 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 12 }}>
+          <span style={{ fontSize: 16, fontWeight: 700, letterSpacing: '-.01em' }}>
+            Pending invites
+          </span>
+        </div>
+        <ComingSoon
+          title="Invite tracking isn't wired up yet"
+          detail="Sending invites works (above) — listing, resending, and revoking them needs an endpoint that doesn't exist yet."
+        />
+      </section>
+
+      {inviteOpen && (
+        <Modal title="Invite member" onClose={() => setInviteOpen(false)}>
+          <FieldLabel htmlFor="invite-email">Email</FieldLabel>
+          <input
+            id="invite-email"
+            name="invite-email"
+            type="email"
+            autoComplete="off"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="teammate@company.com"
+            style={{ ...textInputStyle, marginBottom: 14 }}
+          />
+          <FieldLabel htmlFor="invite-role">Role</FieldLabel>
+          <select
+            id="invite-role"
+            name="invite-role"
+            aria-label="Role"
+            value={role}
+            onChange={(e) => setRole(e.target.value as Role)}
+            style={{ ...textInputStyle, cursor: 'pointer' }}
+          >
+            <option value="ADMIN">Admin</option>
+            <option value="TEAM_LEADER">Team Leader</option>
+            <option value="MEMBER">Member</option>
+          </select>
+          <ModalActions
+            onCancel={() => setInviteOpen(false)}
+            cta="Send invite"
+            onSubmit={submitInvite}
+          />
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+function OrgStat({ value, label }: { value: string; label: string }) {
+  return (
+    <div style={{ textAlign: 'right' }}>
+      <div style={{ fontSize: 20, fontWeight: 700 }}>{value}</div>
+      <div
+        style={{
+          fontSize: 10.5,
+          color: 'var(--faint)',
+          textTransform: 'uppercase',
+          letterSpacing: '.04em',
+          fontWeight: 600,
+          marginTop: 2,
+        }}
+      >
+        {label}
+      </div>
+    </div>
+  );
+}

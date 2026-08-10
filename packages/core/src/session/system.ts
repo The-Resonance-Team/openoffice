@@ -1,6 +1,6 @@
-import type { Agent } from "../agent";
-import { listSkills, formatSkillList } from "../skills";
-import type { McpManager } from "../mcp";
+import type { Agent } from '../agent';
+import { listSkills, formatSkillList } from '../skills';
+import type { McpManager } from '../mcp';
 
 export interface SystemPromptOptions {
   agent: Agent;
@@ -18,9 +18,9 @@ export function buildSystemPrompt(options: SystemPromptOptions): string {
   // 2. Environment context
   const env = [
     `Working directory: ${options.cwd ?? process.cwd()}`,
-    `Date: ${new Date().toISOString().split("T")[0]}`,
+    `Date: ${new Date().toISOString().split('T')[0]}`,
   ];
-  parts.push(env.join("\n"));
+  parts.push(env.join('\n'));
 
   // 3. Available skills
   if (options.skillsDir) {
@@ -28,25 +28,26 @@ export function buildSystemPrompt(options: SystemPromptOptions): string {
     const skillList = formatSkillList(skills);
     if (skillList) {
       parts.push(
-        "Skills provide specialized instructions and workflows for specific tasks.\n" +
-          "Use the skill tool to load a skill when a task matches its description.\n\n" +
-          skillList
+        'Skills provide specialized instructions and workflows for specific tasks.\n' +
+          'Use the skill tool to load a skill when a task matches its description.\n\n' +
+          skillList,
       );
     }
   }
 
   // 4. MCP server instructions
   if (options.mcp) {
-    const status = options.mcp.status();
-    const servers = Object.keys(status);
-    if (servers.length > 0) {
+    const connected = Object.entries(options.mcp.status())
+      .filter(([, info]) => info.status === 'connected')
+      .map(([name]) => name);
+    if (connected.length > 0) {
       parts.push(
-        `<mcp_instructions>\n${servers
+        `<mcp_instructions>\n${connected
           .map((s) => `  <server name="${s}">\n    Connected.\n  </server>`)
-          .join("\n")}\n</mcp_instructions>`
+          .join('\n')}\n</mcp_instructions>`,
       );
     }
   }
 
-  return parts.join("\n\n");
+  return parts.join('\n\n');
 }

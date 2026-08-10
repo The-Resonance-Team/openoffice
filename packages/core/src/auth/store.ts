@@ -1,16 +1,10 @@
-import {
-  chmodSync,
-  mkdirSync,
-  readFileSync,
-  renameSync,
-  writeFileSync,
-} from "node:fs";
-import { homedir } from "node:os";
-import { dirname, join } from "node:path";
+import { chmodSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { dirname, join } from 'node:path';
 
-export type ApiCredential = { type: "api"; key: string };
+export type ApiCredential = { type: 'api'; key: string };
 export type OAuthCredential = {
-  type: "oauth";
+  type: 'oauth';
   access: string;
   refresh?: string;
   expires?: number;
@@ -18,11 +12,11 @@ export type OAuthCredential = {
 export type Credential = ApiCredential | OAuthCredential;
 
 export function authFilePath(): string {
-  return join(homedir(), ".local", "share", "openoffice", "auth.json");
+  return join(homedir(), '.local', 'share', 'openoffice', 'auth.json');
 }
 
 const CORRUPT_MESSAGE =
-  "credentials file is corrupt — fix or delete it before running auth commands";
+  'credentials file is corrupt — fix or delete it before running auth commands';
 
 export class CredentialStore {
   constructor(private readonly filePath: string = authFilePath()) {}
@@ -52,9 +46,9 @@ export class CredentialStore {
   private readAll(): Record<string, Credential> {
     let raw: string;
     try {
-      raw = readFileSync(this.filePath, "utf8");
+      raw = readFileSync(this.filePath, 'utf8');
     } catch (err) {
-      if ((err as NodeJS.ErrnoException).code === "ENOENT") return {};
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') return {};
       throw err;
     }
     let parsed: unknown;
@@ -63,11 +57,7 @@ export class CredentialStore {
     } catch {
       throw new Error(`${this.filePath}: ${CORRUPT_MESSAGE}`);
     }
-    if (
-      parsed === null ||
-      typeof parsed !== "object" ||
-      Array.isArray(parsed)
-    ) {
+    if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
       throw new Error(`${this.filePath}: ${CORRUPT_MESSAGE}`);
     }
     return parsed as Record<string, Credential>;

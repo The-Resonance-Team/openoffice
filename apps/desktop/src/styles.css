@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 :root {
   --bg: #1c1a18;
@@ -20,8 +20,8 @@
   --n5: #9b9797;
   --n7: #605d5d;
   --gutter: #161513;
-  --font-geist: "Geist", system-ui, sans-serif;
-  --font-geist-mono: "Geist Mono", monospace;
+  --font-geist: 'Geist', system-ui, sans-serif;
+  --font-geist-mono: 'Geist Mono', monospace;
 }
 
 @theme inline {

@@ -1,23 +1,18 @@
-import { randomUUID } from "node:crypto";
-import { chat as defaultChat, type ChatOptions } from "../llm/chat";
+import { randomUUID } from 'node:crypto';
+import { chat as defaultChat, type ChatOptions } from '../llm/chat';
 
-import type { ToolRegistry } from "../tool/registry";
-import type { SessionStore } from "./store";
-import type { Session } from "./types";
-import { emit } from "../events";
-import type { Config } from "../config";
-import type { AgentRegistry } from "../agent/registry";
-import { getModel, splitModel } from "../llm/model-limits";
-import {
-  applyPrune,
-  create,
-  process,
-  prune,
-  type CompactionDeps,
-} from "./compaction";
-import { isOverflow } from "./overflow";
-import { filterCompacted, toModelMessages } from "./ai-messages";
-import type { Part, ToolPart } from "./parts";
+import type { ToolRegistry } from '../tool/registry';
+import type { SessionStore } from './store';
+import type { Session } from './types';
+import { emit } from '../events';
+import type { Config } from '../config';
+import type { AgentRegistry } from '../agent/registry';
+import { getModel, splitModel } from '../llm/model-limits';
+import { applyPrune, create, process, prune } from './compaction';
+import { isOverflow } from './overflow';
+import { filterCompacted, toModelMessages } from './ai-messages';
+import { buildMaxStepsPrompt, MAX_STEPS_FALLBACK_TEXT } from './max-steps';
+import type { Part, ToolPart } from './parts';
 
 export interface RunTurnOptions {
   session: Session;
@@ -26,11 +21,9 @@ export interface RunTurnOptions {
   agents: AgentRegistry;
   tools?: ToolRegistry;
   system?: string;
+  maxSteps?: number;
   config: Config;
-  chatFn?: (
-    options: ChatOptions,
-    config: Config
-  ) => ReturnType<typeof defaultChat>;
+  chatFn?: (options: ChatOptions, config: Config) => ReturnType<typeof defaultChat>;
 }
 
 export async function runTurn(options: RunTurnOptions) {
@@ -42,10 +35,13 @@ export async function runTurn(options: RunTurnOptions) {
     tools,
     system,
     config,
+    maxSteps,
     chatFn = defaultChat,
   } = options;
   const model = getModel(session.model);
   const now = Date.now();
+  // The step cap for this turn — the same number chat() uses to stop.
+  const stepLimit = maxSteps ?? 50;
 
   // Load history once — reused across prune, overflow check, and request.
   const history = store.messages(session.id);
@@ -55,17 +51,16 @@ export async function runTurn(options: RunTurnOptions) {
   // appended, so the protected tail is the last completed turns.
   applyPrune(store, session.id, prune(history, config));
 
-  const lastTokens = [...history].reverse().find((msg) => msg.info.tokens)
-    ?.info.tokens;
+  const lastTokens = [...history].reverse().find((msg) => msg.info.tokens)?.info.tokens;
   if (lastTokens && isOverflow(config.compaction, lastTokens, model)) {
     const parentID = create(
       {
         sessionID: session.id,
-        agent: "compaction",
+        agent: 'compaction',
         model: getModel(session.model),
         auto: true,
       },
-      store
+      store,
     );
     await process(
       {
@@ -75,7 +70,7 @@ export async function runTurn(options: RunTurnOptions) {
         model: session.model,
         auto: true,
       },
-      { store, config, agents, chat: chatFn }
+      { store, config, agents, chat: chatFn },
     );
   }
 
@@ -83,16 +78,16 @@ export async function runTurn(options: RunTurnOptions) {
   const userMsgId = randomUUID();
   store.updateMessage(session.id, {
     id: userMsgId,
-    role: "user",
+    role: 'user',
     agent: session.agent,
     model: splitModelRef(session.model),
     time: { created: now },
   });
-  store.updatePart(session.id, userMsgId, { type: "text", text: userMessage });
+  store.updatePart(session.id, userMsgId, { type: 'text', text: userMessage });
 
-  emit("session:message", {
+  emit('session:message', {
     sessionID: session.id,
-    role: "user",
+    role: 'user',
     content: userMessage,
   });
 
@@ -102,25 +97,26 @@ export async function runTurn(options: RunTurnOptions) {
   // Call LLM. Retryable failures re-run the whole stream (see llm/retry.ts);
   // tokens from an interrupted attempt are discarded by resetting the
   // accumulator here, and clients learn about the retry via llm:retry.
-  let fullText = "";
+  let fullText = '';
   const result = chatFn(
     {
       model: session.model,
       messages: toModelMessages(filterCompacted(store.messages(session.id))),
       tools: aiTools,
       system,
+      maxSteps: stepLimit,
       onRetry: (info) => {
-        fullText = "";
-        emit("llm:retry", { sessionID: session.id, ...info });
+        fullText = '';
+        emit('llm:retry', { sessionID: session.id, ...info });
       },
     },
-    config
+    config,
   );
 
   // Stream tokens
   for await (const chunk of result.textStream) {
     fullText += chunk;
-    emit("llm:token", { sessionID: session.id, token: chunk });
+    emit('llm:token', { sessionID: session.id, token: chunk });
   }
 
   // responseMessages = accumulated generated messages (assistant + tool calls + tool results)
@@ -129,39 +125,36 @@ export async function runTurn(options: RunTurnOptions) {
   // Persist generated messages; tool parts keep their callID so the matching
   // tool result can be filled in.
   let assistantId: string | null = null;
-  const pending = new Map<
-    string,
-    { partId: string; input: string | Record<string, unknown> }
-  >(); // toolCallId -> part id + original input
+  const pending = new Map<string, { partId: string; input: string | Record<string, unknown> }>(); // toolCallId -> part id + original input
   for (const msg of generatedMessages) {
-    if (msg.role === "assistant") {
+    if (msg.role === 'assistant') {
       assistantId = randomUUID();
       // Parent row first: parts reference the message (FK), and updatePart
       // for tool-call parts runs below while streaming tool state.
       store.updateMessage(session.id, {
         id: assistantId,
-        role: "assistant",
+        role: 'assistant',
         parentID: userMsgId,
         agent: session.agent,
         model: splitModelRef(session.model),
-        finish: "done",
+        finish: 'done',
         time: { created: Date.now() },
       });
       const parts: Part[] = [];
       // AssistantContent can be string | Array<...>
-      if (typeof msg.content === "string") {
-        parts.push({ type: "text", text: msg.content });
+      if (typeof msg.content === 'string') {
+        parts.push({ type: 'text', text: msg.content });
       } else {
         for (const content of msg.content) {
-          if (content.type === "text") {
-            parts.push({ type: "text", text: content.text });
-          } else if (content.type === "tool-call") {
+          if (content.type === 'text') {
+            parts.push({ type: 'text', text: content.text });
+          } else if (content.type === 'tool-call') {
             const part: ToolPart = {
-              type: "tool",
+              type: 'tool',
               tool: content.toolName,
               callID: content.toolCallId,
               state: {
-                status: "pending",
+                status: 'pending',
                 input: content.input as string | Record<string, unknown>,
               },
             };
@@ -176,23 +169,23 @@ export async function runTurn(options: RunTurnOptions) {
       for (const part of parts) {
         store.updatePart(session.id, assistantId, part);
       }
-    } else if (msg.role === "tool") {
+    } else if (msg.role === 'tool') {
       for (const content of msg.content) {
-        if (content.type !== "tool-result") continue;
+        if (content.type !== 'tool-result') continue;
         const pendingEntry = pending.get(content.toolCallId);
         if (!pendingEntry || !assistantId) continue;
         const { partId, input } = pendingEntry;
         const output = content.output;
         let value: string;
         let isError = false;
-        if (output.type === "text") {
+        if (output.type === 'text') {
           value = output.value;
-        } else if (output.type === "json") {
+        } else if (output.type === 'json') {
           value = JSON.stringify(output.value);
-        } else if (output.type === "execution-denied") {
-          value = output.reason ?? "Tool execution denied";
+        } else if (output.type === 'execution-denied') {
+          value = output.reason ?? 'Tool execution denied';
           isError = true;
-        } else if (output.type === "error-text") {
+        } else if (output.type === 'error-text') {
           value = output.value;
           isError = true;
         } else {
@@ -200,19 +193,89 @@ export async function runTurn(options: RunTurnOptions) {
         }
         store.updatePart(session.id, assistantId, {
           id: partId,
-          type: "tool",
+          type: 'tool',
           tool: content.toolName,
           callID: content.toolCallId,
           state: isError
             ? {
-                status: "error",
+                status: 'error',
                 input,
                 error: { message: value },
               }
-            : { status: "completed", input, output: value },
+            : { status: 'completed', input, output: value },
         });
       }
     }
+  }
+
+  // Step cap reached: tools are off, the model must produce a text-only
+  // summary of the work done and what remains (pulling from the todo list
+  // when one exists). A second, capped text-only call produces it; if that
+  // call fails, a local fallback text lands instead — never an empty turn.
+  if (result.hitStepCap()) {
+    emit('session:step-limit', { sessionID: session.id, maxSteps: stepLimit });
+
+    const prompt = buildMaxStepsPrompt(store.getTodos(session.id));
+    // Drop pending tool-call parts (the cap cut them off mid-turn): a tool
+    // call without a result is invalid model input, and their inputs are
+    // already visible in the persisted turn.
+    const history = store.messages(session.id).map((msg) =>
+      msg.info.role === 'assistant'
+        ? {
+            ...msg,
+            parts: msg.parts.filter((p) => !(p.type === 'tool' && p.state.status === 'pending')),
+          }
+        : msg,
+    );
+
+    let summaryText = MAX_STEPS_FALLBACK_TEXT;
+    try {
+      const summary = chatFn(
+        {
+          model: session.model,
+          messages: [
+            ...toModelMessages(filterCompacted(history)),
+            { role: 'assistant', content: prompt },
+          ],
+          tools: undefined,
+          maxSteps: 1,
+          system,
+          // Same accumulator-reset discipline as the main stream: a retried
+          // attempt re-yields from scratch, so tokens from the interrupted
+          // attempt must be discarded.
+          onRetry: () => {
+            summaryText = '';
+          },
+        },
+        config,
+      );
+      summaryText = '';
+      for await (const chunk of summary.textStream) {
+        summaryText += chunk;
+        emit('llm:token', { sessionID: session.id, token: chunk });
+      }
+      await summary.responseMessages;
+    } catch {
+      // A stream that dies mid-way with real output keeps that output; only
+      // an empty (or never-started) summary falls back to the local text.
+      if (!summaryText) summaryText = MAX_STEPS_FALLBACK_TEXT;
+    }
+
+    const summaryId = randomUUID();
+    store.updateMessage(session.id, {
+      id: summaryId,
+      role: 'assistant',
+      parentID: userMsgId,
+      agent: session.agent,
+      model: splitModelRef(session.model),
+      finish: 'max-steps',
+      time: { created: Date.now() },
+    });
+    store.updatePart(session.id, summaryId, {
+      type: 'text',
+      text: summaryText,
+    });
+    fullText += summaryText;
   }
 
   // Persist token usage on the final assistant message so the next turn knows
@@ -221,10 +284,12 @@ export async function runTurn(options: RunTurnOptions) {
   if (usage && assistantId) {
     store.updateMessage(session.id, {
       id: assistantId,
-      role: "assistant",
+      role: 'assistant',
       agent: session.agent,
       model: splitModelRef(session.model),
-      finish: "done",
+      // A step-capped turn's last message was cut off mid-work: it is not a
+      // natural "done" — mark it with the cap reason like the summary.
+      finish: result.hitStepCap() ? 'max-steps' : 'done',
       time: { created: Date.now() },
       tokens: {
         input: usage.inputTokens ?? 0,
@@ -233,7 +298,7 @@ export async function runTurn(options: RunTurnOptions) {
     });
   }
 
-  emit("llm:done", { sessionID: session.id, response: fullText });
+  emit('llm:done', { sessionID: session.id, response: fullText });
 
   // Save session
   session.updatedAt = Date.now();

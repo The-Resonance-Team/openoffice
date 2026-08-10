@@ -1,8 +1,8 @@
-import { Injectable, UnauthorizedException } from "@nestjs/common";
-import { PrismaService } from "@/prisma/prisma.service";
-import type { CreateApiKeyDto } from "@/auth/dto";
-import type { ApiKeyListItem, ApiKeyPrincipal } from "./api-key.type";
-import { randomToken, sha256Hex } from "./tokens";
+import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { PrismaService } from '@/prisma/prisma.service';
+import type { CreateApiKeyDto } from '@/auth/dto';
+import type { ApiKeyListItem, ApiKeyPrincipal } from './api-key.type';
+import { randomToken, sha256Hex } from './tokens';
 
 /** The principal a Daemon API Key resolves to — same shape as the JWT user. */
 @Injectable()
@@ -14,11 +14,7 @@ export class ApiKeyService {
    * it is ever visible. sha256 at rest: keys are high-entropy randoms,
    * verified on every daemon request, so argon2 would be needlessly slow.
    */
-  async create(
-    dto: CreateApiKeyDto,
-    userId: string,
-    orgId: string
-  ): Promise<string> {
+  async create(dto: CreateApiKeyDto, userId: string, orgId: string): Promise<string> {
     const raw = `oo_live_${randomToken()}`;
     await this.prisma.apiKey.create({
       data: {
@@ -76,7 +72,7 @@ export class ApiKeyService {
   /** Throwing variant for the passport strategy. */
   async authenticate(rawKey: string): Promise<ApiKeyPrincipal> {
     const principal = await this.verify(rawKey);
-    if (!principal) throw new UnauthorizedException("Invalid API key");
+    if (!principal) throw new UnauthorizedException('Invalid API key');
     return principal;
   }
 }

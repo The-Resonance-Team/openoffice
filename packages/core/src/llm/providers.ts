@@ -1,12 +1,13 @@
-import type { Config } from "../config";
-import { createAnthropic } from "@ai-sdk/anthropic";
-import { createOpenAI } from "@ai-sdk/openai";
-import { createGoogle } from "@ai-sdk/google";
-import { createAzure } from "@ai-sdk/azure";
-import { createAmazonBedrock } from "@ai-sdk/amazon-bedrock";
-import { createOllama } from "ollama-ai-provider";
-import { CredentialStore } from "../auth/store";
-import type { ProviderConfigSchema } from "../config/schema";
+import type { Config } from '../config';
+import type { LanguageModel } from 'ai';
+import { createAnthropic } from '@ai-sdk/anthropic';
+import { createOpenAI } from '@ai-sdk/openai';
+import { createGoogle } from '@ai-sdk/google';
+import { createAzure } from '@ai-sdk/azure';
+import { createAmazonBedrock } from '@ai-sdk/amazon-bedrock';
+import { createOllama } from 'ollama-ai-provider';
+import { CredentialStore } from '../auth/store';
+import type { ProviderConfigSchema } from '../config/schema';
 
 type ProviderConfig = {
   apiKey?: string;
@@ -14,33 +15,33 @@ type ProviderConfig = {
   baseURL?: string;
   region?: string;
 };
-type ProviderFactory = (config: ProviderConfig) => any;
+type ProviderFactory = (config: ProviderConfig) => (modelId: string) => LanguageModel;
 type ParsedProviderConfig = ReturnType<typeof ProviderConfigSchema.parse>;
 
 export const BUILTIN_PROVIDERS = [
-  "anthropic",
-  "openai",
-  "google",
-  "ollama",
-  "openrouter",
-  "azure",
-  "bedrock",
+  'anthropic',
+  'openai',
+  'google',
+  'ollama',
+  'openrouter',
+  'azure',
+  'bedrock',
 ] as const;
 
 // Providers that authenticate outside the apiKey/authToken path: ollama runs
 // unauthenticated locally, bedrock uses the AWS credential chain.
-const NO_CREDENTIAL_PROVIDERS = new Set(["ollama", "bedrock"]);
+const NO_CREDENTIAL_PROVIDERS = new Set(['ollama', 'bedrock']);
 
 export class AuthRequiredError extends Error {
   constructor(
     public provider: string,
-    message?: string
+    message?: string,
   ) {
     super(message ?? `Provider "${provider}" requires authentication`);
   }
 }
 
-const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
+const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
 
 const providers: Record<string, ProviderFactory> = {
   anthropic: (c) =>
@@ -52,13 +53,16 @@ const providers: Record<string, ProviderFactory> = {
   openai: (c) => {
     const client = createOpenAI({ apiKey: c.apiKey });
     return c.baseURL
-      ? (modelId: string) =>
-          createOpenAI({ apiKey: c.apiKey, baseURL: c.baseURL }).chat(modelId)
+      ? (modelId: string) => createOpenAI({ apiKey: c.apiKey, baseURL: c.baseURL }).chat(modelId)
       : (modelId: string) => client(modelId);
   },
   google: (c) => createGoogle({ apiKey: c.apiKey }),
+  // ponytail: ollama's provider call signature returns LanguageModelV1, which
+  // is absent from the SDK's LanguageModel union — cast at the SDK boundary.
   ollama: (c) =>
-    createOllama({ baseURL: c.baseURL ?? "http://localhost:11434" }),
+    createOllama({ baseURL: c.baseURL ?? 'http://localhost:11434' }) as unknown as (
+      modelId: string,
+    ) => LanguageModel,
   openrouter: (c) =>
     createOpenAI({
       apiKey: c.apiKey,
@@ -69,25 +73,25 @@ const providers: Record<string, ProviderFactory> = {
 };
 
 const PROVIDER_ENV_VAR: Record<string, string> = {
-  anthropic: "ANTHROPIC_API_KEY",
-  openai: "OPENAI_API_KEY",
-  google: "GOOGLE_GENERATIVE_AI_API_KEY",
+  anthropic: 'ANTHROPIC_API_KEY',
+  openai: 'OPENAI_API_KEY',
+  google: 'GOOGLE_GENERATIVE_AI_API_KEY',
 };
 
 // Custom endpoints: `provider.<name>.baseURL` + `compatibility` turns any
 // provider name into an OpenAI- or Anthropic-compatible base URL.
 function customFactory(
   providerName: string,
-  providerConfig: ParsedProviderConfig
+  providerConfig: ParsedProviderConfig,
 ): ProviderFactory {
-  const compatibility = providerConfig.compatibility ?? "openai";
+  const compatibility = providerConfig.compatibility ?? 'openai';
   return (c) => {
     if (!c.baseURL) {
       throw new Error(
-        `Provider "${providerName}": a custom ${compatibility} provider needs \`provider.${providerName}.baseURL\`.`
+        `Provider "${providerName}": a custom ${compatibility} provider needs \`provider.${providerName}.baseURL\`.`,
       );
     }
-    return compatibility === "anthropic"
+    return compatibility === 'anthropic'
       ? createAnthropic({
           apiKey: c.apiKey,
           authToken: c.authToken,
@@ -106,10 +110,9 @@ function customFactory(
 export function resolveCredential(
   providerConfig: ParsedProviderConfig | undefined,
   providerName: string,
-  store: CredentialStore
+  store: CredentialStore,
 ): { apiKey?: string; authToken?: string } {
-  if (providerConfig?.apiKey !== undefined)
-    return { apiKey: providerConfig.apiKey };
+  if (providerConfig?.apiKey !== undefined) return { apiKey: providerConfig.apiKey };
   const credential = store.get(providerName);
   if (credential === undefined) {
     const envVar = PROVIDER_ENV_VAR[providerName];
@@ -119,19 +122,19 @@ export function resolveCredential(
     if (providerConfig !== undefined) {
       throw new AuthRequiredError(
         providerName,
-        `Provider "${providerName}": no credential. Set \`provider.${providerName}.apiKey\` in config (or export the env: variable it references), or run \`openoffice auth login ${providerName}\`.`
+        `Provider "${providerName}": no credential. Set \`provider.${providerName}.apiKey\` in config (or export the env: variable it references), or run \`openoffice auth login ${providerName}\`.`,
       );
     }
     throw new AuthRequiredError(
       providerName,
-      `Provider "${providerName}": no credential. Export ${envVar ?? "the provider's API key env var"}, or run \`openoffice auth login ${providerName}\`.`
+      `Provider "${providerName}": no credential. Export ${envVar ?? "the provider's API key env var"}, or run \`openoffice auth login ${providerName}\`.`,
     );
   }
-  if (credential.type === "api") return { apiKey: credential.key };
+  if (credential.type === 'api') return { apiKey: credential.key };
   if (credential.expires !== undefined && credential.expires <= Date.now()) {
     throw new AuthRequiredError(
       providerName,
-      `Stored credential for ${providerName} is expired — run \`openoffice auth login ${providerName}\` to re-authenticate.`
+      `Stored credential for ${providerName} is expired — run \`openoffice auth login ${providerName}\` to re-authenticate.`,
     );
   }
   // ponytail: OAuth credentials cannot be created yet (no SDK OAuth flow);
@@ -142,13 +145,11 @@ export function resolveCredential(
 export function resolveModel(
   modelString: string,
   config: Config,
-  store: CredentialStore = new CredentialStore()
-): any {
-  const slash = modelString.indexOf("/");
+  store: CredentialStore = new CredentialStore(),
+): LanguageModel {
+  const slash = modelString.indexOf('/');
   if (slash === -1) {
-    throw new Error(
-      `Invalid model string "${modelString}" — expected format "provider/model-id"`
-    );
+    throw new Error(`Invalid model string "${modelString}" — expected format "provider/model-id"`);
   }
   const providerName = modelString.slice(0, slash);
   const modelId = modelString.slice(slash + 1);
@@ -160,7 +161,7 @@ export function resolveModel(
   }
   if (!factory) {
     throw new Error(
-      `Unknown provider "${providerName}" — supported: ${Object.keys(providers).join(", ")}. For a custom endpoint, set \`provider.${providerName}.baseURL\` with \`compatibility: "openai" | "anthropic"\`.`
+      `Unknown provider "${providerName}" — supported: ${Object.keys(providers).join(', ')}. For a custom endpoint, set \`provider.${providerName}.baseURL\` with \`compatibility: "openai" | "anthropic"\`.`,
     );
   }
 

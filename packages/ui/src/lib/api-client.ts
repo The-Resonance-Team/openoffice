@@ -1,18 +1,8 @@
-import { getTransport } from "./transport";
-import type {
-  SessionDto,
-  TurnResponse,
-  UpdateStatus,
-  StreamEvent,
-} from "./api-types";
-import { parseSseStream } from "./api-helpers";
+import { getTransport } from './transport';
+import type { SessionDto, TurnResponse, UpdateStatus, StreamEvent } from './api-types';
+import { parseSseStream } from './api-helpers';
 
-export type {
-  SessionDto,
-  TurnResponse,
-  UpdateStatus,
-  StreamEvent,
-} from "./api-types";
+export type { SessionDto, TurnResponse, UpdateStatus, StreamEvent } from './api-types';
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const t = getTransport();
@@ -21,20 +11,20 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${base}${path}`, {
     ...init,
     headers: {
-      "Content-Type": "application/json",
+      'Content-Type': 'application/json',
       ...headers,
       ...init?.headers,
     },
   });
   if (!res.ok) {
-    throw new Error(`${init?.method ?? "GET"} ${path} → ${res.status}`);
+    throw new Error(`${init?.method ?? 'GET'} ${path} → ${res.status}`);
   }
   return res.json() as Promise<T>;
 }
 
 export function createSession(cwd?: string): Promise<SessionDto> {
-  return request("/api/sessions", {
-    method: "POST",
+  return request('/api/sessions', {
+    method: 'POST',
     body: JSON.stringify({ cwd }),
   });
 }
@@ -44,55 +34,49 @@ export function getSession(id: string): Promise<SessionDto> {
 }
 
 export function listSessions(): Promise<SessionDto[]> {
-  return request("/api/sessions");
+  return request('/api/sessions');
 }
 
 export function deleteSession(id: string): Promise<{ ok: boolean }> {
-  return request(`/api/sessions/${id}`, { method: "DELETE" });
+  return request(`/api/sessions/${id}`, { method: 'DELETE' });
 }
 
 export function renameSession(id: string, title: string): Promise<SessionDto> {
   return request(`/api/sessions/${id}`, {
-    method: "PATCH",
+    method: 'PATCH',
     body: JSON.stringify({ title }),
   });
 }
 
 export function postTurn(id: string, message: string): Promise<TurnResponse> {
   return request(`/api/sessions/${id}/turn`, {
-    method: "POST",
+    method: 'POST',
     body: JSON.stringify({ message }),
   });
 }
 
-export function acceptFile(
-  id: string,
-  filePath: string
-): Promise<{ ok: boolean }> {
+export function acceptFile(id: string, filePath: string): Promise<{ ok: boolean }> {
   return request(`/api/sessions/${id}/accept`, {
-    method: "POST",
+    method: 'POST',
     body: JSON.stringify({ filePath }),
   });
 }
 
-export function undoFile(
-  id: string,
-  filePath: string
-): Promise<{ ok: boolean }> {
+export function undoFile(id: string, filePath: string): Promise<{ ok: boolean }> {
   return request(`/api/sessions/${id}/undo`, {
-    method: "POST",
+    method: 'POST',
     body: JSON.stringify({ filePath }),
   });
 }
 
 export function getUpdateStatus(): Promise<UpdateStatus> {
-  return request("/api/update");
+  return request('/api/update');
 }
 
 export async function streamSession(
   id: string,
   onEvent: (ev: StreamEvent) => void,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<void> {
   const t = getTransport();
   const base = await t.base();

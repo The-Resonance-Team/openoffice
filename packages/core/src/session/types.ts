@@ -1,1 +1,1 @@
-export type { Session } from "@openoffice/schema";
+export type { Session } from '@openoffice/schema';

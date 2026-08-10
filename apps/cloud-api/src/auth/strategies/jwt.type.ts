@@ -1,4 +1,4 @@
-import type { Role } from "@/generated/client";
+import type { Role } from '@/generated/client';
 
 export interface JwtPayload {
   sub: string; // memberId

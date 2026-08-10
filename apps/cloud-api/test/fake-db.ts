@@ -1,11 +1,11 @@
-import type { PrismaService } from "../src/prisma/prisma.service";
+import type { PrismaService } from '../src/prisma/prisma.service';
 
 let seq = 0;
 const nid = (p: string): string => `${p}${++seq}`;
 const eq = (where: Record<string, unknown> | undefined, row: any): boolean =>
   Object.entries(where ?? {}).every(([k, v]) => {
     // compound unique keys arrive as `{ provider_providerUserId: {...} }`
-    if (v !== null && typeof v === "object" && !(v instanceof Date)) {
+    if (v !== null && typeof v === 'object' && !(v instanceof Date)) {
       return Object.entries(v).every(([ck, cv]) => row[ck] === cv);
     }
     return row[k] === v;
@@ -32,9 +32,9 @@ export function fakeDb(): PrismaService {
 
   // relation name -> [store map name, foreign-key column]
   const RELATIONS: Record<string, [string, string]> = {
-    org: ["org", "orgId"],
-    user: ["user", "userId"],
-    team: ["team", "teamId"],
+    org: ['org', 'orgId'],
+    user: ['user', 'userId'],
+    team: ['team', 'teamId'],
   };
 
   const store = (map: Map<string, any>) => {
@@ -51,7 +51,7 @@ export function fakeDb(): PrismaService {
     return {
       create: async ({ data }: any) => {
         const row = {
-          id: nid("r"),
+          id: nid('r'),
           createdAt: new Date(),
           usedAt: null,
           revokedAt: null,
@@ -75,14 +75,11 @@ export function fakeDb(): PrismaService {
         return row ? withIncludes(row, include) : null;
       },
       findMany: async ({ where, include }: any = {}) =>
-        [...map.values()]
-          .filter((r) => eq(where, r))
-          .map((r) => withIncludes(r, include)),
-      count: async ({ where }: any = {}) =>
-        [...map.values()].filter((r) => eq(where, r)).length,
+        [...map.values()].filter((r) => eq(where, r)).map((r) => withIncludes(r, include)),
+      count: async ({ where }: any = {}) => [...map.values()].filter((r) => eq(where, r)).length,
       update: async ({ where, data }: any) => {
         const row = [...map.values()].find((r) => eq(where, r));
-        if (!row) throw new Error("fake: update target not found");
+        if (!row) throw new Error('fake: update target not found');
         Object.assign(row, data);
         return row;
       },
@@ -94,17 +91,12 @@ export function fakeDb(): PrismaService {
     };
   };
 
-  const models = Object.fromEntries(
-    Object.entries(maps).map(([name, map]) => [name, store(map)])
-  );
+  const models = Object.fromEntries(Object.entries(maps).map(([name, map]) => [name, store(map)]));
 
   const self: any = {
     ...models,
-    $transaction: (arg: any) =>
-      typeof arg === "function" ? arg(self) : Promise.all(arg),
-    ...Object.fromEntries(
-      Object.entries(maps).map(([name, map]) => [`_${name}`, map])
-    ),
+    $transaction: (arg: any) => (typeof arg === 'function' ? arg(self) : Promise.all(arg)),
+    ...Object.fromEntries(Object.entries(maps).map(([name, map]) => [`_${name}`, map])),
   };
   return self as PrismaService;
 }

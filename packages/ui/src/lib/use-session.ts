@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   createSession,
   getSession,
@@ -9,15 +9,15 @@ import {
   streamSession,
   type SessionDto,
   type StreamEvent,
-} from "./api-client";
+} from './api-client';
 
 export type ChatPart =
-  | { kind: "text"; text: string }
+  | { kind: 'text'; text: string }
   | {
-      kind: "tool";
+      kind: 'tool';
       tool: string;
       params?: unknown;
-      status: "running" | "done" | "error";
+      status: 'running' | 'done' | 'error';
       result?: unknown;
     };
 
@@ -43,43 +43,43 @@ interface RemoteMessage {
   parts: RemotePart[];
 }
 
-const ACTIVE_SESSION_KEY = "oo-active-session";
+const ACTIVE_SESSION_KEY = 'oo-active-session';
 
 function completedResult(output: unknown): {
-  status: "done" | "error";
+  status: 'done' | 'error';
   result: unknown;
 } {
-  if (typeof output === "string") {
+  if (typeof output === 'string') {
     try {
       const parsed = JSON.parse(output);
-      if (parsed && typeof parsed === "object" && parsed.success === false) {
-        return { status: "error", result: parsed };
+      if (parsed && typeof parsed === 'object' && parsed.success === false) {
+        return { status: 'error', result: parsed };
       }
     } catch {
       // not JSON — a plain-text tool result, leave as done
     }
   }
-  return { status: "done", result: output };
+  return { status: 'done', result: output };
 }
 
 function toChatParts(parts: RemotePart[]): ChatPart[] {
   const out: ChatPart[] = [];
   for (const p of parts) {
-    if (p.type === "text" && typeof p.text === "string" && p.text.length > 0) {
-      out.push({ kind: "text", text: p.text });
-    } else if (p.type === "tool" && p.tool) {
-      if (p.state?.status === "error") {
+    if (p.type === 'text' && typeof p.text === 'string' && p.text.length > 0) {
+      out.push({ kind: 'text', text: p.text });
+    } else if (p.type === 'tool' && p.tool) {
+      if (p.state?.status === 'error') {
         out.push({
-          kind: "tool",
+          kind: 'tool',
           tool: p.tool,
           params: p.state.input,
-          status: "error",
+          status: 'error',
           result: p.state.error,
         });
-      } else if (p.state?.status === "completed") {
+      } else if (p.state?.status === 'completed') {
         const { status, result } = completedResult(p.state.output);
         out.push({
-          kind: "tool",
+          kind: 'tool',
           tool: p.tool,
           params: p.state.input,
           status,
@@ -87,10 +87,10 @@ function toChatParts(parts: RemotePart[]): ChatPart[] {
         });
       } else {
         out.push({
-          kind: "tool",
+          kind: 'tool',
           tool: p.tool,
           params: p.state?.input,
-          status: "running",
+          status: 'running',
         });
       }
     }
@@ -105,11 +105,9 @@ function toChatMessages(session: SessionDto): ChatMessage[] {
       return {
         role: m.info.role,
         content: parts
-          .filter(
-            (p): p is Extract<ChatPart, { kind: "text" }> => p.kind === "text"
-          )
+          .filter((p): p is Extract<ChatPart, { kind: 'text' }> => p.kind === 'text')
           .map((p) => p.text)
-          .join(""),
+          .join(''),
         parts,
       };
     })
@@ -145,7 +143,7 @@ export function useSession() {
       }
       const session = await createSession();
       window.localStorage.setItem(ACTIVE_SESSION_KEY, session.id);
-      queryClient.invalidateQueries({ queryKey: ["sessions"] });
+      queryClient.invalidateQueries({ queryKey: ['sessions'] });
       if (!cancelled) {
         setSessionId(session.id);
         setMessages([]);
@@ -165,7 +163,7 @@ export function useSession() {
       await load(id);
       setSessionId(id);
     },
-    [load]
+    [load],
   );
 
   const startSession = useCallback(async () => {
@@ -184,9 +182,9 @@ export function useSession() {
     setMessages((m) => [
       ...m,
       {
-        role: "user",
+        role: 'user',
         content: message,
-        parts: [{ kind: "text", text: message }],
+        parts: [{ kind: 'text', text: message }],
       },
     ]);
     setBusy(true);
@@ -200,38 +198,37 @@ export function useSession() {
     const streamDone = streamSession(
       sessionId,
       (ev: StreamEvent) => {
-        if (ev.type === "token") {
+        if (ev.type === 'token') {
           const last = parts[parts.length - 1];
-          if (last?.kind === "text") {
+          if (last?.kind === 'text') {
             parts[parts.length - 1] = {
-              kind: "text",
+              kind: 'text',
               text: last.text + ev.token,
             };
           } else {
-            parts.push({ kind: "text", text: ev.token });
+            parts.push({ kind: 'text', text: ev.token });
           }
           setStreamingParts([...parts]);
-        } else if (ev.type === "toolStart") {
+        } else if (ev.type === 'toolStart') {
           parts.push({
-            kind: "tool",
+            kind: 'tool',
             tool: ev.tool,
             params: ev.params,
-            status: "running",
+            status: 'running',
           });
           setStreamingParts([...parts]);
-        } else if (ev.type === "toolDone") {
+        } else if (ev.type === 'toolDone') {
           const idx = parts.findLastIndex(
-            (p) =>
-              p.kind === "tool" && p.tool === ev.tool && p.status === "running"
+            (p) => p.kind === 'tool' && p.tool === ev.tool && p.status === 'running',
           );
           const result = ev.result as { success?: boolean } | undefined;
-          const status = result?.success === false ? "error" : "done";
+          const status = result?.success === false ? 'error' : 'done';
           const prev = idx >= 0 ? parts[idx] : undefined;
-          if (prev?.kind === "tool") {
+          if (prev?.kind === 'tool') {
             parts[idx] = { ...prev, status, result: ev.result };
           } else {
             parts.push({
-              kind: "tool",
+              kind: 'tool',
               tool: ev.tool,
               status,
               result: ev.result,
@@ -240,21 +237,16 @@ export function useSession() {
           setStreamingParts([...parts]);
         }
       },
-      controller.signal
+      controller.signal,
     ).catch(() => undefined);
 
     try {
       const { text } = await postTurn(sessionId, message);
-      const toolParts = parts.filter((p) => p.kind === "tool");
-      const finalParts: ChatPart[] = text
-        ? [...toolParts, { kind: "text", text }]
-        : toolParts;
-      setMessages((m) => [
-        ...m,
-        { role: "assistant", content: text, parts: finalParts },
-      ]);
+      const toolParts = parts.filter((p) => p.kind === 'tool');
+      const finalParts: ChatPart[] = text ? [...toolParts, { kind: 'text', text }] : toolParts;
+      setMessages((m) => [...m, { role: 'assistant', content: text, parts: finalParts }]);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "turn failed");
+      setError(e instanceof Error ? e.message : 'turn failed');
     } finally {
       controller.abort();
       await streamDone;

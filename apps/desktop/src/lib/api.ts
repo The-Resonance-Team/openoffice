@@ -1,5 +1,5 @@
-import { invoke } from "@tauri-apps/api/core";
-import { setTransport, loadAuth } from "@openoffice/ui";
+import { invoke } from '@tauri-apps/api/core';
+import { setTransport, loadAuth } from '@openoffice/ui';
 
 interface DaemonConfig {
   port: number;
@@ -17,7 +17,7 @@ let daemonConn: Promise<DaemonConn> | null = null;
 
 function connectDaemon(): Promise<DaemonConn> {
   if (!daemonConn) {
-    daemonConn = invoke<DaemonConfig>("daemon_start").then((cfg) => ({
+    daemonConn = invoke<DaemonConfig>('daemon_start').then((cfg) => ({
       base: `http://127.0.0.1:${cfg.port}`,
       username: cfg.username,
       password: cfg.password,
@@ -45,4 +45,4 @@ async function authHeaders(): Promise<HeadersInit> {
 
 setTransport({ base: apiBase, authHeaders });
 
-export * from "@openoffice/ui";
+export * from '@openoffice/ui';

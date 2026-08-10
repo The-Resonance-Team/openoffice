@@ -4,30 +4,29 @@
 // openoffice has none of those, so deps are passed explicitly and the plugin
 // hooks / replay / auto-continue machinery is dropped (see ADR 0023).
 
-import { randomUUID } from "node:crypto";
-import type { ModelMessage } from "ai";
-import type { Config } from "../config";
-import type { AgentRegistry } from "../agent/registry";
-import { getModel, type Model } from "../llm/model-limits";
+import { randomUUID } from 'node:crypto';
+import type { ModelMessage } from 'ai';
+import type { Config } from '../config';
+import type { AgentRegistry } from '../agent/registry';
+import { getModel, type Model } from '../llm/model-limits';
 
-import type { SessionStore } from "./store";
+import type { SessionStore } from './store';
 import {
   completedCompactions,
   estimateTokens,
   type CompactionPart,
   type MessageInfo,
   type ModelRef,
-  type Part,
   type ToolPart,
   type WithParts,
-} from "./parts";
-import { toModelMessages } from "./ai-messages";
-import { usable } from "./overflow";
+} from './parts';
+import { toModelMessages } from './ai-messages';
+import { usable } from './overflow';
 
 export const PRUNE_MINIMUM = 20_000;
 export const PRUNE_PROTECT = 40_000;
 const TOOL_OUTPUT_MAX_CHARS = 2_000;
-const PRUNE_PROTECTED_TOOLS = ["skill"];
+const PRUNE_PROTECTED_TOOLS = ['skill'];
 const DEFAULT_TAIL_TURNS = 2;
 const MIN_PRESERVE_RECENT_TOKENS = 2_000;
 const MAX_PRESERVE_RECENT_TOKENS = 8_000;
@@ -53,10 +52,7 @@ function preserveRecentBudget(cfg: Config, model: Model): number {
     cfg.compaction?.preserveRecentTokens ??
     Math.min(
       MAX_PRESERVE_RECENT_TOKENS,
-      Math.max(
-        MIN_PRESERVE_RECENT_TOKENS,
-        Math.floor(usable(cfg.compaction, model) * 0.25)
-      )
+      Math.max(MIN_PRESERVE_RECENT_TOKENS, Math.floor(usable(cfg.compaction, model) * 0.25)),
     )
   );
 }
@@ -96,8 +92,8 @@ export async function select(input: {
   const all: Turn[] = [];
   for (let i = 0; i < input.messages.length; i++) {
     const msg = input.messages[i];
-    if (msg.info.role !== "user") continue;
-    if (msg.parts.some((part) => part.type === "compaction")) continue;
+    if (msg.info.role !== 'user') continue;
+    if (msg.parts.some((part) => part.type === 'compaction')) continue;
     all.push({ start: i, end: input.messages.length, id: msg.info.id });
   }
   for (let i = 0; i < all.length - 1; i++) {
@@ -107,7 +103,7 @@ export async function select(input: {
 
   const recent = all.slice(-limit);
   const sizes = await Promise.all(
-    recent.map((turn) => estimate(input.messages.slice(turn.start, turn.end)))
+    recent.map((turn) => estimate(input.messages.slice(turn.start, turn.end))),
   );
 
   let total = 0;
@@ -127,13 +123,11 @@ export async function select(input: {
       budget: remaining,
     });
     if (split) keep = split;
-    else if (!keep)
-      console.warn("[compaction] tail fallback", { budget, size, total });
+    else if (!keep) console.warn('[compaction] tail fallback', { budget, size, total });
     break;
   }
 
-  if (!keep || keep.start === 0)
-    return { head: input.messages, tail_start_id: undefined };
+  if (!keep || keep.start === 0) return { head: input.messages, tail_start_id: undefined };
   return {
     head: input.messages.slice(0, keep.start),
     tail_start_id: keep.id,
@@ -156,13 +150,13 @@ export function prune(messages: WithParts[], cfg: Config): ToolPart[] {
 
   outer: for (let msgIndex = messages.length - 1; msgIndex >= 0; msgIndex--) {
     const msg = messages[msgIndex];
-    if (msg.info.role === "user") turns++;
+    if (msg.info.role === 'user') turns++;
     if (turns < 2) continue;
-    if (msg.info.role === "assistant" && msg.info.summary) break outer;
+    if (msg.info.role === 'assistant' && msg.info.summary) break outer;
     for (let partIndex = msg.parts.length - 1; partIndex >= 0; partIndex--) {
       const part = msg.parts[partIndex];
-      if (part.type !== "tool") continue;
-      if (part.state.status !== "completed") continue;
+      if (part.type !== 'tool') continue;
+      if (part.state.status !== 'completed') continue;
       if (PRUNE_PROTECTED_TOOLS.includes(part.tool)) continue;
       if (part.state.time?.compacted) break outer;
       const estimate = estimateTokens(part.state.output);
@@ -179,14 +173,10 @@ export function prune(messages: WithParts[], cfg: Config): ToolPart[] {
 
 // Marks the parts returned by `prune` as compacted and persists the marker
 // (`state.time.compacted`) that ai-messages substitutes a placeholder for.
-export function applyPrune(
-  store: SessionStore,
-  sessionID: string,
-  parts: ToolPart[]
-): void {
+export function applyPrune(store: SessionStore, sessionID: string, parts: ToolPart[]): void {
   for (const part of parts) {
     part.state.time = { compacted: Date.now() };
-    store.updatePart(sessionID, part.messageID ?? "", part);
+    store.updatePart(sessionID, part.messageID ?? '', part);
   }
 }
 
@@ -198,18 +188,18 @@ export function create(
     auto: boolean;
     overflow?: boolean;
   },
-  store: SessionStore
+  store: SessionStore,
 ): string {
   const id = randomUUID();
   store.updateMessage(input.sessionID, {
     id,
-    role: "user",
+    role: 'user',
     agent: input.agent,
     model: input.model,
     time: { created: Date.now() },
   });
   store.updatePart(input.sessionID, id, {
-    type: "compaction",
+    type: 'compaction',
     auto: input.auto,
     overflow: input.overflow,
   });
@@ -226,7 +216,7 @@ export interface ProcessInput {
 }
 
 export interface ProcessResult {
-  result: "continue" | "stop";
+  result: 'continue' | 'stop';
   summaryMessageID?: string;
 }
 
@@ -241,12 +231,10 @@ export interface CompactionDeps {
       system?: string;
       maxSteps?: number;
     },
-    config: Config
+    config: Config,
   ) => {
     textStream: AsyncIterable<string>;
-    usage: PromiseLike<
-      { inputTokens?: number; outputTokens?: number } | undefined
-    >;
+    usage: PromiseLike<{ inputTokens?: number; outputTokens?: number } | undefined>;
   };
   summarizeFn?: (input: {
     model: string;
@@ -260,20 +248,13 @@ export interface CompactionDeps {
 // Summarizes the history into a new anchored summary. On failure (provider
 // error, empty output) the summary assistant message is marked errored and
 // the turn stops — the session keeps its full history untouched.
-export async function process(
-  input: ProcessInput,
-  deps: CompactionDeps
-): Promise<ProcessResult> {
+export async function process(input: ProcessInput, deps: CompactionDeps): Promise<ProcessResult> {
   const { store, config, agents, chat } = deps;
   const parent = input.messages.findLast((m) => m.info.id === input.parentID);
-  if (!parent || parent.info.role !== "user") {
-    throw new Error(
-      `Compaction parent must be a user message: ${input.parentID}`
-    );
+  if (!parent || parent.info.role !== 'user') {
+    throw new Error(`Compaction parent must be a user message: ${input.parentID}`);
   }
-  const compactionPart = parent.parts.find(
-    (p): p is CompactionPart => p.type === "compaction"
-  );
+  const compactionPart = parent.parts.find((p): p is CompactionPart => p.type === 'compaction');
   const parentModel = parent.info.model;
 
   const history =
@@ -281,9 +262,7 @@ export async function process(
       ? input.messages.slice(0, -1)
       : input.messages;
   const prior = completedCompactions(history);
-  const hidden = new Set(
-    prior.flatMap((item) => [item.userIndex, item.assistantIndex])
-  );
+  const hidden = new Set(prior.flatMap((item) => [item.userIndex, item.assistantIndex]));
   const previousSummary = prior.at(-1)?.summary;
   const selected = await select({
     messages: history.filter((_, index) => !hidden.has(index)),
@@ -291,7 +270,7 @@ export async function process(
     model: splitModelFor(input.model),
   });
 
-  const agent = agents.get("compaction");
+  const agent = agents.get('compaction');
   const nextPrompt = buildPrompt({ previousSummary, context: [] });
   const msgs = structuredClone(selected.head);
   const modelMessages = toModelMessages(msgs, {
@@ -301,12 +280,12 @@ export async function process(
   const summaryID = randomUUID();
   const info: MessageInfo = {
     id: summaryID,
-    role: "assistant",
+    role: 'assistant',
     parentID: input.parentID,
-    agent: "compaction",
+    agent: 'compaction',
     model: parentModel,
     summary: true,
-    finish: "error",
+    finish: 'error',
     time: { created: Date.now() },
   };
   store.updateMessage(input.sessionID, info);
@@ -341,18 +320,18 @@ export async function process(
     }
 
     if (!text.trim()) {
-      info.error = { message: "Summary output was empty" };
+      info.error = { message: 'Summary output was empty' };
       store.updateMessage(input.sessionID, info);
-      return { result: "stop" };
+      return { result: 'stop' };
     }
 
     store.updateMessage(input.sessionID, {
       ...info,
-      finish: "done",
+      finish: 'done',
       tokens: { input: inputTokens, output: outputTokens },
     });
     store.updatePart(input.sessionID, summaryID, {
-      type: "text",
+      type: 'text',
       text,
       time: { start: Date.now(), end: Date.now() },
     });
@@ -367,19 +346,18 @@ export async function process(
         tail_start_id: selected.tail_start_id,
       });
     }
-    return { result: "continue", summaryMessageID: summaryID };
+    return { result: 'continue', summaryMessageID: summaryID };
   } catch (error) {
     info.error = {
       message:
-        error instanceof Error &&
-        /context|length|too large/i.test(error.message)
-          ? "Conversation history too large to compact - exceeds model context limit"
+        error instanceof Error && /context|length|too large/i.test(error.message)
+          ? 'Conversation history too large to compact - exceeds model context limit'
           : error instanceof Error
             ? error.message
             : String(error),
     };
     store.updateMessage(input.sessionID, info);
-    return { result: "stop" };
+    return { result: 'stop' };
   }
 }
 
@@ -389,21 +367,21 @@ async function summarize(args: {
   prompt: string;
   system?: string;
   config: Config;
-  chat: CompactionDeps["chat"];
+  chat: CompactionDeps['chat'];
 }): Promise<{ text: string; inputTokens: number; outputTokens: number }> {
   const result = args.chat(
     {
       model: args.model,
       messages: [
         ...args.messages,
-        { role: "user", content: [{ type: "text", text: args.prompt }] },
+        { role: 'user', content: [{ type: 'text', text: args.prompt }] },
       ],
       system: args.system,
       maxSteps: 1,
     },
-    args.config
+    args.config,
   );
-  let text = "";
+  let text = '';
   for await (const chunk of result.textStream) {
     text += chunk;
   }
@@ -461,9 +439,9 @@ export const buildPrompt = (input: {
   [
     input.previousSummary
       ? `Update the anchored summary below using the conversation history above.\nPreserve still-true details, remove stale details, and merge in the new facts.\n<previous-summary>\n${input.previousSummary}\n</previous-summary>`
-      : "Create a new anchored summary from the conversation history.",
+      : 'Create a new anchored summary from the conversation history.',
     SUMMARY_TEMPLATE,
     ...input.context,
-  ].join("\n\n");
+  ].join('\n\n');
 
 export { SUMMARY_OUTPUT_TOKENS };

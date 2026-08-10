@@ -1,8 +1,8 @@
-"use client";
+'use client';
 
-import { useUiStore } from "../lib/store";
-import { connectors, skills, tasks, workingRaw } from "../lib/mock";
-import { CheckSm, GDriveIcon, Icon } from "../lib/icons";
+import { useUiStore } from '../lib/store';
+import { connectors, skills, tasks, workingRaw } from '../lib/mock';
+import { CheckSm, GDriveIcon, Icon } from '../lib/icons';
 
 export function Sidebar() {
   const progressOpen = useUiStore((s) => s.progressOpen);
@@ -10,7 +10,7 @@ export function Sidebar() {
   const discarded = useUiStore((s) => s.discarded);
   const openViewer = useUiStore((s) => s.openViewer);
 
-  const done = tasks.filter((t) => t.s === "done").length;
+  const done = tasks.filter((t) => t.s === 'done').length;
   const total = tasks.length;
 
   return (
@@ -21,13 +21,11 @@ export function Sidebar() {
           onClick={toggleProgress}
           className="flex w-full items-center gap-[9px] text-ink"
         >
-          <span className="text-[16px] font-bold tracking-[-.01em]">
-            Progress
-          </span>
+          <span className="text-[16px] font-bold tracking-[-.01em]">Progress</span>
           <span
             className="flex text-faint transition-transform"
             style={{
-              transform: progressOpen ? "rotate(90deg)" : "rotate(0deg)",
+              transform: progressOpen ? 'rotate(90deg)' : 'rotate(0deg)',
             }}
           >
             <Icon name="chevronRight" size={15} />
@@ -46,15 +44,12 @@ export function Sidebar() {
         {progressOpen && (
           <div className="mt-[14px] flex flex-col gap-px">
             {tasks.map((t) => (
-              <div
-                key={t.text}
-                className="flex items-start gap-[11px] py-[5px]"
-              >
-                {t.s === "done" ? (
+              <div key={t.text} className="flex items-start gap-[11px] py-[5px]">
+                {t.s === 'done' ? (
                   <span className="mt-px grid h-[18px] w-[18px] flex-none place-items-center rounded-full bg-accent text-white">
                     <CheckSm />
                   </span>
-                ) : t.s === "active" ? (
+                ) : t.s === 'active' ? (
                   <span className="mt-px flex h-[18px] w-[18px] flex-none animate-spin place-items-center text-accent2">
                     <Icon name="loader" size={16} />
                   </span>
@@ -63,12 +58,12 @@ export function Sidebar() {
                 )}
                 <span
                   className={
-                    "text-[13.5px] leading-normal " +
-                    (t.s === "done"
-                      ? "text-muted"
-                      : t.s === "todo"
-                        ? "text-faint"
-                        : "font-semibold text-ink")
+                    'text-[13.5px] leading-normal ' +
+                    (t.s === 'done'
+                      ? 'text-muted'
+                      : t.s === 'todo'
+                        ? 'text-faint'
+                        : 'font-semibold text-ink')
                   }
                 >
                   {t.text}
@@ -83,9 +78,7 @@ export function Sidebar() {
 
       <section className="px-[18px] py-4">
         <div className="flex items-center gap-[9px]">
-          <span className="text-[16px] font-bold tracking-[-.01em]">
-            Working folder
-          </span>
+          <span className="text-[16px] font-bold tracking-[-.01em]">Working folder</span>
           <span className="flex text-faint">
             <Icon name="chevronDown" size={16} />
           </span>
@@ -101,36 +94,28 @@ export function Sidebar() {
         <div className="mt-2 flex flex-col gap-px">
           {workingRaw.map((w) => {
             const disc = w.open && discarded[w.open];
-            const badge = disc ? "discarded" : w.badge;
+            const badge = disc ? 'discarded' : w.badge;
             return (
               <button
                 key={w.name}
                 type="button"
                 onClick={() => {
-                  if (w.open === "fb") openViewer("fb", w.name);
+                  if (w.open === 'fb') openViewer('fb', w.name);
                   else if (w.open) openViewer(w.open);
                 }}
                 className="flex w-full items-center gap-[11px] rounded-lg px-[9px] py-[7px] text-left hover:bg-panel2"
               >
-                <span
-                  className={"flex " + (w.dim ? "text-faint" : "text-muted")}
-                >
+                <span className={'flex ' + (w.dim ? 'text-faint' : 'text-muted')}>
                   <Icon name={w.icon} size={16} />
                 </span>
-                <span
-                  className={
-                    "oo-el text-[13.5px] " + (w.dim ? "text-faint" : "text-ink")
-                  }
-                >
+                <span className={'oo-el text-[13.5px] ' + (w.dim ? 'text-faint' : 'text-ink')}>
                   {w.name}
                 </span>
                 {badge && (
                   <span
                     className={
-                      "flex-none rounded-md px-[6px] py-[2px] text-[10px] font-semibold tracking-[.02em] " +
-                      (badge === "draft"
-                        ? "bg-accent-soft text-accent2"
-                        : "text-faint")
+                      'flex-none rounded-md px-[6px] py-[2px] text-[10px] font-semibold tracking-[.02em] ' +
+                      (badge === 'draft' ? 'bg-accent-soft text-accent2' : 'text-faint')
                     }
                   >
                     {badge}
@@ -146,16 +131,12 @@ export function Sidebar() {
 
       <section className="px-[18px] pb-[22px] pt-4">
         <div className="flex items-center gap-[9px]">
-          <span className="text-[16px] font-bold tracking-[-.01em]">
-            Context
-          </span>
+          <span className="text-[16px] font-bold tracking-[-.01em]">Context</span>
           <span className="flex text-faint">
             <Icon name="chevronDown" size={16} />
           </span>
         </div>
-        <div className="my-2 mt-[14px] text-[11.5px] font-semibold text-faint">
-          Connectors
-        </div>
+        <div className="my-2 mt-[14px] text-[11.5px] font-semibold text-faint">Connectors</div>
         <div className="flex flex-col gap-px">
           {connectors.map((c) => (
             <div
@@ -163,7 +144,7 @@ export function Sidebar() {
               className="flex items-center gap-[11px] rounded-lg px-[9px] py-[7px] hover:bg-panel2"
             >
               <span className="grid h-[26px] w-[26px] flex-none place-items-center rounded-lg bg-panel2 text-muted">
-                {"drive" in c && c.drive ? (
+                {'drive' in c && c.drive ? (
                   <GDriveIcon size={15} />
                 ) : (
                   <Icon name={c.icon!} size={15} />
@@ -173,9 +154,7 @@ export function Sidebar() {
             </div>
           ))}
         </div>
-        <div className="my-2 mt-4 text-[11.5px] font-semibold text-faint">
-          Skills
-        </div>
+        <div className="my-2 mt-4 text-[11.5px] font-semibold text-faint">Skills</div>
         <div className="flex flex-col gap-px">
           {skills.map((s) => (
             <div

@@ -1,10 +1,10 @@
-import { setTransport, loadAuth } from "@openoffice/ui";
+import { setTransport, loadAuth } from '@openoffice/ui';
 
 function apiBase(): string {
   const port = process.env.NEXT_PUBLIC_OPENOFFICE_SERVER_PORT;
   if (!port) {
     throw new Error(
-      "NEXT_PUBLIC_OPENOFFICE_SERVER_PORT is not set — the web client needs the daemon's port"
+      "NEXT_PUBLIC_OPENOFFICE_SERVER_PORT is not set — the web client needs the daemon's port",
     );
   }
   return `http://127.0.0.1:${port}`;
@@ -19,4 +19,4 @@ function authHeaders(): HeadersInit {
 
 setTransport({ base: apiBase, authHeaders });
 
-export * from "@openoffice/ui";
+export * from '@openoffice/ui';

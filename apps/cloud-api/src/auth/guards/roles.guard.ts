@@ -1,12 +1,7 @@
-import {
-  CanActivate,
-  ExecutionContext,
-  ForbiddenException,
-  Injectable,
-} from "@nestjs/common";
-import { Reflector } from "@nestjs/core";
-import { Role } from "@/generated/client";
-import { ROLES_KEY } from "@/auth/decorators";
+import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
+import { Role } from '@/generated/client';
+import { ROLES_KEY } from '@/auth/decorators';
 
 // Role hierarchy (cloud ADR 0001): higher roles pass any lower-role gate.
 const ROLE_WEIGHT: Record<Role, number> = {
@@ -34,7 +29,7 @@ export class RolesGuard implements CanActivate {
     const user = context.switchToHttp().getRequest().user;
     const minWeight = Math.min(...required.map((r) => ROLE_WEIGHT[r]));
     if (!user || ROLE_WEIGHT[user.role as Role] < minWeight) {
-      throw new ForbiddenException("Insufficient role");
+      throw new ForbiddenException('Insufficient role');
     }
     return true;
   }

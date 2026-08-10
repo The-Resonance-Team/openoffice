@@ -1,4 +1,4 @@
-import type { Role } from "@/generated/client";
+import type { Role } from '@/generated/client';
 
 /** The principal a Daemon API Key resolves to — same shape as the JWT user. */
 export interface ApiKeyPrincipal {
