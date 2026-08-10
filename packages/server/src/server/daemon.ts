@@ -39,6 +39,7 @@ import {
   loadConfigFiles,
   mergeLayers,
   readOcr,
+  complete,
 } from '@openoffice/core';
 import { AskChannel, createApp, endSession, type SessionRuntime } from './index';
 import { checkForUpdate } from '../update';
@@ -146,6 +147,8 @@ export async function startDaemon(
   const readMetadata = (file: string) => exiftool.read(file) as Promise<Record<string, unknown>>;
   const readSearchData = (file: string) => readDocumentSearchData(file, readMetadata);
 
+  const defaultModel = config.model ?? 'anthropic/claude-sonnet-4-20250514';
+
   const baseTools: ToolDefinition[] = [
     createDefaultOfficeCliTool({ draftManager }),
     createReadTool({
@@ -153,7 +156,13 @@ export async function startDaemon(
       readDocument,
       mcp,
       readPdf,
-      readOcr,
+      // Vision OCR fallback: rasterized pages are read by the configured
+      // `ocr.model` (default: the session model) via a nested model call.
+      readOcr: (file) =>
+        readOcr(file, {
+          model: config.ocr?.model ?? defaultModel,
+          complete: (options) => complete({ ...options, config }),
+        }),
     }),
     createWriteTool(),
     createGlobTool(),
@@ -215,7 +224,6 @@ export async function startDaemon(
     });
   }
 
-  const defaultModel = config.model ?? 'anthropic/claude-sonnet-4-20250514';
   const maxSteps = config.maxSteps ?? 50;
   const defaultAgent = agentRegistry.getDefault();
 

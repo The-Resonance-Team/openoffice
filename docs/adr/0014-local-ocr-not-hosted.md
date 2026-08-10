@@ -1,10 +1,15 @@
-# 0014 — oocr uses local OCR (Tesseract), not a hosted API
+# 0014 — oocr reads scanned documents via a vision model, not Tesseract
 
-`oocr` needed a backend for scanned/image-based PDFs and standalone images. The choice was a real tradeoff, put directly to the user rather than picked by default: local OCR (Tesseract or equivalent) runs offline, no per-page cost, but is weaker on tables and handwriting than hosted options; a hosted OCR API is more accurate but means a local-first tool uploads document content — potentially sensitive, since this tool exists to edit users' own documents — to a third party.
+`oocr` needed a backend for scanned/image-based PDFs and standalone images. The original decision was local OCR (Tesseract): offline, no per-page cost, but weak on tables, handwriting, and non-Latin scripts, and it required a separate binary install plus a language probe (`eng+vie`). Superseded during #23 implementation: the agent's own vision model reads the rasterized pages directly — the same model family that already handles everything else in the session.
 
-Resolved: local. This keeps `oocr` consistent with `map.md`'s local-first, no-cloud-infrastructure stance, which every other document-handling tool in this codebase already honors (officecli, soffice, pdftotext/pdf-inspector all run against the local filesystem, nothing leaves the machine). A future reader wondering "why not just call a hosted OCR API for better accuracy" should read this as the answer: it was considered, and rejected specifically because of what this tool touches — arbitrary user documents, not disposable input.
+Why the change: Tesseract's accuracy ceiling is a hard constraint no amount of tuning fixes, while a vision model reading the rasterized page does strictly better on tables and handwriting, with zero new dependencies (`pdftoppm` was already needed for rasterization) and zero new providers (the model comes from the same provider layer as the session model, see `llm/providers.ts`).
+
+Privacy is now a deployment choice, not a property of the tool:
+
+- **Default: the session model.** The document's extracted content already reaches that model via the normal `read` flow, so the OCR fallback adds no new exposure.
+- **`ocr.model` override.** Deployments that must keep documents on-machine point it at a local vision model (e.g. `ollama/qwen2.5-vl`); end users and businesses that accept cloud models use the default. The daemon resolves `config.ocr?.model ?? config.model`.
 
 ## Considered options
 
-- **Hosted OCR API**: rejected — meaningfully better accuracy, but requires sending document content off-machine, which no other part of this codebase does and which the user explicitly did not want to reopen.
-- **Both, config-selectable**: not pursued for v1 — doubles the implementation and testing surface (two backends, two failure modes) for a choice that's already been made. Revisit only if local OCR quality proves insufficient in practice.
+- **Local OCR (Tesseract)**: rejected — separate binary install, language probing, weaker accuracy on tables/handwriting, and its only advantage (no upload) is recoverable by pointing `ocr.model` at a local vision model.
+- **Hosted OCR API**: rejected — an extra third-party integration with its own privacy profile; the vision-model path already covers the accuracy case without a new dependency.

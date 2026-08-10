@@ -31,14 +31,7 @@ export const DOCUMENT_EXTENSIONS = new Set([
   '.epub',
   '.pdf',
 ]);
-export const IMAGE_EXTENSIONS = new Set([
-  '.png',
-  '.jpg',
-  '.jpeg',
-  '.tiff',
-  '.tif',
-  '.bmp',
-]);
+export const IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.tiff', '.tif', '.bmp']);
 const TEXT_EXTENSIONS = new Set([
   '.txt',
   '.md',
@@ -120,7 +113,7 @@ export function createReadTool(deps: ReadDeps): ToolDefinition<typeof readSchema
   return {
     name: 'read',
     description:
-      "Read file contents. Auto-detects Office, OpenDocument, RTF, EPUB, and PDF files via AnyDoc, plain text for everything else. Scanned/image-based PDFs and images are automatically OCR'd when Tesseract is available. Always use this to read any file.",
+      "Read file contents. Auto-detects Office, OpenDocument, RTF, EPUB, and PDF files via AnyDoc, plain text for everything else. Scanned/image-based PDFs and images are automatically OCR'd via a vision model. Always use this to read any file.",
     parameters: readSchema,
 
     execute: async (params, ctx): Promise<ToolResult> => {
@@ -211,7 +204,7 @@ export function createReadTool(deps: ReadDeps): ToolDefinition<typeof readSchema
         if (!deps.readOcr) {
           return {
             success: false,
-            error: `Cannot read ${ext} files: OCR not available. Install Tesseract to enable image reading.`,
+            error: `Cannot read ${ext} files: OCR not available. Configure an OCR model to enable image reading.`,
             code: 'OCR_NOT_AVAILABLE',
           };
         }

@@ -84,168 +84,168 @@ describe('createReadTool — PDF routing', () => {
   });
 });
 
-describe("createReadTool — OCR auto-fallback", () => {
-  test("auto-falls back to OCR when readPdf throws PDF_NO_TEXT_LAYER", async () => {
+describe('createReadTool — OCR auto-fallback', () => {
+  test('auto-falls back to OCR when readPdf throws PDF_NO_TEXT_LAYER', async () => {
     const dir = tempDir();
-    const file = join(dir, "scanned.pdf");
-    writeFileSync(file, "%PDF-1.4");
+    const file = join(dir, 'scanned.pdf');
+    writeFileSync(file, '%PDF-1.4');
 
-    let ocrCalledWith = "";
+    let ocrCalledWith = '';
     const tool = createReadTool({
-      readDocument: async () => "anydoc",
+      readDocument: async () => 'anydoc',
       readPdf: async () => {
-        const err = new Error("Scanned PDF") as any;
-        err.code = "PDF_NO_TEXT_LAYER";
+        const err = new Error('Scanned PDF') as any;
+        err.code = 'PDF_NO_TEXT_LAYER';
         throw err;
       },
       readOcr: async (f: string) => {
         ocrCalledWith = f;
-        return "OCR text content";
+        return 'OCR text content';
       },
     });
-    const result = await tool.execute({ file }, { sessionID: "test" });
+    const result = await tool.execute({ file }, { sessionID: 'test' });
     expect(result.success).toBe(true);
     expect(ocrCalledWith).toBe(file);
     if (result.success) {
-      expect(result.output).toBe("OCR text content");
-      expect(result.data).toEqual({ source: "ocr" });
+      expect(result.output).toBe('OCR text content');
+      expect(result.data).toEqual({ source: 'ocr' });
     }
   });
 
-  test("returns PDF_NO_TEXT_LAYER when readOcr not provided", async () => {
+  test('returns PDF_NO_TEXT_LAYER when readOcr not provided', async () => {
     const dir = tempDir();
-    const file = join(dir, "scanned.pdf");
-    writeFileSync(file, "%PDF-1.4");
+    const file = join(dir, 'scanned.pdf');
+    writeFileSync(file, '%PDF-1.4');
 
     const tool = createReadTool({
-      readDocument: async () => "anydoc",
+      readDocument: async () => 'anydoc',
       readPdf: async () => {
-        const err = new Error("Scanned PDF") as any;
-        err.code = "PDF_NO_TEXT_LAYER";
+        const err = new Error('Scanned PDF') as any;
+        err.code = 'PDF_NO_TEXT_LAYER';
         throw err;
       },
     });
-    const result = await tool.execute({ file }, { sessionID: "test" });
+    const result = await tool.execute({ file }, { sessionID: 'test' });
     expect(result.success).toBe(false);
-    if (!result.success) expect(result.code).toBe("PDF_NO_TEXT_LAYER");
+    if (!result.success) expect(result.code).toBe('PDF_NO_TEXT_LAYER');
   });
 
-  test("returns OCR_FAILED when OCR fails", async () => {
+  test('returns OCR_FAILED when OCR fails', async () => {
     const dir = tempDir();
-    const file = join(dir, "scanned.pdf");
-    writeFileSync(file, "%PDF-1.4");
+    const file = join(dir, 'scanned.pdf');
+    writeFileSync(file, '%PDF-1.4');
 
     const tool = createReadTool({
-      readDocument: async () => "anydoc",
+      readDocument: async () => 'anydoc',
       readPdf: async () => {
-        const err = new Error("Scanned PDF") as any;
-        err.code = "PDF_NO_TEXT_LAYER";
+        const err = new Error('Scanned PDF') as any;
+        err.code = 'PDF_NO_TEXT_LAYER';
         throw err;
       },
       readOcr: async () => {
-        throw new Error("Tesseract not found");
+        throw new Error('Vision model unavailable');
       },
     });
-    const result = await tool.execute({ file }, { sessionID: "test" });
+    const result = await tool.execute({ file }, { sessionID: 'test' });
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.code).toBe("OCR_FAILED");
-      expect(result.error).toContain("Tesseract not found");
+      expect(result.code).toBe('OCR_FAILED');
+      expect(result.error).toContain('Vision model unavailable');
     }
   });
 });
 
-describe("createReadTool — image OCR routing", () => {
-  test("routes .png to readOcr when provided", async () => {
+describe('createReadTool — image OCR routing', () => {
+  test('routes .png to readOcr when provided', async () => {
     const dir = tempDir();
-    const file = join(dir, "test.png");
-    writeFileSync(file, "binary png data");
+    const file = join(dir, 'test.png');
+    writeFileSync(file, 'binary png data');
 
-    let ocrCalledWith = "";
+    let ocrCalledWith = '';
     const tool = createReadTool({
-      readDocument: async () => "anydoc",
+      readDocument: async () => 'anydoc',
       readOcr: async (f: string) => {
         ocrCalledWith = f;
-        return "OCR from image";
+        return 'OCR from image';
       },
     });
-    const result = await tool.execute({ file }, { sessionID: "test" });
+    const result = await tool.execute({ file }, { sessionID: 'test' });
     expect(result.success).toBe(true);
     expect(ocrCalledWith).toBe(file);
     if (result.success) {
-      expect(result.output).toBe("OCR from image");
-      expect(result.data).toEqual({ source: "ocr" });
+      expect(result.output).toBe('OCR from image');
+      expect(result.data).toEqual({ source: 'ocr' });
     }
   });
 
-  test("routes .jpg to readOcr", async () => {
+  test('routes .jpg to readOcr', async () => {
     const dir = tempDir();
-    const file = join(dir, "test.jpg");
-    writeFileSync(file, "binary jpg data");
+    const file = join(dir, 'test.jpg');
+    writeFileSync(file, 'binary jpg data');
 
-    let ocrCalledWith = "";
+    let ocrCalledWith = '';
     const tool = createReadTool({
-      readDocument: async () => "anydoc",
+      readDocument: async () => 'anydoc',
       readOcr: async (f: string) => {
         ocrCalledWith = f;
-        return "OCR from jpg";
+        return 'OCR from jpg';
       },
     });
-    const result = await tool.execute({ file }, { sessionID: "test" });
+    const result = await tool.execute({ file }, { sessionID: 'test' });
     expect(result.success).toBe(true);
     expect(ocrCalledWith).toBe(file);
   });
 
-  test("routes .tiff to readOcr", async () => {
+  test('routes .tiff to readOcr', async () => {
     const dir = tempDir();
-    const file = join(dir, "test.tiff");
-    writeFileSync(file, "binary tiff data");
+    const file = join(dir, 'test.tiff');
+    writeFileSync(file, 'binary tiff data');
 
-    let ocrCalledWith = "";
+    let ocrCalledWith = '';
     const tool = createReadTool({
-      readDocument: async () => "anydoc",
+      readDocument: async () => 'anydoc',
       readOcr: async (f: string) => {
         ocrCalledWith = f;
-        return "OCR from tiff";
+        return 'OCR from tiff';
       },
     });
-    const result = await tool.execute({ file }, { sessionID: "test" });
+    const result = await tool.execute({ file }, { sessionID: 'test' });
     expect(result.success).toBe(true);
     expect(ocrCalledWith).toBe(file);
   });
 
-  test("returns OCR_NOT_AVAILABLE when readOcr not provided", async () => {
+  test('returns OCR_NOT_AVAILABLE when readOcr not provided', async () => {
     const dir = tempDir();
-    const file = join(dir, "test.png");
-    writeFileSync(file, "binary png data");
+    const file = join(dir, 'test.png');
+    writeFileSync(file, 'binary png data');
 
     const tool = createReadTool({
-      readDocument: async () => "anydoc",
+      readDocument: async () => 'anydoc',
     });
-    const result = await tool.execute({ file }, { sessionID: "test" });
+    const result = await tool.execute({ file }, { sessionID: 'test' });
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.code).toBe("OCR_NOT_AVAILABLE");
-      expect(result.error).toContain("OCR not available");
+      expect(result.code).toBe('OCR_NOT_AVAILABLE');
+      expect(result.error).toContain('OCR not available');
     }
   });
 
-  test("returns OCR_FAILED when image OCR fails", async () => {
+  test('returns OCR_FAILED when image OCR fails', async () => {
     const dir = tempDir();
-    const file = join(dir, "test.png");
-    writeFileSync(file, "binary png data");
+    const file = join(dir, 'test.png');
+    writeFileSync(file, 'binary png data');
 
     const tool = createReadTool({
-      readDocument: async () => "anydoc",
+      readDocument: async () => 'anydoc',
       readOcr: async () => {
-        throw new Error("Tesseract not installed");
+        throw new Error('OCR backend unavailable');
       },
     });
-    const result = await tool.execute({ file }, { sessionID: "test" });
+    const result = await tool.execute({ file }, { sessionID: 'test' });
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.code).toBe("OCR_FAILED");
-      expect(result.error).toContain("Tesseract not installed");
+      expect(result.code).toBe('OCR_FAILED');
+      expect(result.error).toContain('OCR backend unavailable');
     }
   });
 });
