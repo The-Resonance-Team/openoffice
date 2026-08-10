@@ -78,7 +78,7 @@ describe('readOcr — direct image reading via vision model', () => {
     expect(deps.calls[0].dataUrl).toStartWith('data:image/png;base64,');
   });
 
-  test('uses the configured OCR model', async () => {
+  test('passes the session model to the vision call', async () => {
     const dir = tempDir();
     const file = join(dir, 'test.jpg');
     writeFileSync(file, 'fake jpg bytes');

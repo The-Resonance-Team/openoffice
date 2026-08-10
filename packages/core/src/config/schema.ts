@@ -53,12 +53,6 @@ export const CompactionConfigSchema = z.object({
     .optional(),
 });
 
-export const OcrConfigSchema = z.object({
-  // Vision model that reads rasterized pages in the `read` OCR fallback.
-  // Defaults to the session model when unset.
-  model: z.string().optional(),
-});
-
 export const ConfigSchema = z.object({
   model: z.string().optional(),
   maxSteps: z.number().int().positive().optional(),
@@ -78,7 +72,6 @@ export const ConfigSchema = z.object({
   grep: GrepConfigSchema.optional(),
   compaction: CompactionConfigSchema.optional(),
   update: UpdateConfigSchema.optional(),
-  ocr: OcrConfigSchema.optional(),
   share: z.enum(['disabled', 'auto']).optional(),
   // Legacy alias: opencode's autoshare maps to share: "auto" when share is unset.
   autoshare: z.boolean().optional(),

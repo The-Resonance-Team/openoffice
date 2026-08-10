@@ -217,7 +217,7 @@ export function createReadTool(deps: ReadDeps): ToolDefinition<typeof readSchema
         if (!deps.readOcr) {
           return {
             success: false,
-            error: `Cannot read ${ext} files: OCR not available. Configure an OCR model to enable image reading.`,
+            error: `Cannot read ${ext} files: OCR not available.`,
             code: 'OCR_NOT_AVAILABLE',
           };
         }

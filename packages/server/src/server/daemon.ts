@@ -156,11 +156,11 @@ export async function startDaemon(
       readDocument,
       mcp,
       readPdf,
-      // Vision OCR fallback: rasterized pages are read by the configured
-      // `ocr.model` (default: the session model) via a nested model call.
+      // Vision OCR fallback: rasterized pages are read natively by the
+      // session model via a nested model call — no separate OCR model config.
       readOcr: (file) =>
         readOcr(file, {
-          model: config.ocr?.model ?? defaultModel,
+          model: defaultModel,
           complete: (options) => complete({ ...options, config }),
         }),
     }),
