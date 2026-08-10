@@ -4,8 +4,11 @@ WORKDIR /app
 
 # Workspace package.json files — Bun needs all members for lockfile resolution
 COPY package.json bun.lock turbo.json tsconfig.base.json ./
-COPY apps/cloud-web/package.json ./apps/cloud-web/package.json
+COPY apps/cli/package.json ./apps/cli/package.json
 COPY apps/cloud-api/package.json ./apps/cloud-api/package.json
+COPY apps/cloud-web/package.json ./apps/cloud-web/package.json
+COPY apps/desktop/package.json ./apps/desktop/package.json
+COPY apps/web/package.json ./apps/web/package.json
 COPY packages/core/package.json ./packages/core/package.json
 COPY packages/protocol/package.json ./packages/protocol/package.json
 COPY packages/schema/package.json ./packages/schema/package.json
