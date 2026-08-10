@@ -48,12 +48,22 @@ export {
   AuthRequiredError,
   chat,
   complete,
+  readViaVision,
+  resetProbeCache,
   getModel,
   splitModel,
   maxOutputTokens,
   discoverLocalModels,
 } from './llm';
-export type { ChatOptions, CompleteOptions, Model, ModelLimits, DiscoveredModel } from './llm';
+export type {
+  ChatOptions,
+  CompleteOptions,
+  VisionDeps,
+  VisionErrorCode,
+  Model,
+  ModelLimits,
+  DiscoveredModel,
+} from './llm';
 
 export {
   McpManager,
@@ -83,8 +93,6 @@ export {
   resetCache,
 } from './office';
 export type { OfficeCliDeps } from './office';
-
-export { readOcr, OcrError, type OcrDeps } from './ocr';
 
 export {
   SessionStore,

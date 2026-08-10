@@ -2,11 +2,10 @@ import { execFileSync } from 'node:child_process';
 import { mkdtempSync, rmSync, readdirSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, extname } from 'node:path';
-import { IMAGE_EXTENSIONS } from '../tool';
-import { checkPdftoppm } from './install';
-import type { CompleteOptions } from '../llm';
+import type { CompleteOptions } from './complete';
 
 const PAGE_LIMIT = 50;
+const DPI = 150;
 const OCR_PREFIX =
   '[OCR: Extracted from scanned document via vision model. May contain recognition errors.]';
 const EXTRACT_PROMPT =
@@ -14,32 +13,46 @@ const EXTRACT_PROMPT =
 const PDFTOPPM_HINT =
   'pdftoppm not found. Install poppler-utils: brew install poppler (macOS) / apt install poppler-utils (Linux)';
 
-// Vision APIs accept png/jpeg (and gif/webp); tiff/bmp are rasterized first or
-// rejected. Kept in sync with IMAGE_EXTENSIONS in tool/builtins/read.ts.
+// Vision APIs accept png/jpeg only; keep in sync with IMAGE_EXTENSIONS in
+// tool/builtins/read.ts, which owns the routing.
 const MIME_BY_EXT: Record<string, string> = {
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg',
 };
 
-export type OcrErrorCode = 'PDFTOPPM_NOT_INSTALLED' | 'OCR_FAILED';
+export type VisionErrorCode = 'PDFTOPPM_NOT_INSTALLED' | 'OCR_FAILED';
 
-export class OcrError extends Error {
-  code: OcrErrorCode;
-  constructor(code: OcrErrorCode, message: string) {
-    super(message);
-    this.name = 'OcrError';
-    this.code = code;
-  }
-}
-
-export interface OcrDeps {
+export interface VisionDeps {
   /** Nested model call: the daemon's `complete`, with `config` already bound. */
   complete: (options: Omit<CompleteOptions, 'config'>) => Promise<string>;
-  /** The model that reads the rasterized pages. */
+  /** The session model that reads the rasterized pages. */
   model: string;
   /** Rasterizer probe — overridable for tests. Defaults to checkPdftoppm. */
   checkPdftoppm?: () => Promise<boolean>;
+}
+
+function visionError(code: VisionErrorCode, message: string): Error {
+  const err = new Error(message);
+  (err as Error & { code: string }).code = code;
+  return err;
+}
+
+let pdftoppmCache: boolean | null = null;
+
+async function checkPdftoppm(): Promise<boolean> {
+  if (pdftoppmCache !== null) return pdftoppmCache;
+  try {
+    execFileSync('pdftoppm', ['-v'], { timeout: 5000, stdio: 'pipe' });
+    pdftoppmCache = true;
+  } catch {
+    pdftoppmCache = false;
+  }
+  return pdftoppmCache;
+}
+
+export function resetProbeCache(): void {
+  pdftoppmCache = null;
 }
 
 function dataUrl(file: string): string {
@@ -47,7 +60,7 @@ function dataUrl(file: string): string {
   return `data:${MIME_BY_EXT[ext]};base64,${readFileSync(file).toString('base64')}`;
 }
 
-async function visionExtract(file: string, deps: OcrDeps): Promise<string> {
+async function extractImageText(file: string, deps: VisionDeps): Promise<string> {
   try {
     return await deps.complete({
       model: deps.model,
@@ -60,7 +73,7 @@ async function visionExtract(file: string, deps: OcrDeps): Promise<string> {
       ],
     });
   } catch (e: unknown) {
-    throw new OcrError(
+    throw visionError(
       'OCR_FAILED',
       `Vision model failed to read image: ${e instanceof Error ? e.message : String(e)}`,
     );
@@ -75,8 +88,22 @@ function rasterizePdf(
   try {
     execFileSync(
       'pdftoppm',
-      ['-png', '-r', '150', '-f', '1', '-l', String(pageLimit), pdfPath, join(outDir, 'page')],
-      { timeout: 60000, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] },
+      [
+        '-png',
+        '-r',
+        String(DPI),
+        '-f',
+        '1',
+        '-l',
+        String(pageLimit),
+        pdfPath,
+        join(outDir, 'page'),
+      ],
+      {
+        timeout: 60000,
+        encoding: 'utf-8',
+        stdio: ['pipe', 'pipe', 'pipe'],
+      },
     );
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -86,9 +113,9 @@ function rasterizePdf(
       'code' in err &&
       (err as { code: string }).code === 'ENOENT'
     ) {
-      throw new OcrError('PDFTOPPM_NOT_INSTALLED', PDFTOPPM_HINT);
+      throw visionError('PDFTOPPM_NOT_INSTALLED', PDFTOPPM_HINT);
     }
-    throw new OcrError('OCR_FAILED', `pdftoppm failed: ${msg}`);
+    throw visionError('OCR_FAILED', `pdftoppm failed: ${msg}`);
   }
 
   const files = readdirSync(outDir)
@@ -98,32 +125,35 @@ function rasterizePdf(
   return { files, totalRasterized: files.length };
 }
 
-export async function readOcr(file: string, deps: OcrDeps): Promise<string> {
+// Reads a scanned PDF or standalone image with the session model: pages are
+// rasterized (pdftoppm), sent as base64 image parts to a single-turn complete()
+// call, and the extracted text is concatenated with an OCR flag prefix.
+export async function readViaVision(file: string, deps: VisionDeps): Promise<string> {
   const ext = extname(file).toLowerCase();
 
-  if (IMAGE_EXTENSIONS.has(ext)) {
-    return `${OCR_PREFIX}\n\n${await visionExtract(file, deps)}`;
+  if (MIME_BY_EXT[ext]) {
+    return `${OCR_PREFIX}\n\n${await extractImageText(file, deps)}`;
   }
 
   if (ext === '.pdf') {
     const pdftoppmOk = await (deps.checkPdftoppm ?? checkPdftoppm)();
     if (!pdftoppmOk) {
-      throw new OcrError('PDFTOPPM_NOT_INSTALLED', PDFTOPPM_HINT);
+      throw visionError('PDFTOPPM_NOT_INSTALLED', PDFTOPPM_HINT);
     }
 
-    const tmpDir = mkdtempSync(join(tmpdir(), 'oocr-'));
+    const tmpDir = mkdtempSync(join(tmpdir(), 'openoffice-vision-'));
     try {
       const { files, totalRasterized } = rasterizePdf(file, tmpDir, PAGE_LIMIT);
       const texts: string[] = [];
 
       for (const page of files) {
-        texts.push(await visionExtract(join(tmpDir, page), deps));
+        texts.push(await extractImageText(join(tmpDir, page), deps));
       }
 
       const combined = texts.join('\n\n');
       const warning =
         totalRasterized >= PAGE_LIMIT
-          ? `[Warning: PDF has ${totalRasterized}+ pages. OCR limited to first ${PAGE_LIMIT} pages.]\n\n`
+          ? `[Warning: PDF has ${totalRasterized}+ pages. Reading limited to first ${PAGE_LIMIT} pages.]\n\n`
           : '';
 
       return `${OCR_PREFIX}\n\n${warning}${combined}`;
@@ -132,5 +162,5 @@ export async function readOcr(file: string, deps: OcrDeps): Promise<string> {
     }
   }
 
-  throw new OcrError('OCR_FAILED', `Unsupported file type: ${ext}`);
+  throw visionError('OCR_FAILED', `Unsupported file type: ${ext}`);
 }

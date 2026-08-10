@@ -31,7 +31,7 @@ export const DOCUMENT_EXTENSIONS = new Set([
   '.epub',
   '.pdf',
 ]);
-// Vision models accept png/jpeg only (see ocr.ts MIME_BY_EXT). Other common
+// Vision models accept png/jpeg only (see llm/vision.ts MIME_BY_EXT). Other common
 // image formats get an explicit error below — never the binary-as-text path.
 export const IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg']);
 const UNSUPPORTED_IMAGE_EXTENSIONS = new Set(['.tiff', '.tif', '.bmp']);
@@ -71,7 +71,7 @@ const TEXT_EXTENSIONS = new Set([
 export interface ReadDeps {
   readDocument: (file: string, ctx: ToolContext) => Promise<string>;
   readPdf?: (file: string) => Promise<string>;
-  readOcr?: (file: string) => Promise<string>;
+  readScanned?: (file: string) => Promise<string>;
   draftManager?: DraftManager;
   /** MCP resource reader (the daemon's McpManager); absent when unsupported. */
   mcp?: {
@@ -125,7 +125,7 @@ export function createReadTool(deps: ReadDeps): ToolDefinition<typeof readSchema
   return {
     name: 'read',
     description:
-      "Read file contents. Auto-detects Office, OpenDocument, RTF, EPUB, and PDF files via AnyDoc, plain text for everything else. Scanned/image-based PDFs and images are automatically OCR'd via a vision model. Always use this to read any file.",
+      'Read file contents. Auto-detects Office, OpenDocument, RTF, EPUB, and PDF files via AnyDoc, plain text for everything else. Scanned/image-based PDFs and images are automatically read via a vision model. Always use this to read any file.',
     parameters: readSchema,
 
     execute: async (params, ctx): Promise<ToolResult> => {
@@ -169,10 +169,10 @@ export function createReadTool(deps: ReadDeps): ToolDefinition<typeof readSchema
             e instanceof Error &&
             'code' in e &&
             (e as { code: string }).code === 'PDF_NO_TEXT_LAYER' &&
-            deps.readOcr
+            deps.readScanned
           ) {
             try {
-              const ocrResult = await deps.readOcr(file);
+              const ocrResult = await deps.readScanned(file);
               return {
                 success: true,
                 output: ocrResult,
@@ -214,7 +214,7 @@ export function createReadTool(deps: ReadDeps): ToolDefinition<typeof readSchema
       }
 
       if (IMAGE_EXTENSIONS.has(ext)) {
-        if (!deps.readOcr) {
+        if (!deps.readScanned) {
           return {
             success: false,
             error: `Cannot read ${ext} files: OCR not available.`,
@@ -222,7 +222,7 @@ export function createReadTool(deps: ReadDeps): ToolDefinition<typeof readSchema
           };
         }
         try {
-          const ocrResult = await deps.readOcr(file);
+          const ocrResult = await deps.readScanned(file);
           return { success: true, output: ocrResult, data: { source: 'ocr' } };
         } catch (e: unknown) {
           return {

@@ -38,7 +38,7 @@ import {
   findProjectConfig,
   loadConfigFiles,
   mergeLayers,
-  readOcr,
+  readViaVision,
   complete,
 } from '@openoffice/core';
 import { AskChannel, createApp, endSession, type SessionRuntime } from './index';
@@ -156,10 +156,10 @@ export async function startDaemon(
       readDocument,
       mcp,
       readPdf,
-      // Vision OCR fallback: rasterized pages are read natively by the
-      // session model via a nested model call — no separate OCR model config.
-      readOcr: (file) =>
-        readOcr(file, {
+      // Vision fallback: scanned pages are read natively by the session model
+      // via a nested complete() call — no separate OCR model or subsystem.
+      readScanned: (file) =>
+        readViaVision(file, {
           model: defaultModel,
           complete: (options) => complete({ ...options, config }),
         }),

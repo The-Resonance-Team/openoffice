@@ -98,7 +98,7 @@ describe('createReadTool — OCR auto-fallback', () => {
         err.code = 'PDF_NO_TEXT_LAYER';
         throw err;
       },
-      readOcr: async (f: string) => {
+      readScanned: async (f: string) => {
         ocrCalledWith = f;
         return 'OCR text content';
       },
@@ -112,7 +112,7 @@ describe('createReadTool — OCR auto-fallback', () => {
     }
   });
 
-  test('returns PDF_NO_TEXT_LAYER when readOcr not provided', async () => {
+  test('returns PDF_NO_TEXT_LAYER when readScanned not provided', async () => {
     const dir = tempDir();
     const file = join(dir, 'scanned.pdf');
     writeFileSync(file, '%PDF-1.4');
@@ -142,7 +142,7 @@ describe('createReadTool — OCR auto-fallback', () => {
         err.code = 'PDF_NO_TEXT_LAYER';
         throw err;
       },
-      readOcr: async () => {
+      readScanned: async () => {
         throw new Error('Vision model unavailable');
       },
     });
@@ -156,7 +156,7 @@ describe('createReadTool — OCR auto-fallback', () => {
 });
 
 describe('createReadTool — image OCR routing', () => {
-  test('routes .png to readOcr when provided', async () => {
+  test('routes .png to readScanned when provided', async () => {
     const dir = tempDir();
     const file = join(dir, 'test.png');
     writeFileSync(file, 'binary png data');
@@ -164,7 +164,7 @@ describe('createReadTool — image OCR routing', () => {
     let ocrCalledWith = '';
     const tool = createReadTool({
       readDocument: async () => 'anydoc',
-      readOcr: async (f: string) => {
+      readScanned: async (f: string) => {
         ocrCalledWith = f;
         return 'OCR from image';
       },
@@ -178,7 +178,7 @@ describe('createReadTool — image OCR routing', () => {
     }
   });
 
-  test('routes .jpg to readOcr', async () => {
+  test('routes .jpg to readScanned', async () => {
     const dir = tempDir();
     const file = join(dir, 'test.jpg');
     writeFileSync(file, 'binary jpg data');
@@ -186,7 +186,7 @@ describe('createReadTool — image OCR routing', () => {
     let ocrCalledWith = '';
     const tool = createReadTool({
       readDocument: async () => 'anydoc',
-      readOcr: async (f: string) => {
+      readScanned: async (f: string) => {
         ocrCalledWith = f;
         return 'OCR from jpg';
       },
@@ -204,7 +204,7 @@ describe('createReadTool — image OCR routing', () => {
     let ocrCalled = false;
     const tool = createReadTool({
       readDocument: async () => 'anydoc',
-      readOcr: async () => {
+      readScanned: async () => {
         ocrCalled = true;
         return 'OCR from tiff';
       },
@@ -218,7 +218,7 @@ describe('createReadTool — image OCR routing', () => {
     }
   });
 
-  test('returns OCR_NOT_AVAILABLE when readOcr not provided', async () => {
+  test('returns OCR_NOT_AVAILABLE when readScanned not provided', async () => {
     const dir = tempDir();
     const file = join(dir, 'test.png');
     writeFileSync(file, 'binary png data');
@@ -241,7 +241,7 @@ describe('createReadTool — image OCR routing', () => {
 
     const tool = createReadTool({
       readDocument: async () => 'anydoc',
-      readOcr: async () => {
+      readScanned: async () => {
         throw new Error('OCR backend unavailable');
       },
     });
