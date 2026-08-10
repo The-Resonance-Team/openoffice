@@ -1,4 +1,5 @@
-import { Icon, type IconName } from '@/lib';
+import { Icon } from '../../lib/icons';
+import type { IconName } from '../../lib/mock';
 
 export function FallbackBody({ name, icon }: { name: string; icon: IconName }) {
   return (

@@ -1,7 +1,3 @@
-// Mock chat/session for standalone UI use — no daemon required.
-// TODO: swap back to lib/api.ts's createSession/postTurn/streamSession once
-// the daemon is reachable in this environment; see lib/use-session.ts.
-
 export const mockGreeting =
   "Hi — I've pulled together the Q3 board report. The executive summary, " +
   'revenue bridge, and board deck are all in the working folder on the ' +

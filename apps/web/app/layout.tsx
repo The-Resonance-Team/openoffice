@@ -1,18 +1,16 @@
 import type { Metadata } from 'next';
-import { Archivo, Source_Serif_4 } from 'next/font/google';
-import { QueryProvider } from '@/lib';
+import { Geist, Geist_Mono } from 'next/font/google';
+import { QueryProvider } from '@openoffice/ui';
 import './globals.css';
 
-const archivo = Archivo({
-  variable: '--font-archivo',
+const geist = Geist({
+  variable: '--font-geist',
   subsets: ['latin'],
-  weight: ['400', '500', '600', '700', '800'],
 });
 
-const sourceSerif = Source_Serif_4({
-  variable: '--font-source-serif',
+const geistMono = Geist_Mono({
+  variable: '--font-geist-mono',
   subsets: ['latin'],
-  weight: ['400', '600', '700'],
 });
 
 export const metadata: Metadata = {
@@ -22,7 +20,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${archivo.variable} ${sourceSerif.variable} h-full antialiased`}>
+    <html lang="en" className={`${geist.variable} ${geistMono.variable} h-full antialiased`}>
       <body className="h-full">
         <QueryProvider>{children}</QueryProvider>
       </body>

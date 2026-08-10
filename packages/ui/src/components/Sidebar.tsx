@@ -1,15 +1,8 @@
 'use client';
 
-import {
-  useUiStore,
-  connectors,
-  skills,
-  tasks,
-  workingRaw,
-  CheckSm,
-  GDriveIcon,
-  Icon,
-} from '@/lib';
+import { useUiStore } from '../lib/store';
+import { connectors, skills, tasks, workingRaw } from '../lib/mock';
+import { CheckSm, GDriveIcon, Icon } from '../lib/icons';
 
 export function Sidebar() {
   const progressOpen = useUiStore((s) => s.progressOpen);

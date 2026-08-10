@@ -1,3 +1,5 @@
+'use client';
+
 import type { IconName } from './mock';
 
 const P: Record<IconName, string> = {

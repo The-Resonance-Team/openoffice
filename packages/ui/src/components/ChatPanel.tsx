@@ -1,17 +1,31 @@
 'use client';
 
-import { useUiStore, type ChatMessage, Icon, IconFill } from '@/lib';
+import { useUiStore } from '../lib/store';
+import type { ChatMessage, ChatPart } from '../lib/use-session';
 import { Composer } from './Composer';
+import { Icon, IconFill } from '../lib/icons';
+import { Markdown } from './Markdown';
+import { ToolCallCard } from './ToolCall';
+
+function Parts({ parts }: { parts: ChatPart[] }) {
+  return (
+    <>
+      {parts.map((p, i) =>
+        p.kind === 'tool' ? <ToolCallCard key={i} part={p} /> : <Markdown key={i} text={p.text} />,
+      )}
+    </>
+  );
+}
 
 export function ChatPanel({
   messages,
-  streaming,
+  streamingParts,
   busy,
   error,
   send,
 }: {
   messages: ChatMessage[];
-  streaming: string;
+  streamingParts: ChatPart[];
   busy: boolean;
   error: string | null;
   send: (message: string) => void | Promise<void>;
@@ -46,7 +60,7 @@ export function ChatPanel({
 
       <div className="oo-scroll flex-1 overflow-y-auto py-2">
         <div className="mx-auto flex max-w-[744px] flex-col gap-7 px-8">
-          {messages.length === 0 && !streaming && (
+          {messages.length === 0 && streamingParts.length === 0 && (
             <div className="pt-16 text-center text-[14px] text-faint">
               Say something to start the session.
             </div>
@@ -54,7 +68,7 @@ export function ChatPanel({
           {messages.map((m, i) =>
             m.role === 'user' ? (
               <div key={i} className="flex justify-end">
-                <div className="max-w-[80%] rounded-[18px] rounded-br-[6px] border border-line bg-panel px-[17px] py-[13px] text-[15px] leading-[1.6]">
+                <div className="max-w-[80%] whitespace-pre-wrap rounded-[18px] rounded-br-[6px] border border-line bg-panel px-[17px] py-[13px] text-[15px] leading-[1.6]">
                   {m.content}
                 </div>
               </div>
@@ -68,13 +82,13 @@ export function ChatPanel({
                 >
                   <IconFill name="sparkles" size={15} />
                 </div>
-                <div className="min-w-0 flex-1 whitespace-pre-wrap text-[15px] leading-[1.72] text-ink">
-                  {m.content}
+                <div className="min-w-0 flex-1 text-[15px] leading-[1.72] text-ink">
+                  <Parts parts={m.parts} />
                 </div>
               </div>
             ),
           )}
-          {streaming && (
+          {streamingParts.length > 0 && (
             <div className="flex gap-[14px]">
               <div
                 className="mt-[2px] grid h-7 w-7 flex-none place-items-center rounded-lg text-white"
@@ -84,12 +98,12 @@ export function ChatPanel({
               >
                 <IconFill name="sparkles" size={15} />
               </div>
-              <div className="min-w-0 flex-1 whitespace-pre-wrap text-[15px] leading-[1.72] text-ink">
-                {streaming}
+              <div className="min-w-0 flex-1 text-[15px] leading-[1.72] text-ink">
+                <Parts parts={streamingParts} />
               </div>
             </div>
           )}
-          {busy && !streaming && (
+          {busy && streamingParts.length === 0 && (
             <div className="flex items-center gap-[11px] pt-[2px] text-[14px] text-muted">
               <span className="flex animate-spin text-accent2">
                 <Icon name="loader" size={16} />
