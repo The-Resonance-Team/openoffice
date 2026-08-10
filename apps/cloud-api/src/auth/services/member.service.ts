@@ -33,7 +33,7 @@ export class MemberService {
       throw new ForbiddenException('Cannot change Owner role');
     }
 
-    return this.members.update(targetMemberId, { role: dto.role });
+    return this.members.changeRole(targetMemberId, dto.role!);
   }
 
   async remove(orgId: string, targetMemberId: string, actorMemberId: string) {

@@ -43,9 +43,7 @@ export class ApiKeyService {
 
   /** Revokes a key; scoped to caller + session org so others' keys are untouchable. */
   async revoke(userId: string, orgId: string, keyId: string): Promise<void> {
-    const key = await this.apiKeys.findById(keyId);
-    if (!key || key.userId !== userId || key.orgId !== orgId || key.revokedAt) return;
-    await this.apiKeys.update(keyId, { revokedAt: new Date() });
+    await this.apiKeys.revokeScoped(userId, orgId, keyId);
   }
 
   /** Resolves a raw key to its principal, or null when unknown/revoked/left. */

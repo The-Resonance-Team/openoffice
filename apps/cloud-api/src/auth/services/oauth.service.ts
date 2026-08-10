@@ -1,6 +1,5 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { Provider, Role } from '@/generated/client';
-import { PrismaService } from '@/prisma/prisma.service';
+import { Provider } from '@/generated/client';
 import { OAuthAccountRepo, UserRepo, MemberRepo, OrgRepo } from '@/auth/repo';
 import type { OAuthProfile } from './oauth.type';
 
@@ -8,7 +7,6 @@ import type { OAuthProfile } from './oauth.type';
 @Injectable()
 export class OAuthService {
   constructor(
-    private readonly prisma: PrismaService,
     private readonly oauthAccounts: OAuthAccountRepo,
     private readonly users: UserRepo,
     private readonly members: MemberRepo,
@@ -33,14 +31,13 @@ export class OAuthService {
       throw new UnauthorizedException('Provider did not return a verified email');
     }
 
-    let user = await this.users.findByEmail(email);
-    if (!user) {
-      user = await this.users.create({
+    const user =
+      (await this.users.findByEmail(email)) ??
+      (await this.users.create({
         email,
         name: profile.name,
-      });
-      await this.users.update(user.id, { emailVerifiedAt: new Date() });
-    }
+        emailVerifiedAt: new Date(),
+      }));
     await this.oauthAccounts.create({
       provider,
       providerUserId: profile.providerUserId,
@@ -50,7 +47,7 @@ export class OAuthService {
     // The provider already verified the email — the linked password account
     // inherits that verification (ADR 0006: provider-verified = verified).
     if (!user.emailVerifiedAt) {
-      await this.users.update(user.id, { emailVerifiedAt: new Date() });
+      await this.users.markVerified(user.id);
     }
     return user.id;
   }
@@ -65,17 +62,10 @@ export class OAuthService {
     const user = await this.users.findById(userId);
     if (!user) throw new UnauthorizedException();
     const slug = await this.orgs.generateUniqueSlug(user.name ?? user.email.split('@')[0] ?? 'org');
-    await this.prisma.$transaction(async (tx) => {
-      const org = await tx.org.create({
-        data: { slug, name: user.name ?? user.email },
-      });
-      await tx.member.create({
-        data: { orgId: org.id, userId, role: Role.OWNER },
-      });
-      await tx.user.update({
-        where: { id: userId },
-        data: { lastOrgId: org.id },
-      });
+    await this.orgs.createPersonalOrgForUser({
+      userId,
+      slug,
+      name: user.name ?? user.email,
     });
   }
 }

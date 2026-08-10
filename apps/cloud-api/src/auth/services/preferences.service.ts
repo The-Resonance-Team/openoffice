@@ -11,13 +11,13 @@ export class PreferencesService {
   async updatePreferences(userId: string, dto: UpdatePreferencesDto) {
     const user = await this.users.findById(userId);
     if (!user) throw new NotFoundException('User not found');
-    return this.users.update(userId, { theme: dto.theme });
+    return this.users.setTheme(userId, dto.theme);
   }
 
   async updateNotifications(userId: string, dto: UpdateNotificationsDto) {
     const user = await this.users.findById(userId);
     if (!user) throw new NotFoundException('User not found');
-    return this.users.update(userId, {
+    return this.users.setNotificationPrefs(userId, {
       inviteEmail: dto.inviteEmail,
       passwordChangeEmail: dto.passwordChangeEmail,
       memberJoinEmail: dto.memberJoinEmail,
@@ -27,6 +27,6 @@ export class PreferencesService {
   async updateUpdates(userId: string, dto: UpdateUpdatesDto) {
     const user = await this.users.findById(userId);
     if (!user) throw new NotFoundException('User not found');
-    return this.users.update(userId, { wantsUpdates: dto.wantsUpdates });
+    return this.users.setWantsUpdates(userId, dto.wantsUpdates);
   }
 }

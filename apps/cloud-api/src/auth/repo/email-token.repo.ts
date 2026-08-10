@@ -22,8 +22,8 @@ export class EmailTokenRepo {
     return this.prisma.emailToken.create({ data });
   }
 
-  async update(id: string, data: { usedAt: Date }) {
-    return this.prisma.emailToken.update({ where: { id }, data });
+  async markUsed(id: string) {
+    return this.prisma.emailToken.update({ where: { id }, data: { usedAt: new Date() } });
   }
 
   async markUsedMany(userId: string, type: EmailTokenType) {

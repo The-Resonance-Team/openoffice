@@ -1,7 +1,5 @@
 import { createHash } from 'node:crypto';
-import { fakeDb } from '../../../test/fake-db';
-import { PrismaService } from '@/prisma/prisma.service';
-import { ApiKeyRepo, MemberRepo } from '@/auth/repo';
+import { makeFakeRepos } from '../../../test/fake-repos';
 import type { CreateApiKeyDto } from '@/auth/dto';
 import { ApiKeyService } from './api-key.service';
 
@@ -11,28 +9,23 @@ const dto = (name: string) => ({ name }) as CreateApiKeyDto;
 
 describe('ApiKeyService', () => {
   let service: ApiKeyService;
-  let db: any;
+  let maps: ReturnType<typeof makeFakeRepos>['maps'];
 
-  beforeEach(async () => {
-    db = fakeDb();
-    const apiKeys = new ApiKeyRepo(db as PrismaService);
-    const members = new MemberRepo(db as PrismaService);
-    service = new ApiKeyService(apiKeys, members);
-    await db.user.create({ data: { id: 'u1', email: 'a@x.dev' } });
-    await db.org.create({ data: { id: 'o1', slug: 'acme', name: 'Acme' } });
-    await db.org.create({ data: { id: 'o2', slug: 'second', name: 'Second' } });
-    await db.member.create({
-      data: { id: 'm1', orgId: 'o1', userId: 'u1', role: 'MEMBER' },
-    });
-    await db.member.create({
-      data: { id: 'm2', orgId: 'o2', userId: 'u1', role: 'MEMBER' },
-    });
+  beforeEach(() => {
+    const repos = makeFakeRepos();
+    maps = repos.maps;
+    service = new ApiKeyService(repos.apiKeys, repos.members);
+    maps.user.set('u1', { id: 'u1', email: 'a@x.dev' });
+    maps.org.set('o1', { id: 'o1', slug: 'acme', name: 'Acme' });
+    maps.org.set('o2', { id: 'o2', slug: 'second', name: 'Second' });
+    maps.member.set('m1', { id: 'm1', orgId: 'o1', userId: 'u1', role: 'MEMBER', teamId: null });
+    maps.member.set('m2', { id: 'm2', orgId: 'o2', userId: 'u1', role: 'MEMBER', teamId: null });
   });
 
   it('returns the raw key once and stores only its sha256 with a display prefix', async () => {
     const raw = await service.create(dto('work mac'), 'u1', 'o1');
     expect(raw).toMatch(/^oo_live_[0-9a-f]{64}$/);
-    const rows = [...db._apiKey.values()];
+    const rows = [...maps.apiKey.values()];
     expect(rows).toHaveLength(1);
     expect(rows[0].keyHash).toBe(sha256(raw));
     expect(rows[0].keyHash).not.toBe(raw);
@@ -69,7 +62,7 @@ describe('ApiKeyService', () => {
       orgId: 'o1',
       role: 'MEMBER',
     });
-    expect(principal?.keyId).toBe(db._apiKey.values().next().value.id);
+    expect(principal?.keyId).toBe(maps.apiKey.values().next().value.id);
   });
 
   it('verify returns null for an unknown or revoked key', async () => {

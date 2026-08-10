@@ -74,7 +74,7 @@ export class InviteService {
       throw new ConflictException('Already a member of this org');
     }
     const member = await this.members.create({ orgId: invite.orgId, userId, role: invite.role });
-    await this.invites.update(invite.id, { usedAt: new Date() });
+    await this.invites.markUsed(invite.id);
     return { orgId: invite.orgId, memberId: member.id };
   }
 
@@ -87,7 +87,7 @@ export class InviteService {
     if (!invite || invite.orgId !== orgId || invite.usedAt) {
       throw new UnauthorizedException('Invite not found');
     }
-    await this.invites.update(inviteId, { usedAt: new Date() });
+    await this.invites.markUsed(inviteId);
   }
 
   async resend(orgId: string, inviteId: string) {
@@ -96,7 +96,7 @@ export class InviteService {
       throw new UnauthorizedException('Invite not found');
     }
     const raw = randomToken();
-    await this.invites.update(inviteId, {
+    await this.invites.reissue(inviteId, {
       tokenHash: sha256Hex(raw),
       expiresAt: addDays(new Date(), INVITE_TTL_DAYS),
     });

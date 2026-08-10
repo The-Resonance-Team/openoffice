@@ -29,7 +29,11 @@ export class ApiKeyRepo {
     return this.prisma.apiKey.create({ data });
   }
 
-  async update(id: string, data: { revokedAt: Date }) {
-    return this.prisma.apiKey.update({ where: { id }, data });
+  /** Revokes a key scoped to caller + org — others' keys are untouchable. */
+  async revokeScoped(userId: string, orgId: string, keyId: string) {
+    return this.prisma.apiKey.updateMany({
+      where: { id: keyId, userId, orgId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
   }
 }

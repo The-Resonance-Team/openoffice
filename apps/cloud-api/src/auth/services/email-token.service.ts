@@ -35,7 +35,7 @@ export class EmailTokenService {
   /** Consumes a verification token: single use, marks the user verified. */
   async consumeVerify(rawToken: string): Promise<void> {
     const row = await this.consume(rawToken, EmailTokenType.VERIFY_EMAIL);
-    await this.users.update(row.userId, { emailVerifiedAt: new Date() });
+    await this.users.markVerified(row.userId);
   }
 
   /** Consumes a reset token and returns the owning user id. */
@@ -83,10 +83,7 @@ export class EmailTokenService {
    */
   async resetPassword(token: string, newPassword: string): Promise<void> {
     const userId = await this.consumeReset(token);
-    await this.users.update(userId, {
-      passwordHash: await argon2.hash(newPassword),
-      emailVerifiedAt: new Date(),
-    });
+    await this.users.setPasswordAndVerified(userId, await argon2.hash(newPassword));
   }
 
   private async consume(rawToken: string, type: EmailTokenType) {
@@ -94,7 +91,7 @@ export class EmailTokenService {
     if (!row || row.type !== type || row.expiresAt <= new Date()) {
       throw new UnauthorizedException('Invalid or expired token');
     }
-    await this.emailTokens.update(row.id, { usedAt: new Date() });
+    await this.emailTokens.markUsed(row.id);
     return row;
   }
 }

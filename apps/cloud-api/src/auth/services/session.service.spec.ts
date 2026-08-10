@@ -1,23 +1,31 @@
 import { NotFoundException } from '@nestjs/common';
-import { fakeDb } from '../../../test/fake-db';
-import { PrismaService } from '@/prisma/prisma.service';
-import { SessionRepo } from '@/auth/repo';
+import { makeFakeRepos } from '../../../test/fake-repos';
 import { SessionService } from './session.service';
 
 describe('SessionService', () => {
   let service: SessionService;
-  let db: any;
+  let maps: ReturnType<typeof makeFakeRepos>['maps'];
 
-  beforeEach(async () => {
-    db = fakeDb();
-    const sessions = new SessionRepo(db as PrismaService);
-    service = new SessionService(sessions);
-    await db.user.create({ data: { id: 'u1', email: 'a@x.dev' } });
-    await db.session.create({
-      data: { id: 's1', userId: 'u1', ip: '1.1.1.1', expiresAt: new Date(Date.now() + 86400000) },
+  beforeEach(() => {
+    const repos = makeFakeRepos();
+    maps = repos.maps;
+    service = new SessionService(repos.sessions);
+    maps.user.set('u1', { id: 'u1', email: 'a@x.dev' });
+    maps.session.set('s1', {
+      id: 's1',
+      userId: 'u1',
+      ip: '1.1.1.1',
+      revokedAt: null,
+      createdAt: new Date(Date.now() - 2000),
+      expiresAt: new Date(Date.now() + 86400000),
     });
-    await db.session.create({
-      data: { id: 's2', userId: 'u1', ip: '2.2.2.2', expiresAt: new Date(Date.now() + 86400000) },
+    maps.session.set('s2', {
+      id: 's2',
+      userId: 'u1',
+      ip: '2.2.2.2',
+      revokedAt: null,
+      createdAt: new Date(Date.now() - 1000),
+      expiresAt: new Date(Date.now() + 86400000),
     });
   });
 

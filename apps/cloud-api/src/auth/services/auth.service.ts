@@ -8,7 +8,6 @@ import { JwtService } from '@nestjs/jwt';
 import { addDays } from 'date-fns';
 import argon2 from 'argon2';
 import { Provider, Role } from '@/generated/client';
-import { PrismaService } from '@/prisma/prisma.service';
 import { UserRepo, MemberRepo, OrgRepo, SessionRepo } from '@/auth/repo';
 import type { LoginDto } from '@/auth/dto/login.dto';
 import type { RegisterDto } from '@/auth/dto/register.dto';
@@ -27,7 +26,6 @@ import { randomToken, sha256Hex } from './tokens';
 @Injectable()
 export class AuthService {
   constructor(
-    private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
     private readonly mailer: MailerService,
     private readonly emailTokens: EmailTokenService,
@@ -47,29 +45,15 @@ export class AuthService {
     const passwordHash = await argon2.hash(dto.password);
     const slug = await this.orgs.generateUniqueSlug(dto.orgName);
 
-    const { memberId, userId } = await this.prisma.$transaction(async (tx) => {
-      const user = await tx.user.create({
-        data: { email, name: dto.name, passwordHash },
-      });
-      const org = await tx.org.create({
-        data: { slug, name: dto.orgName },
-      });
-      const created = await tx.member.create({
-        data: {
-          orgId: org.id,
-          userId: user.id,
-          name: dto.name,
-          role: Role.OWNER,
-        },
-      });
-      await tx.user.update({
-        where: { id: user.id },
-        data: { lastOrgId: org.id },
-      });
-      return { memberId: created.id, userId: user.id };
+    const { memberId, userId } = await this.users.createWithOrgMembership({
+      email,
+      name: dto.name,
+      passwordHash,
+      slug,
+      orgName: dto.orgName,
     });
 
-    const membership = (await this.getMembership(memberId, userId))!;
+    const membership = (await this.members.findById(memberId))!;
     await this.emailTokens.sendVerification(userId, email);
     return this.issueSession(membership, ip);
   }
@@ -93,7 +77,7 @@ export class AuthService {
     const hash = sha256Hex(refreshToken);
     const reused = await this.sessions.findByPrevRefreshHash(hash);
     if (reused) {
-      await this.sessions.update(reused.id, { revokedAt: new Date() });
+      await this.sessions.revoke(reused.id);
       throw new UnauthorizedException('Session reused');
     }
 
@@ -106,7 +90,7 @@ export class AuthService {
 
     const membership = await this.resolveMembership(user.id);
     const newRefresh = randomToken();
-    await this.sessions.update(session.id, {
+    await this.sessions.rotate(session.id, {
       hashedRefresh: sha256Hex(newRefresh),
       prevHashedRefresh: hash,
       expiresAt: addDays(new Date(), REFRESH_TTL_DAYS),
@@ -121,7 +105,7 @@ export class AuthService {
 
   /** Revokes the session row behind a refresh token. */
   async logout(refreshToken: string): Promise<void> {
-    await this.sessions.updateManyByRefreshHash(sha256Hex(refreshToken), { revokedAt: new Date() });
+    await this.sessions.revokeByRefreshHash(sha256Hex(refreshToken));
   }
 
   /** Reissues tokens for another of the user's memberships (one Org per session). */
@@ -142,7 +126,7 @@ export class AuthService {
     const membership = await this.getMembership(dto.memberId, principal.userId);
     if (!membership) throw new ForbiddenException('Not a member of this org');
     await this.logout(currentRefreshToken);
-    await this.users.update(principal.userId, { lastOrgId: membership.orgId });
+    await this.users.setLastOrg(principal.userId, membership.orgId);
     return this.issueSession(membership, ip);
   }
 
@@ -168,7 +152,7 @@ export class AuthService {
   }
 
   async updateProfile(userId: string, dto: UpdateProfileDto): Promise<MemberProfile> {
-    await this.users.update(userId, { name: dto.name });
+    await this.users.setName(userId, dto.name!);
     const userWithMemberships = await this.users.findWithMemberships(userId);
     if (!userWithMemberships) throw new UnauthorizedException();
     const membership =
@@ -188,7 +172,7 @@ export class AuthService {
       throw new UnauthorizedException('Current password is incorrect');
     }
     const newPasswordHash = await argon2.hash(dto.newPassword);
-    await this.users.update(userId, { passwordHash: newPasswordHash });
+    await this.users.setPassword(userId, newPasswordHash);
   }
 
   async deleteAccount(userId: string, dto: DeleteAccountDto): Promise<void> {
@@ -203,8 +187,8 @@ export class AuthService {
 
     // Check if user is sole owner of any org
     for (const membership of user.memberships) {
-      if (membership.role === 'OWNER') {
-        const ownerCount = await this.members.countByOrgAndRole(membership.orgId, 'OWNER');
+      if (membership.role === Role.OWNER) {
+        const ownerCount = await this.members.countByOrgAndRole(membership.orgId, Role.OWNER);
         if (ownerCount === 1) {
           throw new ConflictException(
             `Cannot delete account: you are the sole owner of org "${membership.org.name}". Transfer ownership or delete the org first.`,

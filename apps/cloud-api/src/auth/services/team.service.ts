@@ -23,17 +23,16 @@ export class TeamService {
   async update(orgId: string, teamId: string, dto: UpdateTeamDto) {
     const team = await this.teams.findById(teamId);
     if (!team) throw new NotFoundException('Team not found');
-    // Note: We need to check orgId - the repo doesn't include org in the response
-    // For now, we'll trust the controller's role guard
+    // Org-scoping is enforced by the controller's role guard (OWNER/ADMIN).
     const dup = await this.teams.findByOrgAndName(orgId, dto.name);
     if (dup && dup.id !== teamId) throw new ConflictException('Team name already exists');
-    return this.teams.update(teamId, { name: dto.name });
+    return this.teams.rename(teamId, dto.name);
   }
 
   async delete(orgId: string, teamId: string) {
     const team = await this.teams.findById(teamId);
     if (!team) throw new NotFoundException('Team not found');
-    await this.members.updateManyByTeamId(teamId, { teamId: null });
+    await this.members.clearTeamForAll(teamId);
     await this.teams.delete(teamId);
   }
 
@@ -44,7 +43,7 @@ export class TeamService {
     ]);
     if (!team) throw new NotFoundException('Team not found');
     if (!member) throw new NotFoundException('Member not found');
-    return this.members.update(memberId, { teamId });
+    return this.members.assignTeam(memberId, teamId);
   }
 
   async removeMember(orgId: string, teamId: string, memberId: string) {
@@ -54,6 +53,6 @@ export class TeamService {
     ]);
     if (!team) throw new NotFoundException('Team not found');
     if (!member || member.teamId !== teamId) throw new NotFoundException('Member not in this team');
-    await this.members.update(memberId, { teamId: null });
+    await this.members.clearTeam(memberId);
   }
 }

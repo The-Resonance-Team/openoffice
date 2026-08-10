@@ -29,12 +29,10 @@ export class SessionService {
     if (!session || session.userId !== userId || session.revokedAt) {
       throw new NotFoundException('Session not found');
     }
-    await this.sessions.update(sessionId, { revokedAt: new Date() });
+    await this.sessions.revoke(sessionId);
   }
 
   async revokeAllOthers(userId: string, currentSessionId: string): Promise<void> {
-    await this.sessions.updateManyByUserIdExceptCurrent(userId, currentSessionId, {
-      revokedAt: new Date(),
-    });
+    await this.sessions.revokeAllOthers(userId, currentSessionId);
   }
 }

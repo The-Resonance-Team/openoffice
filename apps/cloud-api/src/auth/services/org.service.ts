@@ -9,9 +9,8 @@ export class OrgService {
   async update(orgId: string, dto: UpdateOrgDto) {
     const org = await this.orgs.findById(orgId);
     if (!org) throw new NotFoundException('Org not found');
-    return this.orgs.update(orgId, {
-      ...(dto.name !== undefined && { name: dto.name }),
-      ...(dto.slug !== undefined && { slug: dto.slug }),
-    });
+    if (dto.name !== undefined) await this.orgs.rename(orgId, dto.name);
+    if (dto.slug !== undefined) await this.orgs.changeSlug(orgId, dto.slug);
+    return this.orgs.findById(orgId);
   }
 }

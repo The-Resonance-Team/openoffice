@@ -44,10 +44,26 @@ export class MemberRepo {
     return this.prisma.member.create({ data });
   }
 
-  async update(id: string, data: { role?: Role; teamId?: string | null; name?: string }) {
+  async changeRole(id: string, role: Role) {
     return this.prisma.member.update({
       where: { id },
-      data,
+      data: { role },
+      include: { user: true, team: true },
+    });
+  }
+
+  async assignTeam(id: string, teamId: string) {
+    return this.prisma.member.update({
+      where: { id },
+      data: { teamId },
+      include: { user: true, team: true },
+    });
+  }
+
+  async clearTeam(id: string) {
+    return this.prisma.member.update({
+      where: { id },
+      data: { teamId: null },
       include: { user: true, team: true },
     });
   }
@@ -60,7 +76,7 @@ export class MemberRepo {
     return this.prisma.member.count({ where: { orgId, role } });
   }
 
-  async updateManyByTeamId(teamId: string, data: { teamId?: null }) {
-    return this.prisma.member.updateMany({ where: { teamId }, data });
+  async clearTeamForAll(teamId: string) {
+    return this.prisma.member.updateMany({ where: { teamId }, data: { teamId: null } });
   }
 }

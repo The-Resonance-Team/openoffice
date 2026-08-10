@@ -1,27 +1,20 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
-import { fakeDb } from '../../../test/fake-db';
-import { PrismaService } from '@/prisma/prisma.service';
-import { TeamRepo, MemberRepo } from '@/auth/repo';
+import { makeFakeRepos } from '../../../test/fake-repos';
 import { TeamService } from './team.service';
 
 describe('TeamService', () => {
   let service: TeamService;
-  let db: any;
+  let maps: ReturnType<typeof makeFakeRepos>['maps'];
 
-  beforeEach(async () => {
-    db = fakeDb();
-    const teams = new TeamRepo(db as PrismaService);
-    const members = new MemberRepo(db as PrismaService);
-    service = new TeamService(teams, members);
-    await db.org.create({ data: { id: 'o1', slug: 'acme', name: 'Acme' } });
-    await db.user.create({ data: { id: 'u1', email: 'a@x.dev' } });
-    await db.user.create({ data: { id: 'u2', email: 'b@x.dev' } });
-    await db.member.create({
-      data: { id: 'm1', orgId: 'o1', userId: 'u1', role: 'OWNER' },
-    });
-    await db.member.create({
-      data: { id: 'm2', orgId: 'o1', userId: 'u2', role: 'MEMBER' },
-    });
+  beforeEach(() => {
+    const repos = makeFakeRepos();
+    maps = repos.maps;
+    service = new TeamService(repos.teams, repos.members);
+    maps.org.set('o1', { id: 'o1', slug: 'acme', name: 'Acme' });
+    maps.user.set('u1', { id: 'u1', email: 'a@x.dev' });
+    maps.user.set('u2', { id: 'u2', email: 'b@x.dev' });
+    maps.member.set('m1', { id: 'm1', orgId: 'o1', userId: 'u1', role: 'OWNER', teamId: null });
+    maps.member.set('m2', { id: 'm2', orgId: 'o1', userId: 'u2', role: 'MEMBER', teamId: null });
   });
 
   describe('create', () => {
@@ -69,8 +62,7 @@ describe('TeamService', () => {
       await service.delete('o1', team.id);
       const teams = await service.list('o1');
       expect(teams).toHaveLength(0);
-      const member = await db.member.findUnique({ where: { id: 'm1' } });
-      expect(member.teamId).toBeNull();
+      expect(maps.member.get('m1').teamId).toBeNull();
     });
   });
 
@@ -94,8 +86,7 @@ describe('TeamService', () => {
       const team = await service.create('o1', { name: 'Eng' });
       await service.assignMember('o1', team.id, 'm1');
       await service.removeMember('o1', team.id, 'm1');
-      const member = await db.member.findUnique({ where: { id: 'm1' } });
-      expect(member.teamId).toBeNull();
+      expect(maps.member.get('m1').teamId).toBeNull();
     });
 
     it('throws if member not in team', async () => {

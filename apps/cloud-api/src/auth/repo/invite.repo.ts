@@ -22,12 +22,6 @@ export class InviteRepo {
     });
   }
 
-  async findByOrgAndEmail(orgId: string, email: string) {
-    return this.prisma.invite.findFirst({
-      where: { orgId, email, usedAt: null },
-    });
-  }
-
   async create(data: {
     orgId: string;
     invitedById: string;
@@ -39,7 +33,11 @@ export class InviteRepo {
     return this.prisma.invite.create({ data });
   }
 
-  async update(id: string, data: { usedAt?: Date; tokenHash?: string; expiresAt?: Date }) {
+  async markUsed(id: string) {
+    return this.prisma.invite.update({ where: { id }, data: { usedAt: new Date() } });
+  }
+
+  async reissue(id: string, data: { tokenHash: string; expiresAt: Date }) {
     return this.prisma.invite.update({ where: { id }, data });
   }
 }

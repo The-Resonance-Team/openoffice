@@ -27,10 +27,10 @@ export class TeamRepo {
     return this.prisma.team.create({ data });
   }
 
-  async update(id: string, data: { name: string }) {
+  async rename(id: string, name: string) {
     return this.prisma.team.update({
       where: { id },
-      data,
+      data: { name },
       include: { members: true },
     });
   }

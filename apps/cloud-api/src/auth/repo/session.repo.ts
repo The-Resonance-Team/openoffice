@@ -1,6 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@/prisma/prisma.service';
 
+export interface RotateData {
+  hashedRefresh: string;
+  prevHashedRefresh: string;
+  expiresAt: Date;
+  ip?: string;
+}
+
 @Injectable()
 export class SessionRepo {
   constructor(private readonly prisma: PrismaService) {}
@@ -30,35 +37,33 @@ export class SessionRepo {
     return this.prisma.session.create({ data });
   }
 
-  async update(
-    id: string,
-    data: {
-      hashedRefresh?: string;
-      prevHashedRefresh?: string;
-      expiresAt?: Date;
-      revokedAt?: Date;
-      ip?: string;
-    },
-  ) {
-    return this.prisma.session.update({ where: { id }, data });
-  }
-
-  async updateManyByUserId(userId: string, data: { revokedAt: Date }) {
-    return this.prisma.session.updateMany({ where: { userId }, data });
-  }
-
-  async updateManyByUserIdExceptCurrent(
-    userId: string,
-    currentSessionId: string,
-    data: { revokedAt: Date },
-  ) {
-    return this.prisma.session.updateMany({
-      where: { userId, id: { not: currentSessionId }, revokedAt: null },
-      data,
+  async rotate(id: string, data: RotateData) {
+    return this.prisma.session.update({
+      where: { id },
+      data: {
+        hashedRefresh: data.hashedRefresh,
+        prevHashedRefresh: data.prevHashedRefresh,
+        expiresAt: data.expiresAt,
+        ip: data.ip,
+      },
     });
   }
 
-  async updateManyByRefreshHash(hashedRefresh: string, data: { revokedAt: Date }) {
-    return this.prisma.session.updateMany({ where: { hashedRefresh }, data });
+  async revoke(id: string) {
+    return this.prisma.session.update({ where: { id }, data: { revokedAt: new Date() } });
+  }
+
+  async revokeByRefreshHash(hashedRefresh: string) {
+    return this.prisma.session.updateMany({
+      where: { hashedRefresh },
+      data: { revokedAt: new Date() },
+    });
+  }
+
+  async revokeAllOthers(userId: string, currentSessionId: string) {
+    return this.prisma.session.updateMany({
+      where: { userId, id: { not: currentSessionId }, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
   }
 }

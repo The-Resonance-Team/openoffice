@@ -4,14 +4,10 @@ import { randomBytes } from 'crypto';
 import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
 import argon2 from 'argon2';
 import { UserRepo } from '@/auth/repo';
-import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class TwoFactorService {
-  constructor(
-    private readonly users: UserRepo,
-    private readonly config: ConfigService,
-  ) {}
+  constructor(private readonly users: UserRepo) {}
 
   async setup(userId: string) {
     const user = await this.users.findById(userId);
@@ -33,7 +29,7 @@ export class TwoFactorService {
     const otpauthUrl = totp.toString();
     const qrCode = await QRCode.toDataURL(otpauthUrl);
 
-    await this.users.update(userId, { totpSecret: secret.base32 });
+    await this.users.setTotpSecret(userId, secret.base32);
 
     return { otpauthUrl, qrCode };
   }
@@ -62,8 +58,8 @@ export class TwoFactorService {
     }
 
     const recoveryCodes = this.generateRecoveryCodes();
-    await this.users.update(userId, {
-      totpEnabledAt: new Date(),
+    await this.users.enableTotp(userId, {
+      enabledAt: new Date(),
       recoveryCodes: JSON.stringify(recoveryCodes),
     });
 
@@ -84,11 +80,7 @@ export class TwoFactorService {
       throw new UnauthorizedException('Invalid password');
     }
 
-    await this.users.update(userId, {
-      totpSecret: null,
-      totpEnabledAt: null,
-      recoveryCodes: null,
-    });
+    await this.users.clearTotp(userId);
   }
 
   async regenerateRecoveryCodes(userId: string) {
@@ -98,7 +90,7 @@ export class TwoFactorService {
     }
 
     const recoveryCodes = this.generateRecoveryCodes();
-    await this.users.update(userId, { recoveryCodes: JSON.stringify(recoveryCodes) });
+    await this.users.setRecoveryCodes(userId, JSON.stringify(recoveryCodes));
 
     return { recoveryCodes };
   }

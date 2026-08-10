@@ -3,9 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { BadRequestException, ConflictException, UnauthorizedException } from '@nestjs/common';
 import { addDays, subMilliseconds } from 'date-fns';
 import { Role } from '@/generated/client';
-import { fakeDb } from '../../../test/fake-db';
-import { PrismaService } from '@/prisma/prisma.service';
-import { InviteRepo, UserRepo, MemberRepo } from '@/auth/repo';
+import { makeFakeRepos } from '../../../test/fake-repos';
 import { InviteService } from './invite.service';
 import { MailerService } from './mailer.service';
 import type { CreateInviteDto } from '@/auth/dto/create-invite.dto';
@@ -14,27 +12,29 @@ const sha256 = (s: string): string => createHash('sha256').update(s).digest('hex
 
 describe('InviteService', () => {
   let service: InviteService;
-  let db: any;
+  let maps: ReturnType<typeof makeFakeRepos>['maps'];
   let mailer: MailerService;
 
-  beforeEach(async () => {
-    db = fakeDb();
+  beforeEach(() => {
+    const repos = makeFakeRepos();
+    maps = repos.maps;
     mailer = new MailerService(
       new ConfigService({
         resend: { from: 'no-reply@test.dev' },
         webAppUrl: 'http://localhost:5202',
       }),
     );
-    const invites = new InviteRepo(db as PrismaService);
-    const users = new UserRepo(db as PrismaService);
-    const members = new MemberRepo(db as PrismaService);
-    service = new InviteService(invites, users, members, mailer);
-    await db.org.create({ data: { id: 'o1', slug: 'acme', name: 'Acme' } });
-    await db.user.create({ data: { id: 'u-admin', email: 'admin@x.dev' } });
-    await db.member.create({
-      data: { orgId: 'o1', userId: 'u-admin', role: 'OWNER' },
+    service = new InviteService(repos.invites, repos.users, repos.members, mailer);
+    maps.org.set('o1', { id: 'o1', slug: 'acme', name: 'Acme' });
+    maps.user.set('u-admin', { id: 'u-admin', email: 'admin@x.dev' });
+    maps.member.set('m-admin', {
+      id: 'm-admin',
+      orgId: 'o1',
+      userId: 'u-admin',
+      role: 'OWNER',
+      teamId: null,
     });
-    await db.user.create({ data: { id: 'u-invitee', email: 'b@x.dev' } });
+    maps.user.set('u-invitee', { id: 'u-invitee', email: 'b@x.dev' });
   });
 
   const createInvite = (dto: Partial<CreateInviteDto> = {}) =>
@@ -49,7 +49,7 @@ describe('InviteService', () => {
   it('stores the sha256 of the invite token with a 7-day expiry and mails the link', async () => {
     const send = jest.spyOn(mailer, 'send');
     await createInvite();
-    const invites = [...db._invite.values()];
+    const invites = [...maps.invite.values()];
     expect(invites).toHaveLength(1);
     expect(invites[0].tokenHash).toMatch(/^[0-9a-f]{64}$/);
     expect(invites[0].role).toBe('MEMBER');
@@ -61,8 +61,12 @@ describe('InviteService', () => {
   });
 
   it('rejects inviting an Owner and re-inviting an existing member', async () => {
-    await db.member.create({
-      data: { orgId: 'o1', userId: 'u-invitee', role: 'MEMBER' },
+    maps.member.set('m-invitee', {
+      id: 'm-invitee',
+      orgId: 'o1',
+      userId: 'u-invitee',
+      role: 'MEMBER',
+      teamId: null,
     });
     await expect(createInvite()).rejects.toThrow(ConflictException);
     await expect(createInvite({ email: 'new@x.dev', role: Role.OWNER })).rejects.toThrow(
@@ -76,9 +80,9 @@ describe('InviteService', () => {
     const token = rawTokenOf(send);
     const res = await service.accept(token, 'u-invitee');
     expect(res.orgId).toBe('o1');
-    const member = await db.member.findFirst({
-      where: { orgId: 'o1', userId: 'u-invitee' },
-    });
+    const member = [...maps.member.values()].find(
+      (m) => m.orgId === 'o1' && m.userId === 'u-invitee',
+    );
     expect(member.role).toBe('MEMBER');
     await expect(service.accept(token, 'u-invitee')).rejects.toThrow(UnauthorizedException);
   });
@@ -87,15 +91,13 @@ describe('InviteService', () => {
     const send = jest.spyOn(mailer, 'send');
     await createInvite();
     const token = rawTokenOf(send);
-    const invite = await db.invite.findFirst({
-      where: { tokenHash: sha256(token) },
-    });
+    const invite = [...maps.invite.values()].find((i) => i.tokenHash === sha256(token));
     invite.expiresAt = subMilliseconds(new Date(), 1000);
     await expect(service.accept(token, 'u-invitee')).rejects.toThrow(UnauthorizedException);
 
     await createInvite();
     const second = rawTokenOf(send);
-    await db.user.create({ data: { id: 'u-other', email: 'other.dev' } });
+    maps.user.set('u-other', { id: 'u-other', email: 'other.dev' });
     await expect(service.accept(second, 'u-other')).rejects.toThrow(UnauthorizedException);
   });
 });

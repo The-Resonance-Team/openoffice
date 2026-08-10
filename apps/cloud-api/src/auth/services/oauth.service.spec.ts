@@ -1,13 +1,11 @@
 import { UnauthorizedException } from '@nestjs/common';
 import { Provider } from '@/generated/client';
-import { fakeDb } from '../../../test/fake-db';
-import { PrismaService } from '@/prisma/prisma.service';
-import { OAuthAccountRepo, UserRepo, MemberRepo, OrgRepo } from '@/auth/repo';
+import { makeFakeRepos } from '../../../test/fake-repos';
 import { OAuthService } from './oauth.service';
 
 describe('OAuthService', () => {
   let service: OAuthService;
-  let db: any;
+  let maps: ReturnType<typeof makeFakeRepos>['maps'];
 
   const profile = (overrides: Record<string, unknown> = {}) => ({
     providerUserId: 'g-123',
@@ -18,40 +16,33 @@ describe('OAuthService', () => {
   });
 
   beforeEach(() => {
-    db = fakeDb();
-    const oauthAccounts = new OAuthAccountRepo(db as PrismaService);
-    const users = new UserRepo(db as PrismaService);
-    const members = new MemberRepo(db as PrismaService);
-    const orgs = new OrgRepo(db as PrismaService);
-    service = new OAuthService(db as PrismaService, oauthAccounts, users, members, orgs);
+    const repos = makeFakeRepos();
+    maps = repos.maps;
+    service = new OAuthService(repos.oauthAccounts, repos.users, repos.members, repos.orgs);
   });
 
   it('creates a user on first sign-in with a verified email', async () => {
     const userId = await service.linkOrCreateUser(Provider.GOOGLE, profile());
-    const user = await db.user.findUnique({ where: { id: userId } });
+    const user = maps.user.get(userId);
     expect(user.email).toBe('a@x.dev');
     expect(user.passwordHash).toBeNull();
-    const link = await db.oAuthAccount.findFirst({
-      where: { provider: 'GOOGLE', providerUserId: 'g-123' },
-    });
+    const link = [...maps.oAuthAccount.values()].find(
+      (r) => r.provider === 'GOOGLE' && r.providerUserId === 'g-123',
+    );
     expect(link.userId).toBe(userId);
   });
 
   it('auto-links to an existing password user and inherits provider verification', async () => {
-    const existing = await db.user.create({
-      data: { id: 'u1', email: 'a@x.dev', passwordHash: '$argon2$x' },
-    });
+    maps.user.set('u1', { id: 'u1', email: 'a@x.dev', passwordHash: '$argon2$x' });
     const userId = await service.linkOrCreateUser(Provider.GOOGLE, profile());
-    expect(userId).toBe(existing.id);
-    const link = await db.oAuthAccount.findFirst({
-      where: { provider: 'GOOGLE', providerUserId: 'g-123' },
-    });
+    expect(userId).toBe('u1');
+    const link = [...maps.oAuthAccount.values()].find(
+      (r) => r.provider === 'GOOGLE' && r.providerUserId === 'g-123',
+    );
     expect(link.userId).toBe('u1');
     // provider-verified email = verified (ADR 0006): the linked unverified
     // password account can now log in with its password
-    expect((await db.user.findUnique({ where: { id: 'u1' } })).emailVerifiedAt).toBeInstanceOf(
-      Date,
-    );
+    expect(maps.user.get('u1').emailVerifiedAt).toBeInstanceOf(Date);
   });
 
   it('resolves the same provider account to the same user across emails', async () => {
@@ -75,23 +66,20 @@ describe('OAuthService', () => {
   it('ensureMembership gives a memberless user a personal org as OWNER', async () => {
     const userId = await service.linkOrCreateUser(Provider.GOOGLE, profile());
     await service.ensureMembership(userId);
-    const members = await db.member.findMany({ where: { userId } });
+    const members = [...maps.member.values()].filter((m) => m.userId === userId);
     expect(members).toHaveLength(1);
     expect(members[0].role).toBe('OWNER');
-    const org = await db.org.findUnique({ where: { id: members[0].orgId } });
+    const org = maps.org.get(members[0].orgId);
     expect(org.slug).toBe('a');
-    const user = await db.user.findUnique({ where: { id: userId } });
-    expect(user.lastOrgId).toBe(org.id);
+    expect(maps.user.get(userId).lastOrgId).toBe(org.id);
   });
 
   it('ensureMembership leaves existing memberships alone', async () => {
     const userId = await service.linkOrCreateUser(Provider.GOOGLE, profile());
-    await db.org.create({ data: { id: 'o1', slug: 'acme', name: 'Acme' } });
-    await db.member.create({
-      data: { orgId: 'o1', userId, role: 'MEMBER' },
-    });
+    maps.org.set('o1', { id: 'o1', slug: 'acme', name: 'Acme' });
+    maps.member.set('m1', { id: 'm1', orgId: 'o1', userId, role: 'MEMBER', teamId: null });
     await service.ensureMembership(userId);
-    const members = await db.member.findMany({ where: { userId } });
+    const members = [...maps.member.values()].filter((m) => m.userId === userId);
     expect(members).toHaveLength(1);
     expect(members[0].role).toBe('MEMBER');
   });

@@ -1,31 +1,41 @@
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { Role } from '@/generated/client';
-import { fakeDb } from '../../../test/fake-db';
-import { PrismaService } from '@/prisma/prisma.service';
-import { MemberRepo } from '@/auth/repo';
+import { makeFakeRepos } from '../../../test/fake-repos';
 import { MemberService } from './member.service';
 import type { UpdateMemberDto } from '@/auth/dto/update-member.dto';
 
 describe('MemberService', () => {
   let service: MemberService;
-  let db: any;
+  let maps: ReturnType<typeof makeFakeRepos>['maps'];
 
-  beforeEach(async () => {
-    db = fakeDb();
-    const members = new MemberRepo(db as PrismaService);
-    service = new MemberService(members);
-    await db.org.create({ data: { id: 'o1', slug: 'acme', name: 'Acme' } });
-    await db.user.create({ data: { id: 'u-owner', email: 'owner@x.dev' } });
-    await db.user.create({ data: { id: 'u-admin', email: 'admin@x.dev' } });
-    await db.user.create({ data: { id: 'u-member', email: 'member@x.dev' } });
-    await db.member.create({
-      data: { id: 'm-owner', orgId: 'o1', userId: 'u-owner', role: Role.OWNER },
+  beforeEach(() => {
+    const repos = makeFakeRepos();
+    maps = repos.maps;
+    service = new MemberService(repos.members);
+    maps.org.set('o1', { id: 'o1', slug: 'acme', name: 'Acme' });
+    maps.user.set('u-owner', { id: 'u-owner', email: 'owner@x.dev' });
+    maps.user.set('u-admin', { id: 'u-admin', email: 'admin@x.dev' });
+    maps.user.set('u-member', { id: 'u-member', email: 'member@x.dev' });
+    maps.member.set('m-owner', {
+      id: 'm-owner',
+      orgId: 'o1',
+      userId: 'u-owner',
+      role: Role.OWNER,
+      teamId: null,
     });
-    await db.member.create({
-      data: { id: 'm-admin', orgId: 'o1', userId: 'u-admin', role: Role.ADMIN },
+    maps.member.set('m-admin', {
+      id: 'm-admin',
+      orgId: 'o1',
+      userId: 'u-admin',
+      role: Role.ADMIN,
+      teamId: null,
     });
-    await db.member.create({
-      data: { id: 'm-member', orgId: 'o1', userId: 'u-member', role: Role.MEMBER },
+    maps.member.set('m-member', {
+      id: 'm-member',
+      orgId: 'o1',
+      userId: 'u-member',
+      role: Role.MEMBER,
+      teamId: null,
     });
   });
 
