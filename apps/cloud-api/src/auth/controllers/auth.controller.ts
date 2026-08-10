@@ -1,4 +1,15 @@
-import { Body, Controller, Get, HttpCode, Patch, Post, Req, Res, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Patch,
+  Post,
+  Req,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { Throttle } from '@nestjs/throttler';
 import { ConfigService } from '@nestjs/config';
@@ -28,6 +39,7 @@ import {
   VerifyEmailDto,
   UpdateProfileDto,
   ChangePasswordDto,
+  DeleteAccountDto,
 } from '@/auth/dto';
 
 const ACCESS_COOKIE_MAX_AGE = ACCESS_TOKEN_TTL_MINUTES * 60 * 1000;
@@ -94,6 +106,17 @@ export class AuthController {
   async changePassword(@Body() dto: ChangePasswordDto, @CurrentUser() user: AuthenticatedMember) {
     await this.auth.changePassword(user.userId, dto);
     return { ok: true };
+  }
+
+  @Delete('me')
+  async deleteAccount(
+    @Body() dto: DeleteAccountDto,
+    @CurrentUser() user: AuthenticatedMember,
+    @Res() res: Response,
+  ) {
+    await this.auth.deleteAccount(user.userId, dto);
+    this.clearAuthCookies(res);
+    res.status(204).end();
   }
 
   @Post('switch-org')

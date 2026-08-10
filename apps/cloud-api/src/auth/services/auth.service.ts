@@ -14,6 +14,7 @@ import type { RegisterDto } from '@/auth/dto/register.dto';
 import type { SwitchOrgDto } from '@/auth/dto/switch-org.dto';
 import type { UpdateProfileDto } from '@/auth/dto/update-profile.dto';
 import type { ChangePasswordDto } from '@/auth/dto/change-password.dto';
+import type { DeleteAccountDto } from '@/auth/dto/delete-account.dto';
 import { EmailTokenService } from './email-token.service';
 import { MailerService } from './mailer.service';
 import { OAuthService } from './oauth.service';
@@ -215,6 +216,36 @@ export class AuthService {
       where: { id: userId },
       data: { passwordHash: newPasswordHash },
     });
+  }
+
+  async deleteAccount(userId: string, dto: DeleteAccountDto): Promise<void> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: { memberships: { include: { org: true } } },
+    });
+    if (!user?.passwordHash) {
+      throw new UnauthorizedException('User not found');
+    }
+    const valid = await argon2.verify(user.passwordHash, dto.password);
+    if (!valid) {
+      throw new UnauthorizedException('Password is incorrect');
+    }
+
+    // Check if user is sole owner of any org
+    for (const membership of user.memberships) {
+      if (membership.role === 'OWNER') {
+        const ownerCount = await this.prisma.member.count({
+          where: { orgId: membership.orgId, role: 'OWNER' },
+        });
+        if (ownerCount === 1) {
+          throw new ConflictException(
+            `Cannot delete account: you are the sole owner of org "${membership.org.name}". Transfer ownership or delete the org first.`,
+          );
+        }
+      }
+    }
+
+    await this.prisma.user.delete({ where: { id: userId } });
   }
 
   /** Picks the active membership: last used org when it is still valid, else first. */

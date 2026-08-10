@@ -8,8 +8,10 @@ import {
   InvitesController,
   MembersController,
   OrgsController,
+  PreferencesController,
   SessionsController,
   TeamsController,
+  TwoFactorController,
 } from './controllers';
 import {
   ApiKeyService,
@@ -20,8 +22,10 @@ import {
   MemberService,
   OAuthService,
   OrgService,
+  PreferencesService,
   SessionService,
   TeamService,
+  TwoFactorService,
 } from './services';
 import { ApiKeyStrategy, GithubStrategy, GoogleStrategy, JwtStrategy } from './strategies';
 
@@ -70,8 +74,10 @@ function oauthStrategyProvider(
     InvitesController,
     MembersController,
     OrgsController,
+    PreferencesController,
     SessionsController,
     TeamsController,
+    TwoFactorController,
   ],
   providers: [
     AuthService,
@@ -82,8 +88,10 @@ function oauthStrategyProvider(
     MemberService,
     OAuthService,
     OrgService,
+    PreferencesService,
     SessionService,
     TeamService,
+    TwoFactorService,
     JwtStrategy,
     ApiKeyStrategy,
     oauthStrategyProvider(GoogleStrategy, 'google'),
@@ -97,8 +105,10 @@ function oauthStrategyProvider(
     InviteService,
     MemberService,
     OrgService,
+    PreferencesService,
     SessionService,
     TeamService,
+    TwoFactorService,
   ],
 })
 export class AuthModule {}

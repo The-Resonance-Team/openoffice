@@ -65,19 +65,29 @@ model Team {
 /// The person with access to Cloud: one identity per human, spanning every
 /// Org they belong to (cloud/CONTEXT.md → User). Not org-scoped.
 model User {
-  id              String          @id @default(cuid())
-  email           String          @unique
-  name            String?
-  passwordHash    String?
-  emailVerifiedAt DateTime?
-  lastOrgId       String?
-  memberships     Member[]
-  oauthAccounts   OAuthAccount[]
-  sessions        Session[]
-  apiKeys         ApiKey[]
-  emailTokens     EmailToken[]
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  id                   String          @id @default(cuid())
+  email                String          @unique
+  name                 String?
+  passwordHash         String?
+  emailVerifiedAt      DateTime?
+  lastOrgId            String?
+  // Preferences (Phase 8a-8c)
+  theme                String          @default("system")
+  inviteEmail          Boolean         @default(true)
+  passwordChangeEmail  Boolean         @default(true)
+  memberJoinEmail      Boolean         @default(true)
+  wantsUpdates         Boolean         @default(true)
+  // 2FA (Phase 8d)
+  totpSecret           String?
+  totpEnabledAt        DateTime?
+  recoveryCodes        String?
+  memberships          Member[]
+  oauthAccounts        OAuthAccount[]
+  sessions             Session[]
+  apiKeys              ApiKey[]
+  emailTokens          EmailToken[]
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
 }
 
 /// A User's position inside one Org (cloud/CONTEXT.md → Member).
