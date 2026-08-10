@@ -1,0 +1,39 @@
+# Dependencies
+node_modules
+**/node_modules
+
+# Build outputs
+**/dist
+**/.next
+**/build
+**/.turbo
+
+# Dev files
+**/.env
+**/.env.*
+**/test
+**/*.spec.ts
+**/*.test.ts
+**/coverage
+
+# Git
+.git
+.github
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Misc
+*.log
+*.md
+!README.md
+LICENSE
+.editorconfig
+.prettierrc*

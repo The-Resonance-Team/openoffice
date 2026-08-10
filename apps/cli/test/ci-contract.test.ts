@@ -27,6 +27,7 @@ const EXPECTED_TIMEOUTS: Record<string, Record<string, number>> = {
   'release.yml': { release: 10 },
   'opencode.yml': { review: 20, comment: 20 },
   'triage.yml': { triage: 5 },
+  'cd.yml': { 'build-push': 20, deploy: 15 },
 };
 
 function raw(file: string): string {

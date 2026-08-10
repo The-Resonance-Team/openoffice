@@ -1,4 +1,3 @@
-import { createInterface } from 'node:readline';
 import { basename } from 'node:path';
 import {
   connectClient,
@@ -18,8 +17,8 @@ import {
 const HELP = `openoffice ${VERSION} — an LLM agent CLI for office document work.
 
 Usage:
-  openoffice                Interactive chat (auto-spawns the daemon)
-  openoffice serve          Run the daemon in the foreground (auto-spawned on demand)
+  openoffice                Show quick start message (web UI guide)
+  openoffice serve          Run the daemon in the foreground
   openoffice update         Check GitHub Releases and update the installed binary
   openoffice auth login <provider>    Store an API key for a provider
   openoffice auth logout <provider>   Remove a stored credential
@@ -33,72 +32,6 @@ Usage:
 Configuration lives in openoffice.json (project) or the global config — see
 https://github.com/The-Resonance-Team/openoffice (docs/config.md).
 `;
-
-function askUser(question: string): Promise<string> {
-  return new Promise((resolve) => {
-    const rl = createInterface({
-      input: process.stdin,
-      output: process.stdout,
-    });
-    rl.question(`${question}\n> `, (answer) => {
-      rl.close();
-      resolve(answer);
-    });
-  });
-}
-
-async function mainClient() {
-  const client = await connectClient();
-  const session = await client.createSession(process.cwd());
-
-  const upd = await client.updateStatus().catch(() => null);
-  if (upd && upd.check !== false && upd.available) {
-  }
-
-  const rl = createInterface({
-    input: process.stdin,
-    output: process.stdout,
-    prompt: '> ',
-  });
-
-  let busy = false;
-
-  client.stream(session.id, {
-    token: (token) => process.stdout.write(token),
-    done: () => process.stdout.write('\n'),
-    ask: async (promptID, question) => {
-      const answer = await askUser(question);
-      await client.askAnswer(session.id, promptID, answer);
-    },
-  });
-
-  rl.prompt();
-
-  rl.on('line', async (line) => {
-    if (busy) return;
-
-    const input = line.trim();
-    if (!input) {
-      rl.prompt();
-      return;
-    }
-
-    busy = true;
-    try {
-      await client.turn(session.id, input);
-    } catch (err) {
-      console.error('Error:', err instanceof Error ? err.message : err);
-    } finally {
-      busy = false;
-    }
-    rl.prompt();
-  });
-
-  rl.on('close', async () => {
-    await client.endSession(session.id);
-    process.exit(0);
-  });
-}
 
 function isInstalledBinary(execPath: string): boolean {
   const name = basename(execPath);
@@ -219,7 +152,9 @@ async function main() {
       console.log(HELP);
       return;
     case undefined:
-      await mainClient();
+      console.log('Interactive chat moved to web UI.');
+      console.log('Run `openoffice serve` then open http://localhost:5201 in your browser.');
+      console.log('Or use `openoffice --help` for all commands.');
       return;
     case 'serve': {
       const _daemon = await startDaemon();
