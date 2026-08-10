@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   createSession,
   getSession,
@@ -44,6 +44,12 @@ function toChatMessages(session: SessionDto): ChatMessage[] {
 
 export function useSession() {
   const queryClient = useQueryClient();
+  const createSessionMutation = useMutation({
+    mutationFn: (cwd?: string) => createSession(cwd),
+  });
+  const postTurnMutation = useMutation({
+    mutationFn: ({ id, message }: { id: string; message: string }) => postTurn(id, message),
+  });
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [streaming, setStreaming] = useState('');
@@ -51,10 +57,25 @@ export function useSession() {
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
-  const load = useCallback(async (id: string) => {
-    const session = await getSession(id);
-    setMessages(toChatMessages(session));
-  }, []);
+  // The useMutation result object is re-created on every status transition
+  // (idle→pending→success), so referencing it directly in the init effect
+  // deps would re-run the effect and create duplicate sessions. The ref is
+  // refreshed in an effect that runs before the init effect below.
+  const createSessionRef = useRef(createSessionMutation);
+  useEffect(() => {
+    createSessionRef.current = createSessionMutation;
+  });
+
+  const load = useCallback(
+    async (id: string) => {
+      const session = await queryClient.fetchQuery({
+        queryKey: ['session', id],
+        queryFn: () => getSession(id),
+      });
+      setMessages(toChatMessages(session));
+    },
+    [queryClient],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -70,7 +91,7 @@ export function useSession() {
           // through to creating a fresh one.
         }
       }
-      const session = await createSession();
+      const session = await createSessionRef.current.mutateAsync(undefined);
       window.localStorage.setItem(ACTIVE_SESSION_KEY, session.id);
       queryClient.invalidateQueries({ queryKey: ['sessions'] });
       if (!cancelled) {
@@ -97,7 +118,7 @@ export function useSession() {
 
   const startSession = useCallback(async () => {
     abortRef.current?.abort();
-    const session = await createSession();
+    const session = await createSessionRef.current.mutateAsync(undefined);
     window.localStorage.setItem(ACTIVE_SESSION_KEY, session.id);
     setMessages([]);
     setStreaming('');
@@ -132,7 +153,7 @@ export function useSession() {
     ).catch(() => undefined);
 
     try {
-      const { text } = await postTurn(sessionId, message);
+      const { text } = await postTurnMutation.mutateAsync({ id: sessionId, message });
       setMessages((m) => [...m, { role: 'assistant', content: text }]);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'turn failed');

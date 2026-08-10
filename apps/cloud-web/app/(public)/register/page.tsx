@@ -1,32 +1,43 @@
 'use client';
 
-import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { register, oauthConnectUrl } from '@/lib/api';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { oauthConnectUrl, registerSchema, useRegister, type RegisterForm } from '@/lib';
+
+const inputStyle: React.CSSProperties = {
+  width: '100%',
+  padding: '10px 12px',
+  border: '1px solid var(--border)',
+  borderRadius: 6,
+  fontSize: 14,
+  background: 'var(--bg)',
+  color: 'var(--fg)',
+};
+
+const errorStyle: React.CSSProperties = { color: '#ef4444', fontSize: 13, marginTop: 6 };
 
 export default function RegisterPage() {
   const router = useRouter();
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [orgName, setOrgName] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const registerMutation = useRegister();
+  const {
+    register,
+    handleSubmit,
+    setError,
+    formState: { errors },
+  } = useForm<RegisterForm>({ resolver: zodResolver(registerSchema) });
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
-    try {
-      await register(email, password, orgName, name || undefined);
-      router.push('/app');
-    } catch {
-      setError('Registration failed. Email may already be in use.');
-    } finally {
-      setLoading(false);
-    }
-  }
+  const onSubmit = handleSubmit((data) => {
+    registerMutation.mutate(data, {
+      onSuccess: () => router.push('/app'),
+      onError: () =>
+        setError('root', {
+          type: 'manual',
+          message: 'Registration failed. Email may already be in use.',
+        }),
+    });
+  });
 
   return (
     <main
@@ -43,100 +54,47 @@ export default function RegisterPage() {
         <h1 style={{ fontSize: 32, fontWeight: 700, marginBottom: 8 }}>Create an account</h1>
         <p style={{ color: 'var(--faint)', marginBottom: 32 }}>Get started with openoffice Cloud</p>
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <form onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div>
             <label htmlFor="name" style={{ display: 'block', fontSize: 14, marginBottom: 6 }}>
               Name (optional)
             </label>
-            <input
-              id="name"
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '10px 12px',
-                border: '1px solid var(--border)',
-                borderRadius: 6,
-                fontSize: 14,
-                background: 'var(--bg)',
-                color: 'var(--fg)',
-              }}
-            />
+            <input id="name" type="text" {...register('name')} style={inputStyle} />
           </div>
 
           <div>
             <label htmlFor="email" style={{ display: 'block', fontSize: 14, marginBottom: 6 }}>
               Email
             </label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              style={{
-                width: '100%',
-                padding: '10px 12px',
-                border: '1px solid var(--border)',
-                borderRadius: 6,
-                fontSize: 14,
-                background: 'var(--bg)',
-                color: 'var(--fg)',
-              }}
-            />
+            <input id="email" type="email" {...register('email')} style={inputStyle} />
+            {errors.email && <div style={errorStyle}>{errors.email.message}</div>}
           </div>
 
           <div>
             <label htmlFor="password" style={{ display: 'block', fontSize: 14, marginBottom: 6 }}>
               Password
             </label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={8}
-              style={{
-                width: '100%',
-                padding: '10px 12px',
-                border: '1px solid var(--border)',
-                borderRadius: 6,
-                fontSize: 14,
-                background: 'var(--bg)',
-                color: 'var(--fg)',
-              }}
-            />
+            <input id="password" type="password" {...register('password')} style={inputStyle} />
+            {errors.password && <div style={errorStyle}>{errors.password.message}</div>}
           </div>
 
           <div>
             <label htmlFor="orgName" style={{ display: 'block', fontSize: 14, marginBottom: 6 }}>
               Organization name
             </label>
-            <input
-              id="orgName"
-              type="text"
-              value={orgName}
-              onChange={(e) => setOrgName(e.target.value)}
-              required
-              style={{
-                width: '100%',
-                padding: '10px 12px',
-                border: '1px solid var(--border)',
-                borderRadius: 6,
-                fontSize: 14,
-                background: 'var(--bg)',
-                color: 'var(--fg)',
-              }}
-            />
+            <input id="orgName" type="text" {...register('orgName')} style={inputStyle} />
+            {errors.orgName && <div style={errorStyle}>{errors.orgName.message}</div>}
           </div>
 
-          {error && <div style={{ color: '#ef4444', fontSize: 14, padding: '8px 0' }}>{error}</div>}
+          {errors.root && (
+            <div style={{ color: '#ef4444', fontSize: 14, padding: '8px 0' }}>
+              {errors.root.message}
+            </div>
+          )}
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={registerMutation.isPending}
             style={{
               width: '100%',
               padding: '12px',
@@ -146,11 +104,11 @@ export default function RegisterPage() {
               fontWeight: 600,
               background: 'var(--btn)',
               color: 'var(--btn-fg)',
-              cursor: loading ? 'not-allowed' : 'pointer',
-              opacity: loading ? 0.6 : 1,
+              cursor: registerMutation.isPending ? 'not-allowed' : 'pointer',
+              opacity: registerMutation.isPending ? 0.6 : 1,
             }}
           >
-            {loading ? 'Creating account...' : 'Create account'}
+            {registerMutation.isPending ? 'Creating account...' : 'Create account'}
           </button>
         </form>
 

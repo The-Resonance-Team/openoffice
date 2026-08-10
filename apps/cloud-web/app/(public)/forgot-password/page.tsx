@@ -2,27 +2,42 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { forgotPassword } from '@/lib/api';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { forgotPasswordSchema, useForgotPassword, type ForgotPasswordForm } from '@/lib';
+
+const inputStyle: React.CSSProperties = {
+  width: '100%',
+  padding: '10px 12px',
+  border: '1px solid var(--border)',
+  borderRadius: 6,
+  fontSize: 14,
+  background: 'var(--bg)',
+  color: 'var(--fg)',
+};
+
+const errorStyle: React.CSSProperties = { color: '#ef4444', fontSize: 13, marginTop: 6 };
 
 export default function ForgotPasswordPage() {
-  const [email, setEmail] = useState('');
   const [sent, setSent] = useState(false);
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const forgotPasswordMutation = useForgotPassword();
+  const {
+    register,
+    handleSubmit,
+    setError,
+    formState: { errors },
+  } = useForm<ForgotPasswordForm>({ resolver: zodResolver(forgotPasswordSchema) });
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
-    try {
-      await forgotPassword(email);
-      setSent(true);
-    } catch {
-      setError('Failed to send reset email. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  }
+  const onSubmit = handleSubmit((data) => {
+    forgotPasswordMutation.mutate(data, {
+      onSuccess: () => setSent(true),
+      onError: () =>
+        setError('root', {
+          type: 'manual',
+          message: 'Failed to send reset email. Please try again.',
+        }),
+    });
+  });
 
   return (
     <main
@@ -44,46 +59,32 @@ export default function ForgotPasswordPage() {
         {sent ? (
           <div style={{ padding: '16px', background: 'var(--card)', borderRadius: 6 }}>
             <p style={{ fontSize: 14, marginBottom: 12 }}>
-              If an account exists for <strong>{email}</strong>, we&apos;ve sent a reset link.
+              If an account exists for <strong>{forgotPasswordMutation.variables?.email}</strong>,
+              we&apos;ve sent a reset link.
             </p>
             <p style={{ fontSize: 14, color: 'var(--faint)' }}>
               Check your email and follow the instructions to reset your password.
             </p>
           </div>
         ) : (
-          <form
-            onSubmit={handleSubmit}
-            style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
-          >
+          <form onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div>
               <label htmlFor="email" style={{ display: 'block', fontSize: 14, marginBottom: 6 }}>
                 Email
               </label>
-              <input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                style={{
-                  width: '100%',
-                  padding: '10px 12px',
-                  border: '1px solid var(--border)',
-                  borderRadius: 6,
-                  fontSize: 14,
-                  background: 'var(--bg)',
-                  color: 'var(--fg)',
-                }}
-              />
+              <input id="email" type="email" {...register('email')} style={inputStyle} />
+              {errors.email && <div style={errorStyle}>{errors.email.message}</div>}
             </div>
 
-            {error && (
-              <div style={{ color: '#ef4444', fontSize: 14, padding: '8px 0' }}>{error}</div>
+            {errors.root && (
+              <div style={{ color: '#ef4444', fontSize: 14, padding: '8px 0' }}>
+                {errors.root.message}
+              </div>
             )}
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={forgotPasswordMutation.isPending}
               style={{
                 width: '100%',
                 padding: '12px',
@@ -93,11 +94,11 @@ export default function ForgotPasswordPage() {
                 fontWeight: 600,
                 background: 'var(--btn)',
                 color: 'var(--btn-fg)',
-                cursor: loading ? 'not-allowed' : 'pointer',
-                opacity: loading ? 0.6 : 1,
+                cursor: forgotPasswordMutation.isPending ? 'not-allowed' : 'pointer',
+                opacity: forgotPasswordMutation.isPending ? 0.6 : 1,
               }}
             >
-              {loading ? 'Sending...' : 'Send reset link'}
+              {forgotPasswordMutation.isPending ? 'Sending...' : 'Send reset link'}
             </button>
           </form>
         )}

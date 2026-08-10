@@ -1,43 +1,52 @@
 'use client';
 
-import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { resetPassword } from '@/lib/api';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { resetPasswordSchema, useResetPassword, type ResetPasswordForm } from '@/lib';
+
+const inputStyle: React.CSSProperties = {
+  width: '100%',
+  padding: '10px 12px',
+  border: '1px solid var(--border)',
+  borderRadius: 6,
+  fontSize: 14,
+  background: 'var(--bg)',
+  color: 'var(--fg)',
+};
+
+const errorStyle: React.CSSProperties = { color: '#ef4444', fontSize: 13, marginTop: 6 };
 
 export default function ResetPasswordPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get('token') || '';
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const resetPasswordMutation = useResetPassword();
+  const {
+    register,
+    handleSubmit,
+    setError,
+    formState: { errors },
+  } = useForm<ResetPasswordForm>({ resolver: zodResolver(resetPasswordSchema) });
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError('');
-
-    if (password !== confirmPassword) {
-      setError('Passwords do not match');
-      return;
-    }
-
+  const onSubmit = handleSubmit((data) => {
     if (!token) {
-      setError('Invalid reset link');
+      setError('root', { type: 'manual', message: 'Invalid reset link' });
       return;
     }
-
-    setLoading(true);
-    try {
-      await resetPassword(token, password);
-      router.push('/login?reset=success');
-    } catch {
-      setError('Failed to reset password. Link may be expired.');
-    } finally {
-      setLoading(false);
-    }
-  }
+    resetPasswordMutation.mutate(
+      { ...data, token },
+      {
+        onSuccess: () => router.push('/login?reset=success'),
+        onError: () =>
+          setError('root', {
+            type: 'manual',
+            message: 'Failed to reset password. Link may be expired.',
+          }),
+      },
+    );
+  });
 
   return (
     <main
@@ -54,28 +63,13 @@ export default function ResetPasswordPage() {
         <h1 style={{ fontSize: 32, fontWeight: 700, marginBottom: 8 }}>Set new password</h1>
         <p style={{ color: 'var(--faint)', marginBottom: 32 }}>Enter your new password below</p>
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <form onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div>
             <label htmlFor="password" style={{ display: 'block', fontSize: 14, marginBottom: 6 }}>
               New password
             </label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={8}
-              style={{
-                width: '100%',
-                padding: '10px 12px',
-                border: '1px solid var(--border)',
-                borderRadius: 6,
-                fontSize: 14,
-                background: 'var(--bg)',
-                color: 'var(--fg)',
-              }}
-            />
+            <input id="password" type="password" {...register('password')} style={inputStyle} />
+            {errors.password && <div style={errorStyle}>{errors.password.message}</div>}
           </div>
 
           <div>
@@ -88,27 +82,23 @@ export default function ResetPasswordPage() {
             <input
               id="confirmPassword"
               type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              required
-              minLength={8}
-              style={{
-                width: '100%',
-                padding: '10px 12px',
-                border: '1px solid var(--border)',
-                borderRadius: 6,
-                fontSize: 14,
-                background: 'var(--bg)',
-                color: 'var(--fg)',
-              }}
+              {...register('confirmPassword')}
+              style={inputStyle}
             />
+            {errors.confirmPassword && (
+              <div style={errorStyle}>{errors.confirmPassword.message}</div>
+            )}
           </div>
 
-          {error && <div style={{ color: '#ef4444', fontSize: 14, padding: '8px 0' }}>{error}</div>}
+          {errors.root && (
+            <div style={{ color: '#ef4444', fontSize: 14, padding: '8px 0' }}>
+              {errors.root.message}
+            </div>
+          )}
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={resetPasswordMutation.isPending}
             style={{
               width: '100%',
               padding: '12px',
@@ -118,11 +108,11 @@ export default function ResetPasswordPage() {
               fontWeight: 600,
               background: 'var(--btn)',
               color: 'var(--btn-fg)',
-              cursor: loading ? 'not-allowed' : 'pointer',
-              opacity: loading ? 0.6 : 1,
+              cursor: resetPasswordMutation.isPending ? 'not-allowed' : 'pointer',
+              opacity: resetPasswordMutation.isPending ? 0.6 : 1,
             }}
           >
-            {loading ? 'Resetting...' : 'Reset password'}
+            {resetPasswordMutation.isPending ? 'Resetting...' : 'Reset password'}
           </button>
         </form>
 

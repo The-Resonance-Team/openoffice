@@ -3,6 +3,7 @@ export * from './mock';
 export * from './use-session';
 export * from './use-ai-chat';
 export * from './api';
+export * from './form-schemas';
 export * from './mock-chat';
 export * from './icons';
 export * from './query-provider';

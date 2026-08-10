@@ -1,30 +1,39 @@
 'use client';
 
-import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { login, oauthConnectUrl } from '@/lib/api';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { loginSchema, oauthConnectUrl, useLogin, type LoginForm } from '@/lib';
+
+const inputStyle: React.CSSProperties = {
+  width: '100%',
+  padding: '10px 12px',
+  border: '1px solid var(--border)',
+  borderRadius: 6,
+  fontSize: 14,
+  background: 'var(--bg)',
+  color: 'var(--fg)',
+};
+
+const errorStyle: React.CSSProperties = { color: '#ef4444', fontSize: 13, marginTop: 6 };
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const loginMutation = useLogin();
+  const {
+    register,
+    handleSubmit,
+    setError,
+    formState: { errors },
+  } = useForm<LoginForm>({ resolver: zodResolver(loginSchema) });
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
-    try {
-      await login(email, password);
-      router.push('/app');
-    } catch {
-      setError('Invalid email or password');
-    } finally {
-      setLoading(false);
-    }
-  }
+  const onSubmit = handleSubmit((data) => {
+    loginMutation.mutate(data, {
+      onSuccess: () => router.push('/app'),
+      onError: () => setError('root', { type: 'manual', message: 'Invalid email or password' }),
+    });
+  });
 
   return (
     <main
@@ -41,57 +50,32 @@ export default function LoginPage() {
         <h1 style={{ fontSize: 32, fontWeight: 700, marginBottom: 8 }}>Sign in</h1>
         <p style={{ color: 'var(--faint)', marginBottom: 32 }}>Welcome back to openoffice Cloud</p>
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <form onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div>
             <label htmlFor="email" style={{ display: 'block', fontSize: 14, marginBottom: 6 }}>
               Email
             </label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              style={{
-                width: '100%',
-                padding: '10px 12px',
-                border: '1px solid var(--border)',
-                borderRadius: 6,
-                fontSize: 14,
-                background: 'var(--bg)',
-                color: 'var(--fg)',
-              }}
-            />
+            <input id="email" type="email" {...register('email')} style={inputStyle} />
+            {errors.email && <div style={errorStyle}>{errors.email.message}</div>}
           </div>
 
           <div>
             <label htmlFor="password" style={{ display: 'block', fontSize: 14, marginBottom: 6 }}>
               Password
             </label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={8}
-              style={{
-                width: '100%',
-                padding: '10px 12px',
-                border: '1px solid var(--border)',
-                borderRadius: 6,
-                fontSize: 14,
-                background: 'var(--bg)',
-                color: 'var(--fg)',
-              }}
-            />
+            <input id="password" type="password" {...register('password')} style={inputStyle} />
+            {errors.password && <div style={errorStyle}>{errors.password.message}</div>}
           </div>
 
-          {error && <div style={{ color: '#ef4444', fontSize: 14, padding: '8px 0' }}>{error}</div>}
+          {errors.root && (
+            <div style={{ color: '#ef4444', fontSize: 14, padding: '8px 0' }}>
+              {errors.root.message}
+            </div>
+          )}
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loginMutation.isPending}
             style={{
               width: '100%',
               padding: '12px',
@@ -101,11 +85,11 @@ export default function LoginPage() {
               fontWeight: 600,
               background: 'var(--btn)',
               color: 'var(--btn-fg)',
-              cursor: loading ? 'not-allowed' : 'pointer',
-              opacity: loading ? 0.6 : 1,
+              cursor: loginMutation.isPending ? 'not-allowed' : 'pointer',
+              opacity: loginMutation.isPending ? 0.6 : 1,
             }}
           >
-            {loading ? 'Signing in...' : 'Sign in'}
+            {loginMutation.isPending ? 'Signing in...' : 'Sign in'}
           </button>
         </form>
 

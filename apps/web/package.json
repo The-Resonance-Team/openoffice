@@ -11,12 +11,15 @@
   },
   "dependencies": {
     "@ai-sdk/react": "^4.0.61",
+    "@hookform/resolvers": "^5.7.1",
     "@tanstack/react-query": "^5.101.4",
     "ai": "^7.0.44",
     "axios": "^1.19.0",
     "next": "16.3.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",
+    "react-hook-form": "^7.85.0",
+    "zod": "^4.4.3",
     "zustand": "^5.0.14"
   },
   "devDependencies": {

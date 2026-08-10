@@ -1,28 +1,38 @@
 'use client';
 
-import { useState } from 'react';
-import { loadAuth, saveAuth, Icon } from '@/lib';
-
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { daemonCredentialsSchema, loadAuth, saveAuth, Icon, type DaemonCredentials } from '@/lib';
 export function LoginDialog({ onClose }: { onClose: () => void }) {
   const existing = loadAuth();
-  const [username, setUsername] = useState(existing?.username ?? '');
-  const [password, setPassword] = useState(existing?.password ?? '');
+  const queryClient = useQueryClient();
+  const { register, handleSubmit } = useForm<DaemonCredentials>({
+    resolver: zodResolver(daemonCredentialsSchema),
+    defaultValues: { username: existing?.username ?? '', password: existing?.password ?? '' },
+  });
 
-  function submit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!username && !password) {
-      saveAuth(null);
-    } else {
-      saveAuth({ username, password });
-    }
-    onClose();
-  }
+  // Credentials live in sessionStorage — the axios interceptor reads them per
+  // request, so the mutation only writes storage and invalidates cached
+  // daemon data that may have changed under the new credentials.
+  const saveMutation = useMutation({
+    mutationFn: async (v: DaemonCredentials) => {
+      if (!v.username && !v.password) {
+        saveAuth(null);
+      } else {
+        saveAuth({ username: v.username, password: v.password });
+      }
+    },
+    onSuccess: () => queryClient.invalidateQueries(),
+  });
+
+  const onSubmit = handleSubmit((v) => saveMutation.mutate(v, { onSuccess: onClose }));
 
   return (
     <div className="fixed inset-0 z-[60] grid place-items-center bg-black/55 p-6" onClick={onClose}>
       <form
         onClick={(e) => e.stopPropagation()}
-        onSubmit={submit}
+        onSubmit={onSubmit}
         className="w-[380px] max-w-full rounded-[20px] border border-line2 bg-panel shadow-2xl"
       >
         <div className="flex items-start gap-3 border-b border-line px-5 py-4">
@@ -45,8 +55,7 @@ export function LoginDialog({ onClose }: { onClose: () => void }) {
           <label className="flex flex-col gap-1 text-[13px] text-muted">
             Username
             <input
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              {...register('username')}
               className="rounded-lg border border-line2 bg-panel2 px-3 py-2 text-[14px] text-ink outline-none"
               autoComplete="username"
             />
@@ -55,8 +64,7 @@ export function LoginDialog({ onClose }: { onClose: () => void }) {
             Password
             <input
               type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              {...register('password')}
               className="rounded-lg border border-line2 bg-panel2 px-3 py-2 text-[14px] text-ink outline-none"
               autoComplete="current-password"
             />

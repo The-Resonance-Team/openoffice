@@ -1,7 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { createInvite, type MemberProfile, type Role, initials } from '@/lib';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { inviteSchema, useInvite, type InviteForm, type MemberProfile, initials } from '@/lib';
 import { FieldLabel, Modal, ModalActions, textInputStyle } from './Modal';
 import { ComingSoon } from './ComingSoon';
 import { useToast } from './ToastProvider';
@@ -16,18 +18,29 @@ const card: React.CSSProperties = {
 export function OrgView({ profile }: { profile: MemberProfile }) {
   const { org } = profile;
   const [inviteOpen, setInviteOpen] = useState(false);
-  const [email, setEmail] = useState('');
-  const [role, setRole] = useState<Role>('MEMBER');
   const showToast = useToast();
+  const inviteMutation = useInvite();
+  const {
+    register,
+    handleSubmit,
+    reset,
+    setError,
+    formState: { errors },
+  } = useForm<InviteForm>({
+    resolver: zodResolver(inviteSchema),
+    defaultValues: { email: '', role: 'MEMBER' },
+  });
 
-  async function submitInvite() {
-    if (!email) return;
-    await createInvite(email, role);
-    showToast(`Invite sent to ${email}`);
-    setInviteOpen(false);
-    setEmail('');
-    setRole('MEMBER');
-  }
+  const submitInvite = handleSubmit((data) => {
+    inviteMutation.mutate(data, {
+      onSuccess: () => {
+        showToast(`Invite sent to ${data.email}`);
+        setInviteOpen(false);
+        reset();
+      },
+      onError: () => setError('root', { type: 'manual', message: 'Failed to send invite.' }),
+    });
+  });
 
   return (
     <div
@@ -192,31 +205,38 @@ export function OrgView({ profile }: { profile: MemberProfile }) {
           <FieldLabel htmlFor="invite-email">Email</FieldLabel>
           <input
             id="invite-email"
-            name="invite-email"
             type="email"
             autoComplete="off"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
             placeholder="teammate@company.com"
-            style={{ ...textInputStyle, marginBottom: 14 }}
+            {...register('email')}
+            style={{ ...textInputStyle, marginBottom: errors.email ? 4 : 14 }}
           />
+          {errors.email && (
+            <div style={{ color: '#ef4444', fontSize: 12.5, marginBottom: 14, marginTop: 2 }}>
+              {errors.email.message}
+            </div>
+          )}
           <FieldLabel htmlFor="invite-role">Role</FieldLabel>
           <select
             id="invite-role"
-            name="invite-role"
             aria-label="Role"
-            value={role}
-            onChange={(e) => setRole(e.target.value as Role)}
+            {...register('role')}
             style={{ ...textInputStyle, cursor: 'pointer' }}
           >
             <option value="ADMIN">Admin</option>
             <option value="TEAM_LEADER">Team Leader</option>
             <option value="MEMBER">Member</option>
           </select>
+          {errors.root && (
+            <div style={{ color: '#ef4444', fontSize: 12.5, marginTop: 12 }}>
+              {errors.root.message}
+            </div>
+          )}
           <ModalActions
             onCancel={() => setInviteOpen(false)}
             cta="Send invite"
             onSubmit={submitInvite}
+            disabled={inviteMutation.isPending}
           />
         </Modal>
       )}

@@ -2,6 +2,8 @@
 // between apps/cloud-api and apps/cloud-web (same tradeoff apps/web makes
 // against the daemon, see apps/web/lib/api.ts). Drift is an accepted cost.
 
+import { api, apiBase, ApiError } from './client';
+
 export type Role = 'OWNER' | 'ADMIN' | 'TEAM_LEADER' | 'MEMBER';
 
 export interface MemberProfile {
@@ -23,65 +25,36 @@ export function canManageOrg(role: Role): boolean {
   return role === 'OWNER' || role === 'ADMIN';
 }
 
-function apiBase(): string {
-  return process.env.NEXT_PUBLIC_CLOUD_API_URL ?? 'http://localhost:5201';
-}
-
-class ApiError extends Error {
-  constructor(
-    public status: number,
-    message: string,
-  ) {
-    super(message);
-  }
-}
-
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${apiBase()}/v1${path}`, {
-    ...init,
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json', ...init?.headers },
-  });
-  if (!res.ok) {
-    throw new ApiError(res.status, `${init?.method ?? 'GET'} ${path} → ${res.status}`);
-  }
-  if (res.status === 204) return undefined as T;
-  return res.json() as Promise<T>;
-}
-
 export function isUnauthorized(err: unknown): boolean {
   return err instanceof ApiError && err.status === 401;
 }
 
 export function getMe(): Promise<{ profile: MemberProfile }> {
-  return request('/auth/me');
+  return api.get<{ profile: MemberProfile }>('/auth/me').then((r) => r.data);
 }
 
 export function logout(): Promise<void> {
-  return request('/auth/logout', { method: 'POST' });
+  return api.post('/auth/logout').then(() => undefined);
 }
 
 export function resendVerification(email: string): Promise<{ ok: boolean }> {
-  return request('/auth/resend-verification', {
-    method: 'POST',
-    body: JSON.stringify({ email }),
-  });
+  return api.post<{ ok: boolean }>('/auth/resend-verification', { email }).then((r) => r.data);
 }
 
 export function listApiKeys(): Promise<{ keys: DaemonApiKey[] }> {
-  return request('/api-keys');
+  return api.get<{ keys: DaemonApiKey[] }>('/api-keys').then((r) => r.data);
 }
 
 export function createApiKey(name: string): Promise<{ key: string; orgId: string }> {
-  return request('/api-keys', { method: 'POST', body: JSON.stringify({ name }) });
+  return api.post<{ key: string; orgId: string }>('/api-keys', { name }).then((r) => r.data);
 }
 
 export function revokeApiKey(id: string): Promise<{ ok: boolean }> {
-  return request(`/api-keys/${id}`, { method: 'DELETE' });
+  return api.delete<{ ok: boolean }>(`/api-keys/${id}`).then((r) => r.data);
 }
 
 export function createInvite(email: string, role: Role): Promise<{ ok: boolean }> {
-  return request('/invites', { method: 'POST', body: JSON.stringify({ email, role }) });
+  return api.post<{ ok: boolean }>('/invites', { email, role }).then((r) => r.data);
 }
 
 export function oauthConnectUrl(provider: 'google' | 'github'): string {
@@ -89,7 +62,9 @@ export function oauthConnectUrl(provider: 'google' | 'github'): string {
 }
 
 export function login(email: string, password: string): Promise<{ profile: MemberProfile }> {
-  return request('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
+  return api
+    .post<{ profile: MemberProfile }>('/auth/login', { email, password })
+    .then((r) => r.data);
 }
 
 export function register(
@@ -98,23 +73,19 @@ export function register(
   orgName: string,
   name?: string,
 ): Promise<{ profile: MemberProfile }> {
-  return request('/auth/register', {
-    method: 'POST',
-    body: JSON.stringify({ email, password, orgName, name }),
-  });
+  return api
+    .post<{ profile: MemberProfile }>('/auth/register', { email, password, orgName, name })
+    .then((r) => r.data);
 }
 
 export function forgotPassword(email: string): Promise<{ ok: boolean }> {
-  return request('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) });
+  return api.post<{ ok: boolean }>('/auth/forgot-password', { email }).then((r) => r.data);
 }
 
 export function resetPassword(token: string, password: string): Promise<{ ok: boolean }> {
-  return request('/auth/reset-password', {
-    method: 'POST',
-    body: JSON.stringify({ token, password }),
-  });
+  return api.post<{ ok: boolean }>('/auth/reset-password', { token, password }).then((r) => r.data);
 }
 
 export function verifyEmail(token: string): Promise<{ ok: boolean }> {
-  return request('/auth/verify-email', { method: 'POST', body: JSON.stringify({ token }) });
+  return api.post<{ ok: boolean }>('/auth/verify-email', { token }).then((r) => r.data);
 }
