@@ -1,26 +1,35 @@
-import type { Metadata } from 'next'
-import { notFound } from 'next/navigation'
-import { DOCS, findDoc } from '@/lib'
-import { DocsShell } from '@/components'
+import type { Metadata } from 'next';
+import { notFound } from 'next/navigation';
+import { getAllDocs, getDoc } from '@/lib/docs-loader';
+import { DocsLayout } from '@/components/DocsLayout';
+import { MdxDoc } from '@/components/MdxDoc';
 
 export function generateStaticParams() {
-  return DOCS.filter((d) => d.id !== 'docs' && d.id !== 'changelog').map((d) => ({ slug: [d.id] }))
+  const docs = getAllDocs();
+  return docs.map((d) => ({ slug: [d.id] }));
 }
 
-type Props = { params: Promise<{ slug?: string[] }> }
+type Props = { params: Promise<{ slug?: string[] }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { slug } = await params
-  const doc = findDoc(slug?.[0] ?? 'docs')
-  if (!doc) return {}
-  return { title: `${doc.title} — openoffice docs`, description: doc.lede }
+  const { slug } = await params;
+  const id = slug?.[0] ?? 'introduction';
+  const doc = getDoc(id);
+  if (!doc) return {};
+  return { title: `${doc.title} — openoffice docs`, description: doc.lede };
 }
 
 export default async function DocPage({ params }: Props) {
-  const { slug } = await params
-  const id = slug?.[0] ?? 'docs'
-  if (id === 'changelog') notFound()
-  const doc = findDoc(id)
-  if (!doc) notFound()
-  return <DocsShell key={doc.id} doc={doc} />
+  const { slug } = await params;
+  const id = slug?.[0] ?? 'introduction';
+  const doc = getDoc(id);
+  if (!doc) notFound();
+
+  const allDocs = getAllDocs();
+
+  return (
+    <DocsLayout docs={allDocs} currentDoc={doc}>
+      <MdxDoc source={doc.content} />
+    </DocsLayout>
+  );
 }
