@@ -1,7 +1,9 @@
 export * from './accept-invite.dto';
+export * from './assign-team-member.dto';
 export * from './change-password.dto';
 export * from './create-api-key.dto';
 export * from './create-invite.dto';
+export * from './create-team.dto';
 export * from './forgot-password.dto';
 export * from './login.dto';
 export * from './register.dto';
@@ -9,5 +11,7 @@ export * from './resend-verification.dto';
 export * from './reset-password.dto';
 export * from './switch-org.dto';
 export * from './update-member.dto';
+export * from './update-org.dto';
 export * from './update-profile.dto';
+export * from './update-team.dto';
 export * from './verify-email.dto';

@@ -7,7 +7,9 @@ import {
   AuthController,
   InvitesController,
   MembersController,
+  OrgsController,
   SessionsController,
+  TeamsController,
 } from './controllers';
 import {
   ApiKeyService,
@@ -17,7 +19,9 @@ import {
   MailerService,
   MemberService,
   OAuthService,
+  OrgService,
   SessionService,
+  TeamService,
 } from './services';
 import { ApiKeyStrategy, GithubStrategy, GoogleStrategy, JwtStrategy } from './strategies';
 
@@ -65,7 +69,9 @@ function oauthStrategyProvider(
     ApiKeysController,
     InvitesController,
     MembersController,
+    OrgsController,
     SessionsController,
+    TeamsController,
   ],
   providers: [
     AuthService,
@@ -75,7 +81,9 @@ function oauthStrategyProvider(
     MailerService,
     MemberService,
     OAuthService,
+    OrgService,
     SessionService,
+    TeamService,
     JwtStrategy,
     ApiKeyStrategy,
     oauthStrategyProvider(GoogleStrategy, 'google'),
@@ -88,7 +96,9 @@ function oauthStrategyProvider(
     OAuthService,
     InviteService,
     MemberService,
+    OrgService,
     SessionService,
+    TeamService,
   ],
 })
 export class AuthModule {}

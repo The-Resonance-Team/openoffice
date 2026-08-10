@@ -10,6 +10,8 @@ export * from './mailer.type';
 export * from './member.service';
 export * from './oauth.service';
 export * from './oauth.type';
+export * from './org.service';
 export * from './session.service';
+export * from './team.service';
 export * from './tokens';
 export * from './unique-org-slug';
