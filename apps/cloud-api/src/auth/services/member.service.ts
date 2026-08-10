@@ -1,6 +1,6 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Role } from '@/generated/client';
-import { PrismaService } from '@/prisma/prisma.service';
+import { MemberRepo } from '@/auth/repo';
 import type { UpdateMemberDto } from '@/auth/dto/update-member.dto';
 
 const ROLE_RANK: Record<Role, number> = {
@@ -12,19 +12,16 @@ const ROLE_RANK: Record<Role, number> = {
 
 @Injectable()
 export class MemberService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly members: MemberRepo) {}
 
   async list(orgId: string) {
-    return this.prisma.member.findMany({
-      where: { orgId },
-      include: { user: true, team: true },
-    });
+    return this.members.listByOrg(orgId);
   }
 
   async update(orgId: string, targetMemberId: string, actorMemberId: string, dto: UpdateMemberDto) {
     const [actor, target] = await Promise.all([
-      this.prisma.member.findUnique({ where: { id: actorMemberId } }),
-      this.prisma.member.findUnique({ where: { id: targetMemberId } }),
+      this.members.findById(actorMemberId),
+      this.members.findById(targetMemberId),
     ]);
     if (!actor || !target) throw new NotFoundException('Member not found');
     if (actor.orgId !== orgId || target.orgId !== orgId)
@@ -36,17 +33,13 @@ export class MemberService {
       throw new ForbiddenException('Cannot change Owner role');
     }
 
-    return this.prisma.member.update({
-      where: { id: targetMemberId },
-      data: { role: dto.role },
-      include: { user: true, team: true },
-    });
+    return this.members.update(targetMemberId, { role: dto.role });
   }
 
   async remove(orgId: string, targetMemberId: string, actorMemberId: string) {
     const [actor, target] = await Promise.all([
-      this.prisma.member.findUnique({ where: { id: actorMemberId } }),
-      this.prisma.member.findUnique({ where: { id: targetMemberId } }),
+      this.members.findById(actorMemberId),
+      this.members.findById(targetMemberId),
     ]);
     if (!actor || !target) throw new NotFoundException('Member not found');
     if (actor.orgId !== orgId || target.orgId !== orgId)
@@ -58,6 +51,6 @@ export class MemberService {
       throw new ForbiddenException('Cannot remove Owner');
     }
 
-    await this.prisma.member.delete({ where: { id: targetMemberId } });
+    await this.members.delete(targetMemberId);
   }
 }

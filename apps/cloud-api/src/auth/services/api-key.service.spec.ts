@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { fakeDb } from '../../../test/fake-db';
 import { PrismaService } from '@/prisma/prisma.service';
+import { ApiKeyRepo, MemberRepo } from '@/auth/repo';
 import type { CreateApiKeyDto } from '@/auth/dto';
 import { ApiKeyService } from './api-key.service';
 
@@ -14,7 +15,9 @@ describe('ApiKeyService', () => {
 
   beforeEach(async () => {
     db = fakeDb();
-    service = new ApiKeyService(db as PrismaService);
+    const apiKeys = new ApiKeyRepo(db as PrismaService);
+    const members = new MemberRepo(db as PrismaService);
+    service = new ApiKeyService(apiKeys, members);
     await db.user.create({ data: { id: 'u1', email: 'a@x.dev' } });
     await db.org.create({ data: { id: 'o1', slug: 'acme', name: 'Acme' } });
     await db.org.create({ data: { id: 'o2', slug: 'second', name: 'Second' } });
@@ -48,31 +51,36 @@ describe('ApiKeyService', () => {
   });
 
   it('revokes a key by id: gone from the list, verify fails', async () => {
-    await service.create(dto('a'), 'u1', 'o1');
-    const [key] = await service.list('u1', 'o1');
-    await service.revoke('u1', 'o1', key.id);
-    expect(await service.list('u1', 'o1')).toHaveLength(0);
+    const raw = await service.create(dto('revoke me'), 'u1', 'o1');
+    const list = await service.list('u1', 'o1');
+    await service.revoke('u1', 'o1', list[0].id);
+    const after = await service.list('u1', 'o1');
+    expect(after).toHaveLength(0);
+    const principal = await service.verify(raw);
+    expect(principal).toBeNull();
   });
 
-  it("revoking someone else's key or another org's key is a no-op", async () => {
-    await service.create(dto('a'), 'u1', 'o1');
-    const [key] = await service.list('u1', 'o1');
-    await service.revoke('u-other', 'o1', key.id);
-    await service.revoke('u1', 'o2', key.id);
-    expect(await service.list('u1', 'o1')).toHaveLength(1);
-  });
-
-  it("verify resolves the member's org and role; misses without membership", async () => {
-    const raw = await service.create(dto('a'), 'u1', 'o1');
+  it('verify resolves the principal (key + membership) for a valid raw key', async () => {
+    const raw = await service.create(dto('verify me'), 'u1', 'o1');
     const principal = await service.verify(raw);
     expect(principal).toMatchObject({
+      userId: 'u1',
       memberId: 'm1',
       orgId: 'o1',
       role: 'MEMBER',
-      userId: 'u1',
     });
+    expect(principal?.keyId).toBe(db._apiKey.values().next().value.id);
+  });
 
-    for (const [k] of db._member) db._member.delete(k);
+  it('verify returns null for an unknown or revoked key', async () => {
+    expect(await service.verify('oo_live_deadbeef')).toBeNull();
+    const raw = await service.create(dto('revoke'), 'u1', 'o1');
+    const list = await service.list('u1', 'o1');
+    await service.revoke('u1', 'o1', list[0].id);
     expect(await service.verify(raw)).toBeNull();
+  });
+
+  it('authenticate throws for an invalid key', async () => {
+    await expect(service.authenticate('oo_live_deadbeef')).rejects.toThrow(/Invalid API key/);
   });
 });

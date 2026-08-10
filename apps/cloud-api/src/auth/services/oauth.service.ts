@@ -1,13 +1,19 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { Provider, Role } from '@/generated/client';
 import { PrismaService } from '@/prisma/prisma.service';
-import { uniqueOrgSlug } from './unique-org-slug';
+import { OAuthAccountRepo, UserRepo, MemberRepo, OrgRepo } from '@/auth/repo';
 import type { OAuthProfile } from './oauth.type';
 
 /** Normalized provider profile (strategies map passport profiles to this). */
 @Injectable()
 export class OAuthService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly oauthAccounts: OAuthAccountRepo,
+    private readonly users: UserRepo,
+    private readonly members: MemberRepo,
+    private readonly orgs: OrgRepo,
+  ) {}
 
   /**
    * Finds or creates the User behind a provider identity (cloud ADR 0006):
@@ -16,14 +22,10 @@ export class OAuthService {
    * Requires a provider-verified email — no synthetic addresses.
    */
   async linkOrCreateUser(provider: Provider, profile: OAuthProfile): Promise<string> {
-    const existing = await this.prisma.oAuthAccount.findUnique({
-      where: {
-        provider_providerUserId: {
-          provider,
-          providerUserId: profile.providerUserId,
-        },
-      },
-    });
+    const existing = await this.oauthAccounts.findByProviderAndUserId(
+      provider,
+      profile.providerUserId,
+    );
     if (existing) return existing.userId;
 
     const email = profile.email?.toLowerCase();
@@ -31,30 +33,24 @@ export class OAuthService {
       throw new UnauthorizedException('Provider did not return a verified email');
     }
 
-    const user =
-      (await this.prisma.user.findUnique({ where: { email } })) ??
-      (await this.prisma.user.create({
-        data: {
-          email,
-          name: profile.name,
-          emailVerifiedAt: new Date(),
-        },
-      }));
-    await this.prisma.oAuthAccount.create({
-      data: {
-        provider,
-        providerUserId: profile.providerUserId,
+    let user = await this.users.findByEmail(email);
+    if (!user) {
+      user = await this.users.create({
         email,
-        userId: user.id,
-      },
+        name: profile.name,
+      });
+      await this.users.update(user.id, { emailVerifiedAt: new Date() });
+    }
+    await this.oauthAccounts.create({
+      provider,
+      providerUserId: profile.providerUserId,
+      email,
+      userId: user.id,
     });
     // The provider already verified the email — the linked password account
     // inherits that verification (ADR 0006: provider-verified = verified).
     if (!user.emailVerifiedAt) {
-      await this.prisma.user.update({
-        where: { id: user.id },
-        data: { emailVerifiedAt: new Date() },
-      });
+      await this.users.update(user.id, { emailVerifiedAt: new Date() });
     }
     return user.id;
   }
@@ -64,13 +60,11 @@ export class OAuthService {
    * the OAuth counterpart of self-serve signup (ADR 0006, Q7).
    */
   async ensureMembership(userId: string): Promise<void> {
-    const count = await this.prisma.member.count({
-      where: { userId },
-    });
-    if (count > 0) return;
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    const memberships = await this.members.findByUserId(userId);
+    if (memberships.length > 0) return;
+    const user = await this.users.findById(userId);
     if (!user) throw new UnauthorizedException();
-    const slug = await uniqueOrgSlug(this.prisma, user.name ?? user.email.split('@')[0] ?? 'org');
+    const slug = await this.orgs.generateUniqueSlug(user.name ?? user.email.split('@')[0] ?? 'org');
     await this.prisma.$transaction(async (tx) => {
       const org = await tx.org.create({
         data: { slug, name: user.name ?? user.email },

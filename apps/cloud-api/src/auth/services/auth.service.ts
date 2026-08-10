@@ -9,6 +9,7 @@ import { addDays } from 'date-fns';
 import argon2 from 'argon2';
 import { Provider, Role } from '@/generated/client';
 import { PrismaService } from '@/prisma/prisma.service';
+import { UserRepo, MemberRepo, OrgRepo, SessionRepo } from '@/auth/repo';
 import type { LoginDto } from '@/auth/dto/login.dto';
 import type { RegisterDto } from '@/auth/dto/register.dto';
 import type { SwitchOrgDto } from '@/auth/dto/switch-org.dto';
@@ -20,7 +21,6 @@ import { MailerService } from './mailer.service';
 import { OAuthService } from './oauth.service';
 import type { OAuthProfile } from './oauth.type';
 import type { AuthResult, MemberProfile, Membership } from './auth.type';
-import { uniqueOrgSlug } from './unique-org-slug';
 import { REFRESH_TTL_DAYS } from './auth.constants';
 import { randomToken, sha256Hex } from './tokens';
 
@@ -32,16 +32,20 @@ export class AuthService {
     private readonly mailer: MailerService,
     private readonly emailTokens: EmailTokenService,
     private readonly oauth: OAuthService,
+    private readonly users: UserRepo,
+    private readonly members: MemberRepo,
+    private readonly orgs: OrgRepo,
+    private readonly sessions: SessionRepo,
   ) {}
 
   /** Self-serve signup: creates the User's own Org with them as Owner. */
   async register(dto: RegisterDto, ip: string): Promise<AuthResult> {
     const email = dto.email.toLowerCase();
-    if (await this.prisma.user.findUnique({ where: { email } })) {
+    if (await this.users.findByEmail(email)) {
       throw new ConflictException('Email already registered');
     }
     const passwordHash = await argon2.hash(dto.password);
-    const slug = await uniqueOrgSlug(this.prisma, dto.orgName);
+    const slug = await this.orgs.generateUniqueSlug(dto.orgName);
 
     const { memberId, userId } = await this.prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
@@ -71,9 +75,7 @@ export class AuthService {
   }
 
   async login(dto: LoginDto, ip: string): Promise<AuthResult> {
-    const user = await this.prisma.user.findUnique({
-      where: { email: dto.email.toLowerCase() },
-    });
+    const user = await this.users.findByEmail(dto.email.toLowerCase());
     if (!user?.passwordHash) {
       throw new UnauthorizedException('Invalid email or password');
     }
@@ -89,38 +91,26 @@ export class AuthService {
   /** Rotates the refresh token; a replayed pre-rotation token revokes the session. */
   async refresh(refreshToken: string, ip: string): Promise<AuthResult> {
     const hash = sha256Hex(refreshToken);
-    const reused = await this.prisma.session.findFirst({
-      where: { prevHashedRefresh: hash, revokedAt: null },
-    });
+    const reused = await this.sessions.findByPrevRefreshHash(hash);
     if (reused) {
-      await this.prisma.session.update({
-        where: { id: reused.id },
-        data: { revokedAt: new Date() },
-      });
+      await this.sessions.update(reused.id, { revokedAt: new Date() });
       throw new UnauthorizedException('Session reused');
     }
 
-    const session = await this.prisma.session.findFirst({
-      where: { hashedRefresh: hash, revokedAt: null },
-    });
+    const session = await this.sessions.findByRefreshHash(hash);
     if (!session || session.expiresAt <= new Date()) {
       throw new UnauthorizedException('Invalid session');
     }
-    const user = await this.prisma.user.findUnique({
-      where: { id: session.userId },
-    });
+    const user = await this.users.findById(session.userId);
     if (!user) throw new UnauthorizedException('Invalid session');
 
     const membership = await this.resolveMembership(user.id);
     const newRefresh = randomToken();
-    await this.prisma.session.update({
-      where: { id: session.id },
-      data: {
-        hashedRefresh: sha256Hex(newRefresh),
-        prevHashedRefresh: hash,
-        expiresAt: addDays(new Date(), REFRESH_TTL_DAYS),
-        ip,
-      },
+    await this.sessions.update(session.id, {
+      hashedRefresh: sha256Hex(newRefresh),
+      prevHashedRefresh: hash,
+      expiresAt: addDays(new Date(), REFRESH_TTL_DAYS),
+      ip,
     });
     return {
       accessToken: await this.signAccessToken(membership, session.id),
@@ -131,10 +121,7 @@ export class AuthService {
 
   /** Revokes the session row behind a refresh token. */
   async logout(refreshToken: string): Promise<void> {
-    await this.prisma.session.updateMany({
-      where: { hashedRefresh: sha256Hex(refreshToken) },
-      data: { revokedAt: new Date() },
-    });
+    await this.sessions.updateManyByRefreshHash(sha256Hex(refreshToken), { revokedAt: new Date() });
   }
 
   /** Reissues tokens for another of the user's memberships (one Org per session). */
@@ -144,31 +131,24 @@ export class AuthService {
     currentRefreshToken: string,
     ip: string,
   ): Promise<AuthResult> {
-    const principal = await this.prisma.member.findUnique({
-      where: { id: currentMemberId },
-    });
+    const principal = await this.members.findById(currentMemberId);
     if (!principal) throw new UnauthorizedException();
     // Bound to the presented session: a dead/absent refresh cookie cannot
     // mint a fresh session for another org.
-    const session = await this.prisma.session.findFirst({
-      where: { hashedRefresh: sha256Hex(currentRefreshToken), revokedAt: null },
-    });
+    const session = await this.sessions.findByRefreshHash(sha256Hex(currentRefreshToken));
     if (!session || session.expiresAt <= new Date() || session.userId !== principal.userId) {
       throw new UnauthorizedException('Valid session required');
     }
     const membership = await this.getMembership(dto.memberId, principal.userId);
     if (!membership) throw new ForbiddenException('Not a member of this org');
     await this.logout(currentRefreshToken);
-    await this.prisma.user.update({
-      where: { id: principal.userId },
-      data: { lastOrgId: membership.orgId },
-    });
+    await this.users.update(principal.userId, { lastOrgId: membership.orgId });
     return this.issueSession(membership, ip);
   }
 
   /** Issues a session for a User (OAuth flow after link-or-create). */
   async sessionForUser(userId: string, ip: string): Promise<AuthResult> {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    const user = await this.users.findById(userId);
     if (!user) throw new UnauthorizedException();
     const membership = await this.resolveMembership(userId);
     return this.issueSession(membership, ip);
@@ -182,28 +162,24 @@ export class AuthService {
   }
 
   async me(memberId: string): Promise<MemberProfile> {
-    const membership = await this.prisma.member.findUnique({
-      where: { id: memberId },
-      include: { org: true, team: true, user: true },
-    });
+    const membership = await this.members.findById(memberId);
     if (!membership) throw new UnauthorizedException();
     return this.toProfile(membership);
   }
 
   async updateProfile(userId: string, dto: UpdateProfileDto): Promise<MemberProfile> {
-    const user = await this.prisma.user.update({
-      where: { id: userId },
-      data: { name: dto.name },
-      include: { memberships: { include: { org: true, team: true } } },
-    });
+    await this.users.update(userId, { name: dto.name });
+    const userWithMemberships = await this.users.findWithMemberships(userId);
+    if (!userWithMemberships) throw new UnauthorizedException();
     const membership =
-      (user.memberships as unknown as Membership[]).find((m) => m.orgId === user.lastOrgId) ??
-      (user.memberships as unknown as Membership[])[0];
+      (userWithMemberships.memberships as unknown as Membership[]).find(
+        (m) => m.orgId === userWithMemberships.lastOrgId,
+      ) ?? (userWithMemberships.memberships as unknown as Membership[])[0];
     return this.toProfile(membership);
   }
 
   async changePassword(userId: string, dto: ChangePasswordDto): Promise<void> {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    const user = await this.users.findById(userId);
     if (!user?.passwordHash) {
       throw new UnauthorizedException('User not found');
     }
@@ -212,17 +188,11 @@ export class AuthService {
       throw new UnauthorizedException('Current password is incorrect');
     }
     const newPasswordHash = await argon2.hash(dto.newPassword);
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: { passwordHash: newPasswordHash },
-    });
+    await this.users.update(userId, { passwordHash: newPasswordHash });
   }
 
   async deleteAccount(userId: string, dto: DeleteAccountDto): Promise<void> {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      include: { memberships: { include: { org: true } } },
-    });
+    const user = await this.users.findWithMemberships(userId);
     if (!user?.passwordHash) {
       throw new UnauthorizedException('User not found');
     }
@@ -234,9 +204,7 @@ export class AuthService {
     // Check if user is sole owner of any org
     for (const membership of user.memberships) {
       if (membership.role === 'OWNER') {
-        const ownerCount = await this.prisma.member.count({
-          where: { orgId: membership.orgId, role: 'OWNER' },
-        });
+        const ownerCount = await this.members.countByOrgAndRole(membership.orgId, 'OWNER');
         if (ownerCount === 1) {
           throw new ConflictException(
             `Cannot delete account: you are the sole owner of org "${membership.org.name}". Transfer ownership or delete the org first.`,
@@ -245,15 +213,12 @@ export class AuthService {
       }
     }
 
-    await this.prisma.user.delete({ where: { id: userId } });
+    await this.users.delete(userId);
   }
 
   /** Picks the active membership: last used org when it is still valid, else first. */
   private async resolveMembership(userId: string): Promise<Membership> {
-    const memberships = await this.prisma.member.findMany({
-      where: { userId },
-      include: { org: true, team: true, user: true },
-    });
+    const memberships = await this.members.findByUserId(userId);
     if (memberships.length === 0) {
       throw new UnauthorizedException('No org membership');
     }
@@ -263,21 +228,18 @@ export class AuthService {
   }
 
   private async getMembership(memberId: string, userId: string): Promise<Membership | null> {
-    return (await this.prisma.member.findFirst({
-      where: { id: memberId, userId },
-      include: { org: true, team: true, user: true },
-    })) as unknown as Membership | null;
+    const member = await this.members.findById(memberId);
+    if (!member || member.userId !== userId) return null;
+    return member as unknown as Membership;
   }
 
   private async issueSession(membership: Membership, ip: string): Promise<AuthResult> {
     const refreshToken = randomToken();
-    const session = await this.prisma.session.create({
-      data: {
-        userId: membership.user.id,
-        hashedRefresh: sha256Hex(refreshToken),
-        expiresAt: addDays(new Date(), REFRESH_TTL_DAYS),
-        ip,
-      },
+    const session = await this.sessions.create({
+      userId: membership.user.id,
+      hashedRefresh: sha256Hex(refreshToken),
+      expiresAt: addDays(new Date(), REFRESH_TTL_DAYS),
+      ip,
     });
     return {
       accessToken: await this.signAccessToken(membership, session.id),

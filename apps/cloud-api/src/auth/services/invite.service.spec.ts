@@ -5,6 +5,7 @@ import { addDays, subMilliseconds } from 'date-fns';
 import { Role } from '@/generated/client';
 import { fakeDb } from '../../../test/fake-db';
 import { PrismaService } from '@/prisma/prisma.service';
+import { InviteRepo, UserRepo, MemberRepo } from '@/auth/repo';
 import { InviteService } from './invite.service';
 import { MailerService } from './mailer.service';
 import type { CreateInviteDto } from '@/auth/dto/create-invite.dto';
@@ -24,7 +25,10 @@ describe('InviteService', () => {
         webAppUrl: 'http://localhost:5202',
       }),
     );
-    service = new InviteService(db as PrismaService, mailer);
+    const invites = new InviteRepo(db as PrismaService);
+    const users = new UserRepo(db as PrismaService);
+    const members = new MemberRepo(db as PrismaService);
+    service = new InviteService(invites, users, members, mailer);
     await db.org.create({ data: { id: 'o1', slug: 'acme', name: 'Acme' } });
     await db.user.create({ data: { id: 'u-admin', email: 'admin@x.dev' } });
     await db.member.create({

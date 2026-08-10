@@ -27,6 +27,17 @@ import {
   TeamService,
   TwoFactorService,
 } from './services';
+import {
+  ApiKeyRepo,
+  EmailTokenRepo,
+  InviteRepo,
+  MemberRepo,
+  OAuthAccountRepo,
+  OrgRepo,
+  SessionRepo,
+  TeamRepo,
+  UserRepo,
+} from './repo';
 import { ApiKeyStrategy, GithubStrategy, GoogleStrategy, JwtStrategy } from './strategies';
 
 /**
@@ -92,6 +103,15 @@ function oauthStrategyProvider(
     SessionService,
     TeamService,
     TwoFactorService,
+    ApiKeyRepo,
+    EmailTokenRepo,
+    InviteRepo,
+    MemberRepo,
+    OAuthAccountRepo,
+    OrgRepo,
+    SessionRepo,
+    TeamRepo,
+    UserRepo,
     JwtStrategy,
     ApiKeyStrategy,
     oauthStrategyProvider(GoogleStrategy, 'google'),
@@ -109,6 +129,15 @@ function oauthStrategyProvider(
     SessionService,
     TeamService,
     TwoFactorService,
+    ApiKeyRepo,
+    EmailTokenRepo,
+    InviteRepo,
+    MemberRepo,
+    OAuthAccountRepo,
+    OrgRepo,
+    SessionRepo,
+    TeamRepo,
+    UserRepo,
   ],
 })
 export class AuthModule {}

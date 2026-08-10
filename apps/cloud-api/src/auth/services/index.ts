@@ -16,4 +16,3 @@ export * from './session.service';
 export * from './team.service';
 export * from './tokens';
 export * from './two-factor.service';
-export * from './unique-org-slug';

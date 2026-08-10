@@ -2,6 +2,7 @@ import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { Role } from '@/generated/client';
 import { fakeDb } from '../../../test/fake-db';
 import { PrismaService } from '@/prisma/prisma.service';
+import { MemberRepo } from '@/auth/repo';
 import { MemberService } from './member.service';
 import type { UpdateMemberDto } from '@/auth/dto/update-member.dto';
 
@@ -11,7 +12,8 @@ describe('MemberService', () => {
 
   beforeEach(async () => {
     db = fakeDb();
-    service = new MemberService(db as PrismaService);
+    const members = new MemberRepo(db as PrismaService);
+    service = new MemberService(members);
     await db.org.create({ data: { id: 'o1', slug: 'acme', name: 'Acme' } });
     await db.user.create({ data: { id: 'u-owner', email: 'owner@x.dev' } });
     await db.user.create({ data: { id: 'u-admin', email: 'admin@x.dev' } });

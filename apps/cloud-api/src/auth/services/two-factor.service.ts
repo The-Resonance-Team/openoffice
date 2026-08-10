@@ -3,18 +3,18 @@ import * as QRCode from 'qrcode';
 import { randomBytes } from 'crypto';
 import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
 import argon2 from 'argon2';
-import { PrismaService } from '@/prisma/prisma.service';
+import { UserRepo } from '@/auth/repo';
 import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class TwoFactorService {
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly users: UserRepo,
     private readonly config: ConfigService,
   ) {}
 
   async setup(userId: string) {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    const user = await this.users.findById(userId);
     if (!user) throw new UnauthorizedException('User not found');
     if (user.totpEnabledAt) {
       throw new BadRequestException('2FA already enabled');
@@ -33,16 +33,13 @@ export class TwoFactorService {
     const otpauthUrl = totp.toString();
     const qrCode = await QRCode.toDataURL(otpauthUrl);
 
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: { totpSecret: secret.base32 },
-    });
+    await this.users.update(userId, { totpSecret: secret.base32 });
 
     return { otpauthUrl, qrCode };
   }
 
   async verify(userId: string, code: string) {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    const user = await this.users.findById(userId);
     if (!user?.totpSecret) {
       throw new BadRequestException('2FA not set up');
     }
@@ -65,19 +62,16 @@ export class TwoFactorService {
     }
 
     const recoveryCodes = this.generateRecoveryCodes();
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: {
-        totpEnabledAt: new Date(),
-        recoveryCodes: JSON.stringify(recoveryCodes),
-      },
+    await this.users.update(userId, {
+      totpEnabledAt: new Date(),
+      recoveryCodes: JSON.stringify(recoveryCodes),
     });
 
     return { recoveryCodes };
   }
 
   async disable(userId: string, password: string) {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    const user = await this.users.findById(userId);
     if (!user?.passwordHash) {
       throw new UnauthorizedException('User not found');
     }
@@ -90,27 +84,21 @@ export class TwoFactorService {
       throw new UnauthorizedException('Invalid password');
     }
 
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: {
-        totpSecret: null,
-        totpEnabledAt: null,
-        recoveryCodes: null,
-      },
+    await this.users.update(userId, {
+      totpSecret: null,
+      totpEnabledAt: null,
+      recoveryCodes: null,
     });
   }
 
   async regenerateRecoveryCodes(userId: string) {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    const user = await this.users.findById(userId);
     if (!user?.totpEnabledAt) {
       throw new BadRequestException('2FA not enabled');
     }
 
     const recoveryCodes = this.generateRecoveryCodes();
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: { recoveryCodes: JSON.stringify(recoveryCodes) },
-    });
+    await this.users.update(userId, { recoveryCodes: JSON.stringify(recoveryCodes) });
 
     return { recoveryCodes };
   }

@@ -4,6 +4,14 @@ import { createHash } from 'node:crypto';
 import { addDays, subMilliseconds } from 'date-fns';
 import { fakeDb } from '../../../test/fake-db';
 import { PrismaService } from '@/prisma/prisma.service';
+import {
+  UserRepo,
+  MemberRepo,
+  OrgRepo,
+  SessionRepo,
+  EmailTokenRepo,
+  OAuthAccountRepo,
+} from '@/auth/repo';
 import { AuthService } from './auth.service';
 import { EmailTokenService } from './email-token.service';
 import { MailerService } from './mailer.service';
@@ -34,6 +42,12 @@ describe('AuthService', () => {
         webAppUrl: 'http://localhost:5202',
       }),
     );
+    const users = new UserRepo(db as PrismaService);
+    const members = new MemberRepo(db as PrismaService);
+    const orgs = new OrgRepo(db as PrismaService);
+    const sessions = new SessionRepo(db as PrismaService);
+    const emailTokens = new EmailTokenRepo(db as PrismaService);
+    const oauthAccounts = new OAuthAccountRepo(db as PrismaService);
     service = new AuthService(
       db as PrismaService,
       new JwtService({
@@ -41,8 +55,12 @@ describe('AuthService', () => {
         signOptions: { expiresIn: '15m' },
       }),
       mailer,
-      new EmailTokenService(db as PrismaService, mailer),
-      new OAuthService(db as PrismaService),
+      new EmailTokenService(emailTokens, users, mailer),
+      new OAuthService(db as PrismaService, oauthAccounts, users, members, orgs),
+      users,
+      members,
+      orgs,
+      sessions,
     );
   });
 

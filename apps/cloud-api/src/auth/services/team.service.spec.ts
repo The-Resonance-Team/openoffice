@@ -1,6 +1,7 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { fakeDb } from '../../../test/fake-db';
 import { PrismaService } from '@/prisma/prisma.service';
+import { TeamRepo, MemberRepo } from '@/auth/repo';
 import { TeamService } from './team.service';
 
 describe('TeamService', () => {
@@ -9,7 +10,9 @@ describe('TeamService', () => {
 
   beforeEach(async () => {
     db = fakeDb();
-    service = new TeamService(db as PrismaService);
+    const teams = new TeamRepo(db as PrismaService);
+    const members = new MemberRepo(db as PrismaService);
+    service = new TeamService(teams, members);
     await db.org.create({ data: { id: 'o1', slug: 'acme', name: 'Acme' } });
     await db.user.create({ data: { id: 'u1', email: 'a@x.dev' } });
     await db.user.create({ data: { id: 'u2', email: 'b@x.dev' } });

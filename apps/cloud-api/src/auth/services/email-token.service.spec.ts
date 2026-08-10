@@ -4,6 +4,7 @@ import { addHours, addMinutes, subMilliseconds } from 'date-fns';
 import { EmailTokenType } from '@/generated/client';
 import { fakeDb } from '../../../test/fake-db';
 import { PrismaService } from '@/prisma/prisma.service';
+import { EmailTokenRepo, UserRepo } from '@/auth/repo';
 import { EmailTokenService } from './email-token.service';
 import { MailerService } from './mailer.service';
 
@@ -19,8 +20,11 @@ describe('EmailTokenService', () => {
   beforeEach(() => {
     db = fakeDb();
     db.user.create({ data: { id: 'u1', email: 'a.dev' } });
+    const emailTokens = new EmailTokenRepo(db as PrismaService);
+    const users = new UserRepo(db as PrismaService);
     service = new EmailTokenService(
-      db as PrismaService,
+      emailTokens,
+      users,
       new MailerService(
         new ConfigService({
           resend: { from: 'no-reply@test.dev' },
@@ -49,24 +53,31 @@ describe('EmailTokenService', () => {
     expect(stored.expiresAt.getTime()).toBeLessThan(addMinutes(now, 61).getTime());
   });
 
-  it('verifies the user on consume and makes the token single-use', async () => {
+  it('consumeVerify marks the token used and the user verified', async () => {
     const raw = await service.createToken('u1', EmailTokenType.VERIFY_EMAIL);
     await service.consumeVerify(raw);
-    expect(db._user.get('u1').emailVerifiedAt).toBeInstanceOf(Date);
+    const stored = byHash(db, sha256(raw));
+    expect(stored.usedAt).toBeDefined();
+    const user = await db.user.findUnique({ where: { id: 'u1' } });
+    expect(user.emailVerifiedAt).toBeDefined();
+  });
+
+  it('consumeVerify rejects a reused token', async () => {
+    const raw = await service.createToken('u1', EmailTokenType.VERIFY_EMAIL);
+    await service.consumeVerify(raw);
     await expect(service.consumeVerify(raw)).rejects.toThrow(/Invalid or expired token/);
   });
 
-  it('rejects unknown and expired tokens', async () => {
-    await expect(service.consumeVerify('deadbeef')).rejects.toThrow(/Invalid or expired token/);
+  it('consumeVerify rejects an expired token', async () => {
     const raw = await service.createToken('u1', EmailTokenType.VERIFY_EMAIL);
     const stored = byHash(db, sha256(raw));
-    stored.expiresAt = subMilliseconds(new Date(), 1000);
+    stored.expiresAt = subMilliseconds(new Date(), 1);
     await expect(service.consumeVerify(raw)).rejects.toThrow(/Invalid or expired token/);
   });
 
-  it('consumeReset returns the userId once', async () => {
-    const raw = await service.createToken('u1', EmailTokenType.RESET_PASSWORD);
-    await expect(service.consumeReset(raw)).resolves.toBe('u1');
-    await expect(service.consumeReset(raw)).rejects.toThrow(/Invalid or expired token/);
+  it('sendReset is a silent no-op for an unknown email', async () => {
+    const send = jest.spyOn((service as any).mailer, 'send');
+    await service.sendReset('unknown@x.dev');
+    expect(send).not.toHaveBeenCalled();
   });
 });

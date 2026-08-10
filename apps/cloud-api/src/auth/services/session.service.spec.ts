@@ -1,6 +1,7 @@
 import { NotFoundException } from '@nestjs/common';
 import { fakeDb } from '../../../test/fake-db';
 import { PrismaService } from '@/prisma/prisma.service';
+import { SessionRepo } from '@/auth/repo';
 import { SessionService } from './session.service';
 
 describe('SessionService', () => {
@@ -9,7 +10,8 @@ describe('SessionService', () => {
 
   beforeEach(async () => {
     db = fakeDb();
-    service = new SessionService(db as PrismaService);
+    const sessions = new SessionRepo(db as PrismaService);
+    service = new SessionService(sessions);
     await db.user.create({ data: { id: 'u1', email: 'a@x.dev' } });
     await db.session.create({
       data: { id: 's1', userId: 'u1', ip: '1.1.1.1', expiresAt: new Date(Date.now() + 86400000) },

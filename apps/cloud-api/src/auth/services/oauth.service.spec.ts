@@ -2,6 +2,7 @@ import { UnauthorizedException } from '@nestjs/common';
 import { Provider } from '@/generated/client';
 import { fakeDb } from '../../../test/fake-db';
 import { PrismaService } from '@/prisma/prisma.service';
+import { OAuthAccountRepo, UserRepo, MemberRepo, OrgRepo } from '@/auth/repo';
 import { OAuthService } from './oauth.service';
 
 describe('OAuthService', () => {
@@ -18,7 +19,11 @@ describe('OAuthService', () => {
 
   beforeEach(() => {
     db = fakeDb();
-    service = new OAuthService(db as PrismaService);
+    const oauthAccounts = new OAuthAccountRepo(db as PrismaService);
+    const users = new UserRepo(db as PrismaService);
+    const members = new MemberRepo(db as PrismaService);
+    const orgs = new OrgRepo(db as PrismaService);
+    service = new OAuthService(db as PrismaService, oauthAccounts, users, members, orgs);
   });
 
   it('creates a user on first sign-in with a verified email', async () => {
