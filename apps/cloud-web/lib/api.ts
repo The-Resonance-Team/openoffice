@@ -87,3 +87,34 @@ export function createInvite(email: string, role: Role): Promise<{ ok: boolean }
 export function oauthConnectUrl(provider: 'google' | 'github'): string {
   return `${apiBase()}/v1/auth/login/${provider}`;
 }
+
+export function login(email: string, password: string): Promise<{ profile: MemberProfile }> {
+  return request('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
+}
+
+export function register(
+  email: string,
+  password: string,
+  orgName: string,
+  name?: string,
+): Promise<{ profile: MemberProfile }> {
+  return request('/auth/register', {
+    method: 'POST',
+    body: JSON.stringify({ email, password, orgName, name }),
+  });
+}
+
+export function forgotPassword(email: string): Promise<{ ok: boolean }> {
+  return request('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) });
+}
+
+export function resetPassword(token: string, password: string): Promise<{ ok: boolean }> {
+  return request('/auth/reset-password', {
+    method: 'POST',
+    body: JSON.stringify({ token, password }),
+  });
+}
+
+export function verifyEmail(token: string): Promise<{ ok: boolean }> {
+  return request('/auth/verify-email', { method: 'POST', body: JSON.stringify({ token }) });
+}

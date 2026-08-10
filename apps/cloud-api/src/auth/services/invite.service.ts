@@ -89,4 +89,41 @@ export class InviteService {
     });
     return { orgId: invite.orgId, memberId: member.id };
   }
+
+  async list(orgId: string) {
+    return this.prisma.invite.findMany({
+      where: { orgId, usedAt: null },
+    });
+  }
+
+  async cancel(orgId: string, inviteId: string) {
+    const invite = await this.prisma.invite.findFirst({
+      where: { id: inviteId, orgId, usedAt: null },
+    });
+    if (!invite) throw new UnauthorizedException('Invite not found');
+    await this.prisma.invite.update({
+      where: { id: inviteId },
+      data: { usedAt: new Date() },
+    });
+  }
+
+  async resend(orgId: string, inviteId: string) {
+    const invite = await this.prisma.invite.findFirst({
+      where: { id: inviteId, orgId, usedAt: null },
+    });
+    if (!invite) throw new UnauthorizedException('Invite not found');
+    const raw = randomToken();
+    await this.prisma.invite.update({
+      where: { id: inviteId },
+      data: { tokenHash: sha256Hex(raw), expiresAt: addDays(new Date(), INVITE_TTL_DAYS) },
+    });
+    await this.mailer.send({
+      to: invite.email,
+      subject: "You've been invited to an OpenOffice org",
+      text:
+        `Join your OpenOffice org:\n${this.mailer.link('/invite', raw)}\n\n` +
+        `By joining, you agree that usage analytics of your OpenOffice daemon ` +
+        `will be shared with the org that invited you (cloud/CONTEXT.md → Consent).`,
+    });
+  }
 }

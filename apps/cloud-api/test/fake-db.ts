@@ -88,6 +88,12 @@ export function fakeDb(): PrismaService {
         for (const row of targets) Object.assign(row, data);
         return { count: targets.length };
       },
+      delete: async ({ where }: any) => {
+        const row = [...map.values()].find((r) => eq(where, r));
+        if (!row) throw new Error('fake: delete target not found');
+        map.delete(row.id);
+        return row;
+      },
     };
   };
 

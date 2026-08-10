@@ -74,3 +74,23 @@ _Avoid_: telemetry (see root `CONTEXT.md` for the separate, self-hosted OTLP exp
 **Consent**:
 Org-level, opt-out by default: the Owner/Admin's acceptance at Org setup covers all members' Analytics collection, disclosed at invite time rather than re-collected per member. A member may always opt out of their own device's collection — the member-level choice beats Org consent, mirroring Cloud Config's local-wins precedence. Distinct from the root context's self-hosted OTLP export, which needs no consent flow since it only ever leaves the member's own device to an endpoint they configured themselves.
 _Avoid_: privacy policy, opt-in flow
+
+**Appearance preference**:
+A User's theme choice: `light`, `dark`, or `system`. Stored on the User row, applied client-side by the frontend. Not an Org-level setting — each User picks their own theme.
+_Avoid_: theme setting, UI preference
+
+**Notification preference**:
+A User's email opt-in/out flags for transactional emails: invite received, password changed, member joined org. Three boolean columns on User, all default `true`. Not a notification system (no in-app notifications, no push) — just email delivery control.
+_Avoid_: notification settings, email preferences, communication prefs
+
+**Update preference**:
+A User's opt-in/out for product update emails (changelog digest). One boolean on User (`wantsUpdates`), default `true`. Separate from notification preferences because updates are marketing-adjacent, not transactional.
+_Avoid_: newsletter subscription, changelog preferences
+
+**TOTP**:
+Time-based One-Time Password for two-factor authentication. A User may enable TOTP by scanning a QR code (generated from an `otpauth://` URI) with an authenticator app. The secret is stored encrypted on the User row. Once enabled, login requires both password + TOTP code.
+_Avoid_: 2FA (ambiguous — could mean SMS, email, hardware key), authenticator, MFA
+
+**Recovery code**:
+A set of one-time backup codes generated when TOTP is enabled. Each code can be used once to bypass TOTP if the authenticator device is unavailable. Stored encrypted on the User row. Regenerable; regenerating invalidates all previous codes.
+_Avoid_: backup code, emergency code, fallback code

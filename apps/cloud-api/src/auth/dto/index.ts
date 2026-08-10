@@ -7,4 +7,5 @@ export * from './register.dto';
 export * from './resend-verification.dto';
 export * from './reset-password.dto';
 export * from './switch-org.dto';
+export * from './update-member.dto';
 export * from './verify-email.dto';

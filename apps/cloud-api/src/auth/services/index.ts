@@ -7,6 +7,7 @@ export * from './email-token.service';
 export * from './invite.service';
 export * from './mailer.service';
 export * from './mailer.type';
+export * from './member.service';
 export * from './oauth.service';
 export * from './oauth.type';
 export * from './tokens';

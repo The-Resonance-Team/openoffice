@@ -2,13 +2,19 @@ import { Global, Module, type Provider } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtModule, type JwtSignOptions } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
-import { ApiKeysController, AuthController, InvitesController } from './controllers';
+import {
+  ApiKeysController,
+  AuthController,
+  InvitesController,
+  MembersController,
+} from './controllers';
 import {
   ApiKeyService,
   AuthService,
   EmailTokenService,
   InviteService,
   MailerService,
+  MemberService,
   OAuthService,
 } from './services';
 import { ApiKeyStrategy, GithubStrategy, GoogleStrategy, JwtStrategy } from './strategies';
@@ -52,19 +58,20 @@ function oauthStrategyProvider(
       }),
     }),
   ],
-  controllers: [AuthController, ApiKeysController, InvitesController],
+  controllers: [AuthController, ApiKeysController, InvitesController, MembersController],
   providers: [
     AuthService,
     ApiKeyService,
     EmailTokenService,
     InviteService,
     MailerService,
+    MemberService,
     OAuthService,
     JwtStrategy,
     ApiKeyStrategy,
     oauthStrategyProvider(GoogleStrategy, 'google'),
     oauthStrategyProvider(GithubStrategy, 'github'),
   ],
-  exports: [JwtModule, AuthService, ApiKeyService, OAuthService, InviteService],
+  exports: [JwtModule, AuthService, ApiKeyService, OAuthService, InviteService, MemberService],
 })
 export class AuthModule {}

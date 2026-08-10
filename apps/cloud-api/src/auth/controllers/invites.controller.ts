@@ -1,4 +1,4 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post } from '@nestjs/common';
 import { Role } from '@/generated/client';
 import type { AuthenticatedMember } from '@/auth/strategies';
 import { CurrentUser, Roles } from '@/auth/decorators';
@@ -15,6 +15,27 @@ export class InvitesController {
   @Post()
   async create(@Body() dto: CreateInviteDto, @CurrentUser() user: AuthenticatedMember) {
     await this.invites.create(user.orgId, user.userId, dto);
+    return { ok: true };
+  }
+
+  @Roles(Role.OWNER, Role.ADMIN)
+  @Get()
+  async list(@CurrentUser() user: AuthenticatedMember) {
+    const invites = await this.invites.list(user.orgId);
+    return { invites };
+  }
+
+  @Roles(Role.OWNER, Role.ADMIN)
+  @Delete(':id')
+  async cancel(@Param('id') id: string, @CurrentUser() user: AuthenticatedMember) {
+    await this.invites.cancel(user.orgId, id);
+    return { ok: true };
+  }
+
+  @Roles(Role.OWNER, Role.ADMIN)
+  @Post(':id/resend')
+  async resend(@Param('id') id: string, @CurrentUser() user: AuthenticatedMember) {
+    await this.invites.resend(user.orgId, id);
     return { ok: true };
   }
 
