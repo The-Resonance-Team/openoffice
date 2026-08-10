@@ -6,7 +6,6 @@ import { exiftool } from 'exiftool-vendored';
 import { randomUUID } from 'node:crypto';
 import { toMarkdown } from '@firecrawl/anydoc';
 import { readPdf } from '../read-pdf';
-import { readOcr } from '@openoffice/core';
 import {
   resolveConfig,
   SessionStore,
@@ -39,6 +38,7 @@ import {
   findProjectConfig,
   loadConfigFiles,
   mergeLayers,
+  readOcr,
 } from '@openoffice/core';
 import { AskChannel, createApp, endSession, type SessionRuntime } from './index';
 import { checkForUpdate } from '../update';
