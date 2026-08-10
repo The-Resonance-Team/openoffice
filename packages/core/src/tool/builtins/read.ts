@@ -31,6 +31,13 @@ export const DOCUMENT_EXTENSIONS = new Set([
   '.epub',
   '.pdf',
 ]);
+export const IMAGE_EXTENSIONS = new Set([
+  '.png',
+  '.jpg',
+  '.jpeg',
+  '.tiff',
+  '.bmp',
+]);
 const TEXT_EXTENSIONS = new Set([
   '.txt',
   '.md',
@@ -67,6 +74,7 @@ const TEXT_EXTENSIONS = new Set([
 export interface ReadDeps {
   readDocument: (file: string, ctx: ToolContext) => Promise<string>;
   readPdf?: (file: string) => Promise<string>;
+  readOcr?: (file: string) => Promise<string>;
   draftManager?: DraftManager;
   /** MCP resource reader (the daemon's McpManager); absent when unsupported. */
   mcp?: {
@@ -111,7 +119,7 @@ export function createReadTool(deps: ReadDeps): ToolDefinition<typeof readSchema
   return {
     name: 'read',
     description:
-      'Read file contents. Auto-detects Office, OpenDocument, RTF, EPUB, and PDF files via AnyDoc, plain text for everything else. Always use this to read any file.',
+      "Read file contents. Auto-detects Office, OpenDocument, RTF, EPUB, and PDF files via AnyDoc, plain text for everything else. Scanned/image-based PDFs and images are automatically OCR'd when Tesseract is available. Always use this to read any file.",
     parameters: readSchema,
 
     execute: async (params, ctx): Promise<ToolResult> => {
@@ -150,6 +158,28 @@ export function createReadTool(deps: ReadDeps): ToolDefinition<typeof readSchema
           const content = await deps.readPdf(file);
           return { success: true, output: content };
         } catch (e: unknown) {
+          // Auto-fallback to OCR for scanned/image-based PDFs
+          if (
+            e instanceof Error &&
+            'code' in e &&
+            (e as { code: string }).code === 'PDF_NO_TEXT_LAYER' &&
+            deps.readOcr
+          ) {
+            try {
+              const ocrResult = await deps.readOcr(file);
+              return {
+                success: true,
+                output: ocrResult,
+                data: { source: 'ocr' },
+              };
+            } catch (ocrErr: unknown) {
+              return {
+                success: false,
+                error: ocrErr instanceof Error ? ocrErr.message : 'OCR failed',
+                code: 'OCR_FAILED',
+              };
+            }
+          }
           return {
             success: false,
             error: errorMessage(e) || 'Failed to read PDF',
@@ -172,6 +202,19 @@ export function createReadTool(deps: ReadDeps): ToolDefinition<typeof readSchema
             success: false,
             error: errorMessage(e) || 'Failed to read office document',
             code: ext === '.pdf' ? 'PDF_READ_ERROR' : 'DOCUMENT_READ_ERROR',
+          };
+        }
+      }
+
+      if (IMAGE_EXTENSIONS.has(ext) && deps.readOcr) {
+        try {
+          const ocrResult = await deps.readOcr(file);
+          return { success: true, output: ocrResult, data: { source: 'ocr' } };
+        } catch (e: unknown) {
+          return {
+            success: false,
+            error: e instanceof Error ? e.message : 'OCR failed',
+            code: 'OCR_FAILED',
           };
         }
       }

@@ -6,6 +6,7 @@ import { exiftool } from 'exiftool-vendored';
 import { randomUUID } from 'node:crypto';
 import { toMarkdown } from '@firecrawl/anydoc';
 import { readPdf } from '../read-pdf';
+import { readOcr } from '@openoffice/core';
 import {
   resolveConfig,
   SessionStore,
@@ -152,6 +153,7 @@ export async function startDaemon(
       readDocument,
       mcp,
       readPdf,
+      readOcr,
     }),
     createWriteTool(),
     createGlobTool(),
