@@ -126,8 +126,13 @@ describe('readOcr — PDF rasterize-then-read', () => {
     const file = join(dir, 'test.pdf');
     writeFileSync(file, '%PDF-1.4');
 
+    // Probe stubbed: CI runners have pdftoppm installed, so the real probe
+    // would rasterize (and fail on the fake PDF) instead of reporting the
+    // missing binary.
+    const deps = mockDeps({ checkPdftoppm: async () => false });
+
     try {
-      await readOcr(file, mockDeps());
+      await readOcr(file, deps);
       expect(true).toBe(false); // Should not reach here
     } catch (e) {
       expect(e).toBeInstanceOf(OcrError);

@@ -38,6 +38,8 @@ export interface OcrDeps {
   complete: (options: Omit<CompleteOptions, 'config'>) => Promise<string>;
   /** The model that reads the rasterized pages. */
   model: string;
+  /** Rasterizer probe — overridable for tests. Defaults to checkPdftoppm. */
+  checkPdftoppm?: () => Promise<boolean>;
 }
 
 function dataUrl(file: string): string {
@@ -104,7 +106,7 @@ export async function readOcr(file: string, deps: OcrDeps): Promise<string> {
   }
 
   if (ext === '.pdf') {
-    const pdftoppmOk = await checkPdftoppm();
+    const pdftoppmOk = await (deps.checkPdftoppm ?? checkPdftoppm)();
     if (!pdftoppmOk) {
       throw new OcrError('PDFTOPPM_NOT_INSTALLED', PDFTOPPM_HINT);
     }
