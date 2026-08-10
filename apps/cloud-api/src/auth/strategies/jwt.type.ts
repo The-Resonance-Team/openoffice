@@ -5,6 +5,7 @@ export interface JwtPayload {
   userId: string;
   orgId: string;
   role: Role;
+  sessionId: string;
 }
 
 export interface AuthenticatedMember {
@@ -12,4 +13,5 @@ export interface AuthenticatedMember {
   userId: string;
   orgId: string;
   role: Role;
+  sessionId: string;
 }

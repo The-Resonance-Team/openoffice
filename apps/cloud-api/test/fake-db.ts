@@ -6,6 +6,10 @@ const eq = (where: Record<string, unknown> | undefined, row: any): boolean =>
   Object.entries(where ?? {}).every(([k, v]) => {
     // compound unique keys arrive as `{ provider_providerUserId: {...} }`
     if (v !== null && typeof v === 'object' && !(v instanceof Date)) {
+      // Handle "not" operator: { id: { not: "xxx" } }
+      if ('not' in v) {
+        return row[k] !== v.not;
+      }
       return Object.entries(v).every(([ck, cv]) => row[ck] === cv);
     }
     return row[k] === v;

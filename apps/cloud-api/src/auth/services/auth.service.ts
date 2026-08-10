@@ -12,6 +12,8 @@ import { PrismaService } from '@/prisma/prisma.service';
 import type { LoginDto } from '@/auth/dto/login.dto';
 import type { RegisterDto } from '@/auth/dto/register.dto';
 import type { SwitchOrgDto } from '@/auth/dto/switch-org.dto';
+import type { UpdateProfileDto } from '@/auth/dto/update-profile.dto';
+import type { ChangePasswordDto } from '@/auth/dto/change-password.dto';
 import { EmailTokenService } from './email-token.service';
 import { MailerService } from './mailer.service';
 import { OAuthService } from './oauth.service';
@@ -120,7 +122,7 @@ export class AuthService {
       },
     });
     return {
-      accessToken: await this.signAccessToken(membership),
+      accessToken: await this.signAccessToken(membership, session.id),
       refreshToken: newRefresh,
       profile: this.toProfile(membership),
     };
@@ -187,6 +189,34 @@ export class AuthService {
     return this.toProfile(membership);
   }
 
+  async updateProfile(userId: string, dto: UpdateProfileDto): Promise<MemberProfile> {
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: { name: dto.name },
+      include: { memberships: { include: { org: true, team: true } } },
+    });
+    const membership =
+      (user.memberships as unknown as Membership[]).find((m) => m.orgId === user.lastOrgId) ??
+      (user.memberships as unknown as Membership[])[0];
+    return this.toProfile(membership);
+  }
+
+  async changePassword(userId: string, dto: ChangePasswordDto): Promise<void> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user?.passwordHash) {
+      throw new UnauthorizedException('User not found');
+    }
+    const valid = await argon2.verify(user.passwordHash, dto.currentPassword);
+    if (!valid) {
+      throw new UnauthorizedException('Current password is incorrect');
+    }
+    const newPasswordHash = await argon2.hash(dto.newPassword);
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash: newPasswordHash },
+    });
+  }
+
   /** Picks the active membership: last used org when it is still valid, else first. */
   private async resolveMembership(userId: string): Promise<Membership> {
     const memberships = await this.prisma.member.findMany({
@@ -210,7 +240,7 @@ export class AuthService {
 
   private async issueSession(membership: Membership, ip: string): Promise<AuthResult> {
     const refreshToken = randomToken();
-    await this.prisma.session.create({
+    const session = await this.prisma.session.create({
       data: {
         userId: membership.user.id,
         hashedRefresh: sha256Hex(refreshToken),
@@ -219,18 +249,19 @@ export class AuthService {
       },
     });
     return {
-      accessToken: await this.signAccessToken(membership),
+      accessToken: await this.signAccessToken(membership, session.id),
       refreshToken,
       profile: this.toProfile(membership),
     };
   }
 
-  private async signAccessToken(membership: Membership): Promise<string> {
+  private async signAccessToken(membership: Membership, sessionId: string): Promise<string> {
     return this.jwt.signAsync({
       sub: membership.id,
       userId: membership.user.id,
       orgId: membership.orgId,
       role: membership.role,
+      sessionId,
     });
   }
 

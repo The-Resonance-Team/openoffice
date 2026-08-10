@@ -7,6 +7,7 @@ import {
   AuthController,
   InvitesController,
   MembersController,
+  SessionsController,
 } from './controllers';
 import {
   ApiKeyService,
@@ -16,6 +17,7 @@ import {
   MailerService,
   MemberService,
   OAuthService,
+  SessionService,
 } from './services';
 import { ApiKeyStrategy, GithubStrategy, GoogleStrategy, JwtStrategy } from './strategies';
 
@@ -58,7 +60,13 @@ function oauthStrategyProvider(
       }),
     }),
   ],
-  controllers: [AuthController, ApiKeysController, InvitesController, MembersController],
+  controllers: [
+    AuthController,
+    ApiKeysController,
+    InvitesController,
+    MembersController,
+    SessionsController,
+  ],
   providers: [
     AuthService,
     ApiKeyService,
@@ -67,11 +75,20 @@ function oauthStrategyProvider(
     MailerService,
     MemberService,
     OAuthService,
+    SessionService,
     JwtStrategy,
     ApiKeyStrategy,
     oauthStrategyProvider(GoogleStrategy, 'google'),
     oauthStrategyProvider(GithubStrategy, 'github'),
   ],
-  exports: [JwtModule, AuthService, ApiKeyService, OAuthService, InviteService, MemberService],
+  exports: [
+    JwtModule,
+    AuthService,
+    ApiKeyService,
+    OAuthService,
+    InviteService,
+    MemberService,
+    SessionService,
+  ],
 })
 export class AuthModule {}
