@@ -1,30 +1,34 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { verifyEmail } from '@/lib/api';
 
 export default function VerifyEmailPage() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get('token') || '';
-  const [status, setStatus] = useState<'verifying' | 'success' | 'error'>('verifying');
-  const [error, setError] = useState('');
+  const [status, setStatus] = useState<'verifying' | 'success' | 'error'>(
+    token ? 'verifying' : 'error',
+  );
+  const [error, setError] = useState(token ? '' : 'Invalid verification link');
 
   useEffect(() => {
-    if (!token) {
-      setStatus('error');
-      setError('Invalid verification link');
-      return;
-    }
-
+    if (!token) return;
+    let cancelled = false;
     verifyEmail(token)
-      .then(() => setStatus('success'))
+      .then(() => {
+        if (!cancelled) setStatus('success');
+      })
       .catch(() => {
-        setStatus('error');
-        setError('Failed to verify email. Link may be expired.');
+        if (!cancelled) {
+          setStatus('error');
+          setError('Failed to verify email. Link may be expired.');
+        }
       });
+    return () => {
+      cancelled = true;
+    };
   }, [token]);
 
   return (

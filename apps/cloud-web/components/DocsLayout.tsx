@@ -36,14 +36,20 @@ export function DocsLayout({ docs, currentDoc, children }: DocsLayoutProps) {
   useEffect(() => {
     const main = document.getElementById('main');
     if (!main) return;
-    const h2s = main.querySelectorAll('h2[id]');
-    const items = Array.from(h2s).map((el) => ({
-      id: el.id,
-      text: el.textContent ?? '',
-    }));
-    setHeadings(items);
 
-    const secIds = items.map((h) => h.id);
+    // Measure the rendered h2s in a rAF callback — setState in a callback,
+    // never synchronously in the effect body.
+    let secIds: string[] = [];
+    const measure = () => {
+      const items = Array.from(main.querySelectorAll('h2[id]')).map((el) => ({
+        id: el.id,
+        text: el.textContent ?? '',
+      }));
+      secIds = items.map((h) => h.id);
+      setHeadings(items);
+    };
+    const measureRaf = requestAnimationFrame(measure);
+
     function onScroll() {
       if (rafRef.current != null) return;
       rafRef.current = requestAnimationFrame(() => {
@@ -59,6 +65,7 @@ export function DocsLayout({ docs, currentDoc, children }: DocsLayoutProps) {
     }
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => {
+      cancelAnimationFrame(measureRaf);
       window.removeEventListener('scroll', onScroll);
       if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
     };

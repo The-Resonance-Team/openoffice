@@ -17,7 +17,7 @@ export default function ForgotPasswordPage() {
     try {
       await forgotPassword(email);
       setSent(true);
-    } catch (err) {
+    } catch {
       setError('Failed to send reset email. Please try again.');
     } finally {
       setLoading(false);
@@ -38,13 +38,13 @@ export default function ForgotPasswordPage() {
       <div style={{ width: '100%', maxWidth: 400 }}>
         <h1 style={{ fontSize: 32, fontWeight: 700, marginBottom: 8 }}>Reset password</h1>
         <p style={{ color: 'var(--faint)', marginBottom: 32 }}>
-          Enter your email and we'll send you a reset link
+          Enter your email and we&apos;ll send you a reset link
         </p>
 
         {sent ? (
           <div style={{ padding: '16px', background: 'var(--card)', borderRadius: 6 }}>
             <p style={{ fontSize: 14, marginBottom: 12 }}>
-              If an account exists for <strong>{email}</strong>, we've sent a reset link.
+              If an account exists for <strong>{email}</strong>, we&apos;ve sent a reset link.
             </p>
             <p style={{ fontSize: 14, color: 'var(--faint)' }}>
               Check your email and follow the instructions to reset your password.

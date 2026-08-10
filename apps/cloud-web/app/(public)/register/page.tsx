@@ -21,7 +21,7 @@ export default function RegisterPage() {
     try {
       await register(email, password, orgName, name || undefined);
       router.push('/app');
-    } catch (err) {
+    } catch {
       setError('Registration failed. Email may already be in use.');
     } finally {
       setLoading(false);

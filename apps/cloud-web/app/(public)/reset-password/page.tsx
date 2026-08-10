@@ -32,7 +32,7 @@ export default function ResetPasswordPage() {
     try {
       await resetPassword(token, password);
       router.push('/login?reset=success');
-    } catch (err) {
+    } catch {
       setError('Failed to reset password. Link may be expired.');
     } finally {
       setLoading(false);
