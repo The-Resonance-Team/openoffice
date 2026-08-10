@@ -1,5 +1,5 @@
 export interface Mail {
-  to: string
-  subject: string
-  text: string
+  to: string;
+  subject: string;
+  text: string;
 }

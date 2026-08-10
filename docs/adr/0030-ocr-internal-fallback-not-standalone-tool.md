@@ -14,7 +14,7 @@ OCR is an internal module (`packages/core/src/ocr/`) consumed by `read` as an op
 
 3. **Auto-fallback > manual routing.** When `readPdf` throws `PDF_NO_TEXT_LAYER`, the `read` tool catches it and retries via OCR automatically. The agent never sees the error unless OCR also fails. This is strictly better than requiring the agent to catch the error and decide to call `oocr`.
 
-4. **Image files route the same way.** Standalone images (`.png`/`.jpg`/`.tiff`/`.bmp`) also route through `read` → `readOcr`, with a clear error (`OCR_NOT_AVAILABLE`) when OCR isn't configured. No separate tool needed.
+4. **Image files route the same way.** Standalone images (`.png`/`.jpg`/`.jpeg` — the formats vision APIs accept; tiff/bmp were dropped from the routing set for this reason) also route through `read` → `readOcr`, with a clear error (`OCR_NOT_AVAILABLE`) when OCR isn't configured. No separate tool needed.
 
 ## Consequences
 

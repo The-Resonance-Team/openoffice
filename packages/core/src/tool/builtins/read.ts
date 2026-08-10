@@ -31,7 +31,10 @@ export const DOCUMENT_EXTENSIONS = new Set([
   '.epub',
   '.pdf',
 ]);
-export const IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.tiff', '.tif', '.bmp']);
+// Vision models accept png/jpeg only (see ocr.ts MIME_BY_EXT). Other common
+// image formats get an explicit error below — never the binary-as-text path.
+export const IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg']);
+const UNSUPPORTED_IMAGE_EXTENSIONS = new Set(['.tiff', '.tif', '.bmp']);
 const TEXT_EXTENSIONS = new Set([
   '.txt',
   '.md',
@@ -109,6 +112,15 @@ const readSchema = z.object({
   file: z.string().describe('Path to the file to read'),
 });
 
+// Duck-typed OcrError.code read: importing OcrError from ../ocr would close a
+// module cycle (ocr imports IMAGE_EXTENSIONS from this folder's barrel).
+function ocrErrorCode(e: unknown): string | undefined {
+  if (e instanceof Error && 'code' in e && typeof (e as { code: unknown }).code === 'string') {
+    return (e as { code: string }).code;
+  }
+  return undefined;
+}
+
 export function createReadTool(deps: ReadDeps): ToolDefinition<typeof readSchema> {
   return {
     name: 'read',
@@ -170,7 +182,8 @@ export function createReadTool(deps: ReadDeps): ToolDefinition<typeof readSchema
               return {
                 success: false,
                 error: ocrErr instanceof Error ? ocrErr.message : 'OCR failed',
-                code: 'OCR_FAILED',
+                // ponytail: preserve OcrError codes — PDFTOPPM_NOT_INSTALLED tells the agent what to install
+                code: ocrErrorCode(ocrErr) ?? 'OCR_FAILED',
               };
             }
           }
@@ -215,9 +228,18 @@ export function createReadTool(deps: ReadDeps): ToolDefinition<typeof readSchema
           return {
             success: false,
             error: e instanceof Error ? e.message : 'OCR failed',
-            code: 'OCR_FAILED',
+            // ponytail: preserve OcrError codes — PDFTOPPM_NOT_INSTALLED tells the agent what to install
+            code: ocrErrorCode(e) ?? 'OCR_FAILED',
           };
         }
+      }
+
+      if (UNSUPPORTED_IMAGE_EXTENSIONS.has(ext)) {
+        return {
+          success: false,
+          error: `Cannot read ${ext} files: convert the image to PNG or JPEG first.`,
+          code: 'UNSUPPORTED_FORMAT',
+        };
       }
 
       if (TEXT_EXTENSIONS.has(ext) || !ext) {

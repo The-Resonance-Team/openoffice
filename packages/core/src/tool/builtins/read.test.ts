@@ -196,22 +196,26 @@ describe('createReadTool — image OCR routing', () => {
     expect(ocrCalledWith).toBe(file);
   });
 
-  test('routes .tiff to readOcr', async () => {
+  test('rejects .tiff with an explicit error (vision APIs reject tiff)', async () => {
     const dir = tempDir();
     const file = join(dir, 'test.tiff');
     writeFileSync(file, 'binary tiff data');
 
-    let ocrCalledWith = '';
+    let ocrCalled = false;
     const tool = createReadTool({
       readDocument: async () => 'anydoc',
-      readOcr: async (f: string) => {
-        ocrCalledWith = f;
+      readOcr: async () => {
+        ocrCalled = true;
         return 'OCR from tiff';
       },
     });
     const result = await tool.execute({ file }, { sessionID: 'test' });
-    expect(result.success).toBe(true);
-    expect(ocrCalledWith).toBe(file);
+    expect(ocrCalled).toBe(false);
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.code).toBe('UNSUPPORTED_FORMAT');
+      expect(result.error).toContain('PNG or JPEG');
+    }
   });
 
   test('returns OCR_NOT_AVAILABLE when readOcr not provided', async () => {

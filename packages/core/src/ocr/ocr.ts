@@ -11,14 +11,15 @@ const OCR_PREFIX =
   '[OCR: Extracted from scanned document via vision model. May contain recognition errors.]';
 const EXTRACT_PROMPT =
   'Extract all text from the image verbatim, preserving the reading order. Output only the extracted text.';
+const PDFTOPPM_HINT =
+  'pdftoppm not found. Install poppler-utils: brew install poppler (macOS) / apt install poppler-utils (Linux)';
 
+// Vision APIs accept png/jpeg (and gif/webp); tiff/bmp are rasterized first or
+// rejected. Kept in sync with IMAGE_EXTENSIONS in tool/builtins/read.ts.
 const MIME_BY_EXT: Record<string, string> = {
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg',
-  '.tiff': 'image/tiff',
-  '.tif': 'image/tiff',
-  '.bmp': 'image/bmp',
 };
 
 export type OcrErrorCode = 'PDFTOPPM_NOT_INSTALLED' | 'OCR_FAILED';
@@ -41,8 +42,7 @@ export interface OcrDeps {
 
 function dataUrl(file: string): string {
   const ext = extname(file).toLowerCase();
-  const mime = MIME_BY_EXT[ext] ?? 'image/png';
-  return `data:${mime};base64,${readFileSync(file).toString('base64')}`;
+  return `data:${MIME_BY_EXT[ext]};base64,${readFileSync(file).toString('base64')}`;
 }
 
 async function visionExtract(file: string, deps: OcrDeps): Promise<string> {
@@ -53,10 +53,7 @@ async function visionExtract(file: string, deps: OcrDeps): Promise<string> {
       messages: [
         {
           role: 'user',
-          content: [
-            { type: 'image', image: dataUrl(file) },
-            { type: 'text', text: 'Extract all text from this image.' },
-          ],
+          content: [{ type: 'image', image: dataUrl(file) }],
         },
       ],
     });
@@ -87,10 +84,7 @@ function rasterizePdf(
       'code' in err &&
       (err as { code: string }).code === 'ENOENT'
     ) {
-      throw new OcrError(
-        'PDFTOPPM_NOT_INSTALLED',
-        'pdftoppm not found. Install poppler-utils: brew install poppler (macOS) / apt install poppler-utils (Linux)',
-      );
+      throw new OcrError('PDFTOPPM_NOT_INSTALLED', PDFTOPPM_HINT);
     }
     throw new OcrError('OCR_FAILED', `pdftoppm failed: ${msg}`);
   }
@@ -112,10 +106,7 @@ export async function readOcr(file: string, deps: OcrDeps): Promise<string> {
   if (ext === '.pdf') {
     const pdftoppmOk = await checkPdftoppm();
     if (!pdftoppmOk) {
-      throw new OcrError(
-        'PDFTOPPM_NOT_INSTALLED',
-        'pdftoppm not found. Install poppler-utils: brew install poppler (macOS) / apt install poppler-utils (Linux)',
-      );
+      throw new OcrError('PDFTOPPM_NOT_INSTALLED', PDFTOPPM_HINT);
     }
 
     const tmpDir = mkdtempSync(join(tmpdir(), 'oocr-'));
