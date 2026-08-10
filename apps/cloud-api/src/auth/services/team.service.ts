@@ -1,20 +1,7 @@
-import {
-  ConflictException,
-  ForbiddenException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
-import { Role } from '@/generated/client';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '@/prisma/prisma.service';
 import type { CreateTeamDto } from '@/auth/dto/create-team.dto';
 import type { UpdateTeamDto } from '@/auth/dto/update-team.dto';
-
-const ROLE_RANK: Record<Role, number> = {
-  [Role.OWNER]: 4,
-  [Role.ADMIN]: 3,
-  [Role.TEAM_LEADER]: 2,
-  [Role.MEMBER]: 1,
-};
 
 @Injectable()
 export class TeamService {

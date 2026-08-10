@@ -14,7 +14,7 @@ export class OrgsController {
   async update(
     @Param('id') id: string,
     @Body() dto: UpdateOrgDto,
-    @CurrentUser() user: AuthenticatedMember,
+    @CurrentUser() _user: AuthenticatedMember,
   ) {
     return this.orgs.update(id, dto);
   }
