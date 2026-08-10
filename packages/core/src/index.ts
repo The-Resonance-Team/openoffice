@@ -48,12 +48,22 @@ export {
   AuthRequiredError,
   chat,
   complete,
+  readViaVision,
+  resetProbeCache,
   getModel,
   splitModel,
   maxOutputTokens,
   discoverLocalModels,
 } from './llm';
-export type { ChatOptions, CompleteOptions, Model, ModelLimits, DiscoveredModel } from './llm';
+export type {
+  ChatOptions,
+  CompleteOptions,
+  VisionDeps,
+  VisionErrorCode,
+  Model,
+  ModelLimits,
+  DiscoveredModel,
+} from './llm';
 
 export {
   McpManager,
@@ -136,5 +146,6 @@ export {
   createQuestionTool,
   createConvertTool,
   createTodoTool,
+  IMAGE_EXTENSIONS,
 } from './tool';
 export type { ToolDefinition, ToolResult, ReadDeps, QuestionDeps, ConvertDeps } from './tool';

@@ -31,6 +31,10 @@ export const DOCUMENT_EXTENSIONS = new Set([
   '.epub',
   '.pdf',
 ]);
+// Vision models accept png/jpeg only (see llm/vision.ts MIME_BY_EXT). Other common
+// image formats get an explicit error below — never the binary-as-text path.
+export const IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg']);
+const UNSUPPORTED_IMAGE_EXTENSIONS = new Set(['.tiff', '.tif', '.bmp']);
 const TEXT_EXTENSIONS = new Set([
   '.txt',
   '.md',
@@ -67,6 +71,7 @@ const TEXT_EXTENSIONS = new Set([
 export interface ReadDeps {
   readDocument: (file: string, ctx: ToolContext) => Promise<string>;
   readPdf?: (file: string) => Promise<string>;
+  readScanned?: (file: string) => Promise<string>;
   draftManager?: DraftManager;
   /** MCP resource reader (the daemon's McpManager); absent when unsupported. */
   mcp?: {
@@ -107,11 +112,20 @@ const readSchema = z.object({
   file: z.string().describe('Path to the file to read'),
 });
 
+// Duck-typed OcrError.code read: importing OcrError from ../ocr would close a
+// module cycle (ocr imports IMAGE_EXTENSIONS from this folder's barrel).
+function ocrErrorCode(e: unknown): string | undefined {
+  if (e instanceof Error && 'code' in e && typeof (e as { code: unknown }).code === 'string') {
+    return (e as { code: string }).code;
+  }
+  return undefined;
+}
+
 export function createReadTool(deps: ReadDeps): ToolDefinition<typeof readSchema> {
   return {
     name: 'read',
     description:
-      'Read file contents. Auto-detects Office, OpenDocument, RTF, EPUB, and PDF files via AnyDoc, plain text for everything else. Always use this to read any file.',
+      'Read file contents. Auto-detects Office, OpenDocument, RTF, EPUB, and PDF files via AnyDoc, plain text for everything else. Scanned/image-based PDFs and images are automatically read via a vision model. Always use this to read any file.',
     parameters: readSchema,
 
     execute: async (params, ctx): Promise<ToolResult> => {
@@ -150,6 +164,29 @@ export function createReadTool(deps: ReadDeps): ToolDefinition<typeof readSchema
           const content = await deps.readPdf(file);
           return { success: true, output: content };
         } catch (e: unknown) {
+          // Auto-fallback to OCR for scanned/image-based PDFs
+          if (
+            e instanceof Error &&
+            'code' in e &&
+            (e as { code: string }).code === 'PDF_NO_TEXT_LAYER' &&
+            deps.readScanned
+          ) {
+            try {
+              const ocrResult = await deps.readScanned(file);
+              return {
+                success: true,
+                output: ocrResult,
+                data: { source: 'ocr' },
+              };
+            } catch (ocrErr: unknown) {
+              return {
+                success: false,
+                error: ocrErr instanceof Error ? ocrErr.message : 'OCR failed',
+                // ponytail: preserve OcrError codes — PDFTOPPM_NOT_INSTALLED tells the agent what to install
+                code: ocrErrorCode(ocrErr) ?? 'OCR_FAILED',
+              };
+            }
+          }
           return {
             success: false,
             error: errorMessage(e) || 'Failed to read PDF',
@@ -174,6 +211,35 @@ export function createReadTool(deps: ReadDeps): ToolDefinition<typeof readSchema
             code: ext === '.pdf' ? 'PDF_READ_ERROR' : 'DOCUMENT_READ_ERROR',
           };
         }
+      }
+
+      if (IMAGE_EXTENSIONS.has(ext)) {
+        if (!deps.readScanned) {
+          return {
+            success: false,
+            error: `Cannot read ${ext} files: OCR not available.`,
+            code: 'OCR_NOT_AVAILABLE',
+          };
+        }
+        try {
+          const ocrResult = await deps.readScanned(file);
+          return { success: true, output: ocrResult, data: { source: 'ocr' } };
+        } catch (e: unknown) {
+          return {
+            success: false,
+            error: e instanceof Error ? e.message : 'OCR failed',
+            // ponytail: preserve OcrError codes — PDFTOPPM_NOT_INSTALLED tells the agent what to install
+            code: ocrErrorCode(e) ?? 'OCR_FAILED',
+          };
+        }
+      }
+
+      if (UNSUPPORTED_IMAGE_EXTENSIONS.has(ext)) {
+        return {
+          success: false,
+          error: `Cannot read ${ext} files: convert the image to PNG or JPEG first.`,
+          code: 'UNSUPPORTED_FORMAT',
+        };
       }
 
       if (TEXT_EXTENSIONS.has(ext) || !ext) {

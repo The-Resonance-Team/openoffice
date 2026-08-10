@@ -83,3 +83,173 @@ describe('createReadTool — PDF routing', () => {
     expect(calledWith).toBe(file);
   });
 });
+
+describe('createReadTool — OCR auto-fallback', () => {
+  test('auto-falls back to OCR when readPdf throws PDF_NO_TEXT_LAYER', async () => {
+    const dir = tempDir();
+    const file = join(dir, 'scanned.pdf');
+    writeFileSync(file, '%PDF-1.4');
+
+    let ocrCalledWith = '';
+    const tool = createReadTool({
+      readDocument: async () => 'anydoc',
+      readPdf: async () => {
+        const err = new Error('Scanned PDF') as any;
+        err.code = 'PDF_NO_TEXT_LAYER';
+        throw err;
+      },
+      readScanned: async (f: string) => {
+        ocrCalledWith = f;
+        return 'OCR text content';
+      },
+    });
+    const result = await tool.execute({ file }, { sessionID: 'test' });
+    expect(result.success).toBe(true);
+    expect(ocrCalledWith).toBe(file);
+    if (result.success) {
+      expect(result.output).toBe('OCR text content');
+      expect(result.data).toEqual({ source: 'ocr' });
+    }
+  });
+
+  test('returns PDF_NO_TEXT_LAYER when readScanned not provided', async () => {
+    const dir = tempDir();
+    const file = join(dir, 'scanned.pdf');
+    writeFileSync(file, '%PDF-1.4');
+
+    const tool = createReadTool({
+      readDocument: async () => 'anydoc',
+      readPdf: async () => {
+        const err = new Error('Scanned PDF') as any;
+        err.code = 'PDF_NO_TEXT_LAYER';
+        throw err;
+      },
+    });
+    const result = await tool.execute({ file }, { sessionID: 'test' });
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.code).toBe('PDF_NO_TEXT_LAYER');
+  });
+
+  test('returns OCR_FAILED when OCR fails', async () => {
+    const dir = tempDir();
+    const file = join(dir, 'scanned.pdf');
+    writeFileSync(file, '%PDF-1.4');
+
+    const tool = createReadTool({
+      readDocument: async () => 'anydoc',
+      readPdf: async () => {
+        const err = new Error('Scanned PDF') as any;
+        err.code = 'PDF_NO_TEXT_LAYER';
+        throw err;
+      },
+      readScanned: async () => {
+        throw new Error('Vision model unavailable');
+      },
+    });
+    const result = await tool.execute({ file }, { sessionID: 'test' });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.code).toBe('OCR_FAILED');
+      expect(result.error).toContain('Vision model unavailable');
+    }
+  });
+});
+
+describe('createReadTool — image OCR routing', () => {
+  test('routes .png to readScanned when provided', async () => {
+    const dir = tempDir();
+    const file = join(dir, 'test.png');
+    writeFileSync(file, 'binary png data');
+
+    let ocrCalledWith = '';
+    const tool = createReadTool({
+      readDocument: async () => 'anydoc',
+      readScanned: async (f: string) => {
+        ocrCalledWith = f;
+        return 'OCR from image';
+      },
+    });
+    const result = await tool.execute({ file }, { sessionID: 'test' });
+    expect(result.success).toBe(true);
+    expect(ocrCalledWith).toBe(file);
+    if (result.success) {
+      expect(result.output).toBe('OCR from image');
+      expect(result.data).toEqual({ source: 'ocr' });
+    }
+  });
+
+  test('routes .jpg to readScanned', async () => {
+    const dir = tempDir();
+    const file = join(dir, 'test.jpg');
+    writeFileSync(file, 'binary jpg data');
+
+    let ocrCalledWith = '';
+    const tool = createReadTool({
+      readDocument: async () => 'anydoc',
+      readScanned: async (f: string) => {
+        ocrCalledWith = f;
+        return 'OCR from jpg';
+      },
+    });
+    const result = await tool.execute({ file }, { sessionID: 'test' });
+    expect(result.success).toBe(true);
+    expect(ocrCalledWith).toBe(file);
+  });
+
+  test('rejects .tiff with an explicit error (vision APIs reject tiff)', async () => {
+    const dir = tempDir();
+    const file = join(dir, 'test.tiff');
+    writeFileSync(file, 'binary tiff data');
+
+    let ocrCalled = false;
+    const tool = createReadTool({
+      readDocument: async () => 'anydoc',
+      readScanned: async () => {
+        ocrCalled = true;
+        return 'OCR from tiff';
+      },
+    });
+    const result = await tool.execute({ file }, { sessionID: 'test' });
+    expect(ocrCalled).toBe(false);
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.code).toBe('UNSUPPORTED_FORMAT');
+      expect(result.error).toContain('PNG or JPEG');
+    }
+  });
+
+  test('returns OCR_NOT_AVAILABLE when readScanned not provided', async () => {
+    const dir = tempDir();
+    const file = join(dir, 'test.png');
+    writeFileSync(file, 'binary png data');
+
+    const tool = createReadTool({
+      readDocument: async () => 'anydoc',
+    });
+    const result = await tool.execute({ file }, { sessionID: 'test' });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.code).toBe('OCR_NOT_AVAILABLE');
+      expect(result.error).toContain('OCR not available');
+    }
+  });
+
+  test('returns OCR_FAILED when image OCR fails', async () => {
+    const dir = tempDir();
+    const file = join(dir, 'test.png');
+    writeFileSync(file, 'binary png data');
+
+    const tool = createReadTool({
+      readDocument: async () => 'anydoc',
+      readScanned: async () => {
+        throw new Error('OCR backend unavailable');
+      },
+    });
+    const result = await tool.execute({ file }, { sessionID: 'test' });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.code).toBe('OCR_FAILED');
+      expect(result.error).toContain('OCR backend unavailable');
+    }
+  });
+});
