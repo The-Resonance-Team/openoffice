@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { addDays } from 'date-fns';
 import { Role } from '@/generated/client';
-import { PrismaService } from '@/prisma/prisma.service';
+import { InviteRepo, UserRepo, MemberRepo } from '@/auth/repo';
 import type { CreateInviteDto } from '@/auth/dto/create-invite.dto';
 import { MailerService } from './mailer.service';
 import { randomToken, sha256Hex } from './tokens';
@@ -17,7 +17,9 @@ const INVITE_TTL_DAYS = 7;
 @Injectable()
 export class InviteService {
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly invites: InviteRepo,
+    private readonly users: UserRepo,
+    private readonly members: MemberRepo,
     private readonly mailer: MailerService,
   ) {}
 
@@ -27,25 +29,21 @@ export class InviteService {
     if (dto.role === Role.OWNER) {
       throw new BadRequestException('OWNER cannot be invited');
     }
-    const user = await this.prisma.user.findUnique({ where: { email } });
-    if (
-      user &&
-      (await this.prisma.member.findFirst({
-        where: { orgId, userId: user.id },
-      }))
-    ) {
-      throw new ConflictException('Already a member of this org');
+    const user = await this.users.findByEmail(email);
+    if (user) {
+      const existingMember = await this.members.findByOrgAndUser(orgId, user.id);
+      if (existingMember) {
+        throw new ConflictException('Already a member of this org');
+      }
     }
     const raw = randomToken();
-    await this.prisma.invite.create({
-      data: {
-        orgId,
-        invitedById,
-        email,
-        role: dto.role ?? Role.MEMBER,
-        tokenHash: sha256Hex(raw),
-        expiresAt: addDays(new Date(), INVITE_TTL_DAYS),
-      },
+    await this.invites.create({
+      orgId,
+      invitedById,
+      email,
+      role: dto.role ?? Role.MEMBER,
+      tokenHash: sha256Hex(raw),
+      expiresAt: addDays(new Date(), INVITE_TTL_DAYS),
     });
     await this.mailer.send({
       to: email,
@@ -63,30 +61,52 @@ export class InviteService {
    * who was invited, and the invite link is the proof of email control.
    */
   async accept(token: string, userId: string): Promise<{ orgId: string; memberId: string }> {
-    const invite = await this.prisma.invite.findFirst({
-      where: { tokenHash: sha256Hex(token), usedAt: null },
-    });
+    const invite = await this.invites.findByTokenHash(sha256Hex(token));
     if (!invite || invite.expiresAt <= new Date()) {
       throw new UnauthorizedException('Invalid or expired invite');
     }
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    const user = await this.users.findById(userId);
     if (!user || invite.email !== user.email.toLowerCase()) {
       throw new UnauthorizedException('Invite is for a different email');
     }
-    if (
-      await this.prisma.member.findFirst({
-        where: { orgId: invite.orgId, userId },
-      })
-    ) {
+    const existingMember = await this.members.findByOrgAndUser(invite.orgId, userId);
+    if (existingMember) {
       throw new ConflictException('Already a member of this org');
     }
-    const member = await this.prisma.member.create({
-      data: { orgId: invite.orgId, userId, role: invite.role },
-    });
-    await this.prisma.invite.update({
-      where: { id: invite.id },
-      data: { usedAt: new Date() },
-    });
+    const member = await this.members.create({ orgId: invite.orgId, userId, role: invite.role });
+    await this.invites.markUsed(invite.id);
     return { orgId: invite.orgId, memberId: member.id };
+  }
+
+  async list(orgId: string) {
+    return this.invites.listByOrg(orgId);
+  }
+
+  async cancel(orgId: string, inviteId: string) {
+    const invite = await this.invites.findById(inviteId);
+    if (!invite || invite.orgId !== orgId || invite.usedAt) {
+      throw new UnauthorizedException('Invite not found');
+    }
+    await this.invites.markUsed(inviteId);
+  }
+
+  async resend(orgId: string, inviteId: string) {
+    const invite = await this.invites.findById(inviteId);
+    if (!invite || invite.orgId !== orgId || invite.usedAt) {
+      throw new UnauthorizedException('Invite not found');
+    }
+    const raw = randomToken();
+    await this.invites.reissue(inviteId, {
+      tokenHash: sha256Hex(raw),
+      expiresAt: addDays(new Date(), INVITE_TTL_DAYS),
+    });
+    await this.mailer.send({
+      to: invite.email,
+      subject: "You've been invited to an OpenOffice org",
+      text:
+        `Join your OpenOffice org:\n${this.mailer.link('/invite', raw)}\n\n` +
+        `By joining, you agree that usage analytics of your OpenOffice daemon ` +
+        `will be shared with the org that invited you (cloud/CONTEXT.md → Consent).`,
+    });
   }
 }

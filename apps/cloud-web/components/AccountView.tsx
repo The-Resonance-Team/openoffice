@@ -2,8 +2,12 @@
 
 import { format } from 'date-fns';
 import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import {
+  apiKeySchema,
   oauthConnectUrl,
+  type ApiKeyForm,
   type MemberProfile,
   useApiKeys,
   useCreateApiKey,
@@ -369,17 +373,30 @@ function ApiKeysSection() {
   const createApiKeyMutation = useCreateApiKey();
   const revokeApiKeyMutation = useRevokeApiKey();
   const [modal, setModal] = useState<'create' | 'created' | null>(null);
-  const [name, setName] = useState('');
   const [fullKey, setFullKey] = useState('');
+  const {
+    register,
+    handleSubmit,
+    reset,
+    setError,
+    formState: { errors },
+  } = useForm<ApiKeyForm>({ resolver: zodResolver(apiKeySchema) });
 
   const keys = data?.keys ?? null;
 
-  async function submitCreate() {
-    const { key } = await createApiKeyMutation.mutateAsync({ name: name || 'New key' });
-    setFullKey(key);
-    setModal('created');
-    setName('');
-  }
+  const submitCreate = handleSubmit((data) => {
+    createApiKeyMutation.mutate(
+      { name: data.name || 'New key' },
+      {
+        onSuccess: ({ key }) => {
+          setFullKey(key);
+          setModal('created');
+          reset();
+        },
+        onError: () => setError('root', { type: 'manual', message: 'Failed to create key.' }),
+      },
+    );
+  });
 
   async function revoke(id: string) {
     await revokeApiKeyMutation.mutateAsync({ id });
@@ -511,17 +528,25 @@ function ApiKeysSection() {
           <FieldLabel htmlFor="key-name">Key name</FieldLabel>
           <input
             id="key-name"
-            name="key-name"
             autoComplete="off"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
             placeholder="e.g. Production daemon"
+            {...register('name')}
             style={textInputStyle}
           />
+          {errors.root && (
+            <div style={{ color: '#ef4444', fontSize: 12.5, marginTop: 12 }}>
+              {errors.root.message}
+            </div>
+          )}
           <div style={{ fontSize: 12, color: 'var(--faint)', marginTop: 11, lineHeight: 1.5 }}>
             The full key is shown once on creation. Store it somewhere safe.
           </div>
-          <ModalActions onCancel={() => setModal(null)} cta="Create key" onSubmit={submitCreate} />
+          <ModalActions
+            onCancel={() => setModal(null)}
+            cta="Create key"
+            onSubmit={submitCreate}
+            disabled={createApiKeyMutation.isPending}
+          />
         </Modal>
       )}
 

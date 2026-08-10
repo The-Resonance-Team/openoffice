@@ -6,6 +6,10 @@ const eq = (where: Record<string, unknown> | undefined, row: any): boolean =>
   Object.entries(where ?? {}).every(([k, v]) => {
     // compound unique keys arrive as `{ provider_providerUserId: {...} }`
     if (v !== null && typeof v === 'object' && !(v instanceof Date)) {
+      // Handle "not" operator: { id: { not: "xxx" } }
+      if ('not' in v) {
+        return row[k] !== v.not;
+      }
       return Object.entries(v).every(([ck, cv]) => row[ck] === cv);
     }
     return row[k] === v;
@@ -37,13 +41,27 @@ export function fakeDb(): PrismaService {
     team: ['team', 'teamId'],
   };
 
-  const store = (map: Map<string, any>) => {
+  // reverse relations: parent model -> [child map name, foreign-key column]
+  const REVERSE_RELATIONS: Record<string, [string, string]> = {
+    team: ['member', 'teamId'],
+  };
+
+  const store = (map: Map<string, any>, modelName: string) => {
     const withIncludes = (row: any, include?: Record<string, boolean>): any => {
       if (!include) return row;
       const out = { ...row };
       for (const [rel, [mapName, fk]] of Object.entries(RELATIONS)) {
         if (include[rel]) {
           out[rel] = row[fk] ? (maps[mapName].get(row[fk]) ?? null) : null;
+        }
+      }
+      // Handle reverse relations (e.g., team.members) - only for the parent model
+      if (REVERSE_RELATIONS[modelName]) {
+        const [childMapName, fk] = REVERSE_RELATIONS[modelName];
+        for (const rel of Object.keys(include)) {
+          if (rel === Object.keys(REVERSE_RELATIONS)[0]) {
+            out[rel] = [...maps[childMapName].values()].filter((child) => child[fk] === row.id);
+          }
         }
       }
       return out;
@@ -88,10 +106,18 @@ export function fakeDb(): PrismaService {
         for (const row of targets) Object.assign(row, data);
         return { count: targets.length };
       },
+      delete: async ({ where }: any) => {
+        const row = [...map.values()].find((r) => eq(where, r));
+        if (!row) throw new Error('fake: delete target not found');
+        map.delete(row.id);
+        return row;
+      },
     };
   };
 
-  const models = Object.fromEntries(Object.entries(maps).map(([name, map]) => [name, store(map)]));
+  const models = Object.fromEntries(
+    Object.entries(maps).map(([name, map]) => [name, store(map, name)]),
+  );
 
   const self: any = {
     ...models,
