@@ -36,6 +36,7 @@ export const IMAGE_EXTENSIONS = new Set([
   '.jpg',
   '.jpeg',
   '.tiff',
+  '.tif',
   '.bmp',
 ]);
 const TEXT_EXTENSIONS = new Set([
@@ -211,7 +212,7 @@ export function createReadTool(deps: ReadDeps): ToolDefinition<typeof readSchema
           return {
             success: false,
             error: `Cannot read ${ext} files: OCR not available. Install Tesseract to enable image reading.`,
-            code: "OCR_NOT_AVAILABLE",
+            code: 'OCR_NOT_AVAILABLE',
           };
         }
         try {
