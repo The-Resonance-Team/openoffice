@@ -17,10 +17,11 @@ import {
   loadConfigFiles,
   mergeLayers,
   applyEnvOverrides,
+  createDefaultOfficeCliTool,
 } from '@openoffice/core';
 import { AskChannel, createApp, endSession, type McpApi } from './index';
 import type { McpServerStatusInfo } from '@openoffice/protocol';
-import { startBase, buildBaseConfig } from '../base';
+import { startBase, buildBaseConfig, writeOfficeCliToolFile, resolveBaseBinary } from '../base';
 import { checkForUpdate } from '../update';
 import { VERSION } from '../version';
 import { loadAuthConfig, authRequired } from './auth';
@@ -120,10 +121,20 @@ export async function startDaemon(
   // The base platform (ADR 0033): spawn the vendored opencode server and
   // drive it through the SDK. The office-document domain (drafts, accept,
   // history) stays here; the agent loop, tools, and sessions are the base's.
+  const basePassword = randomUUID();
+  const baseConfigDir = join(dataDir, 'base');
+  writeOfficeCliToolFile(baseConfigDir);
+  const baseBinary = resolveBaseBinary(dataDir);
   const base = await startBase({
-    command: [process.env.OPENOFFICE_OPENCODE_BIN ?? 'opencode'],
-    password: randomUUID(),
+    command: [baseBinary],
+    password: basePassword,
     config: buildBaseConfig(config),
+    env: {
+      // The base discovers tool files under OPENCODE_CONFIG_DIR; the tool file
+      // reaches the daemon back through its port file + this token.
+      OPENCODE_CONFIG_DIR: baseConfigDir,
+      OPENOFFICE_DATA_DIR: dataDir,
+    },
   });
 
   // Runtime MCP control surface, proxied to the base server. opencode's
@@ -172,6 +183,11 @@ export async function startDaemon(
     shareStore,
     shareMode: shareMode(config),
     mcp,
+    baseToken: basePassword,
+    officecliExec: async (params: Record<string, unknown>, sessionID: string) => {
+      const tool = createDefaultOfficeCliTool({ draftManager });
+      return tool.execute(params as never, { sessionID });
+    },
     updateStatus: async () => {
       if (config.update?.check === false) {
         return { check: false, available: false };
@@ -188,23 +204,10 @@ export async function startDaemon(
   const projectPath = findProjectConfig(process.cwd());
   const layers = loadConfigFiles(globalPath, projectPath);
   const rawConfig = mergeLayers([{}, ...layers]);
+  // Provider credentials live in the base's auth.json now (ADR 0033), and the
+  // base redacts its own event stream; the daemon redacts env-resolved config
+  // values at its own bus choke point (CONTEXT.md Event safety).
   const sensitiveSet = collectEnvValues(applyEnvOverrides(rawConfig, env), env);
-  // Also collect stored credentials from auth.json.
-  try {
-    const { CredentialStore } = await import('@openoffice/core');
-    const store = new CredentialStore();
-    for (const provider of store.list()) {
-      const cred = store.get(provider);
-      if (!cred) continue;
-      if (cred.type === 'api' && cred.key.length >= 8) sensitiveSet.add(cred.key);
-      if (cred.type === 'oauth') {
-        if (cred.access.length >= 8) sensitiveSet.add(cred.access);
-        if (cred.refresh && cred.refresh.length >= 8) sensitiveSet.add(cred.refresh);
-      }
-    }
-  } catch {
-    // auth.json may not exist yet
-  }
   setSensitiveValues(sensitiveSet);
 
   // 0 lets the OS pick and the port file is the source of truth; a browser

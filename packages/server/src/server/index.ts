@@ -8,7 +8,6 @@ import {
   on,
   emit,
   filePathHash,
-  AuthRequiredError,
   shareViewerPage,
   type SessionStore,
   type Session,
@@ -72,6 +71,14 @@ export interface ServerDeps {
   askChannel: AskChannel;
   shareStore: ShareStore;
   shareMode: ShareMode;
+  /**
+   * The officecli tool executor the base's tool file calls back into (ADR
+   * 0033). Runs the draft-aware createDefaultOfficeCliTool. The base token is
+   * the password the daemon set on the spawned base server's env — only the
+   * base process knows it, so the internal route is unreachable by clients.
+   */
+  officecliExec: (params: Record<string, unknown>, sessionID: string) => Promise<unknown>;
+  baseToken: string;
   updateStatus?: () => Promise<UpdateStatus>;
   /** Runtime MCP control surface; absent means no /api/mcp routes. */
   mcp?: McpApi;
@@ -108,6 +115,144 @@ function isNotFound(err: unknown): boolean {
   );
 }
 
+// Bridges the base server's event stream into the daemon event bus. The bus
+// is the single redaction choke point (CONTEXT.md Event safety): mapped events
+// are emitted here so every consumer — stream routes, share replay, anything
+// future — sees redacted payloads without remembering to redact (ADR 0023).
+//
+// Turn semantics: opencode streams `session.next.text.delta` fragments and
+// ends the turn with `session.status: idle`. The bridge accumulates deltas per
+// session and emits ONE `llm:done` per turn at idle — matching the wire
+// protocol's "one done per turn" contract — and persists the user message
+// (prompt.admitted) and the assistant reply so share replay has a transcript
+// even when no client stream was open (ADR 0033).
+export async function bridgeBaseEvents(
+  base: import('../base').BaseEngine,
+  store?: SessionStore,
+  userTexts?: Map<string, string>,
+): Promise<void> {
+  const events = await base.client.subscribeEvents();
+  const acc = new Map<string, string>();
+  for await (const event of events) {
+    const mapped = mapBaseEvent(event);
+    if (!mapped) continue;
+
+    if (mapped.type === 'llm:token') {
+      acc.set(mapped.sessionID, (acc.get(mapped.sessionID) ?? '') + mapped.token);
+      emit(mapped.type, mapped);
+      continue;
+    }
+    if (mapped.type === 'llm:done') {
+      // text.ended carries the full part text; keep it as the fallback for
+      // the turn's final done, but don't emit per-part — one done per turn
+      // at idle keeps the wire contract and the turn route's await correct.
+      acc.set(mapped.sessionID, mapped.response);
+      continue;
+    }
+    if (mapped.type === 'session:status' && mapped.status === 'idle') {
+      let text = acc.get(mapped.sessionID);
+      acc.delete(mapped.sessionID);
+      // The base re-emits the user's message as a text part during the turn;
+      // strip the known user text so the reply is assistant-only.
+      const userText = userTexts?.get(mapped.sessionID);
+      if (text !== undefined && userText && text.startsWith(userText)) {
+        text = text.slice(userText.length);
+      }
+      if (text !== undefined) {
+        const done = { type: 'llm:done' as const, sessionID: mapped.sessionID, response: text };
+        emit(done.type, done);
+        persistAssistant(store, done.sessionID, done.response);
+      }
+      continue;
+    }
+    if (mapped.type === 'session:status' && mapped.status === 'busy') {
+      // Turn boundary: assistant text starts accumulating after busy; the
+      // user echo (emitted as a text part before busy) must not leak into
+      // the assistant reply.
+      acc.set(mapped.sessionID, '');
+      continue;
+    }
+    if (mapped.type === 'session:status' && mapped.status === 'retry') {
+      emit('llm:retry', {
+        sessionID: mapped.sessionID,
+        attempt: mapped.attempt ?? 0,
+        message: mapped.message ?? 'retrying',
+        next: mapped.next ?? 0,
+      });
+      continue;
+    }
+
+    // Remaining types are wire EventMap members only (status was handled
+    // above); narrow for the emit call.
+    const wire = mapped as { [K in keyof EventMap]: { type: K } & EventMap[K] }[keyof EventMap];
+    emit(wire.type, wire);
+  }
+}
+
+function persistUser(store: SessionStore | undefined, sessionID: string, content: string): void {
+  if (!store) return;
+  const messageID = randomUUID();
+  store.updateMessage(sessionID, {
+    id: messageID,
+    role: 'user',
+    time: { created: Date.now() },
+  });
+  store.updatePart(sessionID, messageID, {
+    id: undefined,
+    type: 'text',
+    text: content,
+  });
+}
+
+function persistAssistant(store: SessionStore | undefined, sessionID: string, text: string): void {
+  if (!store) return;
+  const messageID = randomUUID();
+  store.updateMessage(sessionID, {
+    id: messageID,
+    role: 'assistant',
+    finish: 'done',
+    time: { created: Date.now() },
+  });
+  store.updatePart(sessionID, messageID, {
+    id: undefined,
+    type: 'text',
+    text,
+  });
+}
+
+// Fires a turn on the base and waits for its completion. The base streams
+// text deltas and ends the turn with `session.status: idle`; the bridge turns
+// that into one llm:done per turn, which the stream routes also relay. The
+// blocking POST /turn contract is preserved by awaiting that done here.
+async function runTurnViaBase(
+  deps: ServerDeps,
+  sessionID: string,
+  message: string,
+): Promise<string> {
+  let doneOff: (() => void) | undefined;
+  const done = new Promise<string>((resolve) => {
+    const timer = setTimeout(
+      () => {
+        // A stuck turn must not hold the queue forever; resolve with "" so the
+        // client can reconnect and read the stream.
+        doneOff?.();
+        resolve('');
+      },
+      5 * 60 * 1000,
+    );
+    doneOff = on('llm:done', (d) => {
+      if (d.sessionID !== sessionID) return;
+      doneOff?.();
+      clearTimeout(timer);
+      resolve(d.response);
+    });
+  });
+
+  await deps.base.client.prompt(sessionID, message);
+  const text = await done;
+  return text;
+}
+
 // Share URLs are scoped to the daemon's own address (the request's Host), so
 // they stay correct the day Sync widens the bind beyond loopback.
 function shareUrl(c: Context, token: string): string {
@@ -140,6 +285,20 @@ export async function endSession(deps: ServerDeps, sessionID: string): Promise<v
 
 export function createApp(deps: ServerDeps) {
   const app = new Hono();
+  // The base event stream is per-instance (per-directory), so the bridge
+  // starts after the first session pins the instance directory (ADR 0033).
+  const userTexts = new Map<string, string>();
+  let bridgeStarted = false;
+  const startBridge = () => {
+    if (bridgeStarted) return;
+    bridgeStarted = true;
+    // The bus is the single redaction choke point (CONTEXT.md Event safety).
+    // Messages are also mirrored to the store for share replay. A bridge
+    // failure (base gone) must not crash the daemon; streams go quiet.
+    void bridgeBaseEvents(deps.base, deps.store, userTexts).catch((err) => {
+      console.error(`base event bridge failed: ${err instanceof Error ? err.message : err}`);
+    });
+  };
   const attached = new AttachedClients();
 
   // Cross-cutting middleware must be registered before any route: a Hono
@@ -171,6 +330,7 @@ export function createApp(deps: ServerDeps) {
     const sdk = await deps.base.client.createSession(cwd);
     const session = toWireSession(sdk, deps.sessionDefaults);
     deps.store.save(session);
+    startBridge();
     emit('session:create', { sessionID: session.id });
     // ponytail: best-effort auto-share, opencode parity — a failed share must
     // never fail session creation
@@ -251,19 +411,20 @@ export function createApp(deps: ServerDeps) {
 
     try {
       const text = await enqueueTurn(sessionID, async () => {
-        const result = await deps.base.client.prompt(sessionID, message);
-        const text = result.parts
-          .filter((p) => p.type === 'text' && typeof p.text === 'string')
-          .map((p) => (p as { text: string }).text)
-          .join('');
-        return text;
+        // Persist the user message only when the session exists in the
+        // mirror (the base 404s unknown sessions; the FK would reject).
+        if (deps.store.load(sessionID)) {
+          persistUser(deps.store, sessionID, message);
+        }
+        userTexts.set(sessionID, message);
+        return runTurnViaBase(deps, sessionID, message);
       });
       return c.json({ text });
     } catch (err) {
       if (isNotFound(err)) return c.json({ error: 'Session not found' }, 404);
-      if (err instanceof AuthRequiredError) {
-        return c.json({ error: 'auth-required', provider: err.provider }, 401);
-      }
+      // Provider auth errors surface from the base with its own shape; the
+      // daemon passes them through as 500s rather than guessing opencode's
+      // error vocabulary (ADR 0033).
       throw err;
     }
   });
@@ -276,6 +437,13 @@ export function createApp(deps: ServerDeps) {
       // attached, so it cannot leak a count.
       attached.attach(sessionID);
       const offs: (() => void)[] = [];
+      const subscribe = <K extends keyof EventMap>(event: K, fn: (d: EventMap[K]) => void) => {
+        offs.push(
+          on(event, (d) => {
+            if (d.sessionID === sessionID) void fn(d);
+          }),
+        );
+      };
       const write = async (data: unknown) => {
         try {
           await stream.writeSSE({ data: JSON.stringify(data) });
@@ -284,68 +452,26 @@ export function createApp(deps: ServerDeps) {
         }
       };
 
-      // Draft-lifecycle asks (orphaned drafts, accept-or-discard) are local
-      // AskChannel prompts; the base's permission asks arrive as events below.
-      offs.push(
-        on('session:ask', (d) => {
-          if (d.sessionID === sessionID)
-            void write({ type: 'ask', promptID: d.promptID, question: d.question });
-        }),
+      // Every event type flows through the bus (bridgeBaseEvents emits the
+      // base's mapped events into it, redacted at the single choke point —
+      // CONTEXT.md Event safety). Frame shaping lives here, once per type.
+      subscribe('llm:token', (d) => write({ type: 'token', token: d.token }));
+      subscribe('llm:done', (d) => write({ type: 'done', response: d.response }));
+      subscribe('tool:start', (d) => write({ type: 'toolStart', tool: d.tool, params: d.params }));
+      subscribe('tool:done', (d) => write({ type: 'toolDone', tool: d.tool, result: d.result }));
+      subscribe('session:message', (d) =>
+        write({ type: 'message', role: d.role, content: d.content }),
       );
-      offs.push(
-        on('session:end', (d) => {
-          if (d.sessionID === sessionID) void write({ type: 'sessionEnd' });
-        }),
+      subscribe('session:ask', (d) =>
+        write({ type: 'ask', promptID: d.promptID, question: d.question }),
       );
-
-      // Everything else comes from the base's event stream, mapped to the
-      // wire protocol (ADR 0033).
-      const events = await deps.base.client.subscribeEvents();
-      const mapped = (async () => {
-        for await (const event of events) {
-          const m = mapBaseEvent(event);
-          if (!m || m.sessionID !== sessionID) continue;
-          switch (m.type) {
-            case 'llm:token':
-              await write({ type: 'token', token: m.token });
-              break;
-            case 'llm:done':
-              await write({ type: 'done', response: m.response });
-              break;
-            case 'tool:start':
-              await write({ type: 'toolStart', tool: m.tool, params: m.params });
-              break;
-            case 'tool:done':
-              await write({ type: 'toolDone', tool: m.tool, result: m.result });
-              break;
-            case 'session:message':
-              await write({ type: 'message', role: m.role, content: m.content });
-              break;
-            case 'session:ask':
-              await write({ type: 'ask', promptID: m.promptID, question: m.question });
-              break;
-            case 'todo:updated':
-              await write({ type: 'todoUpdated', todos: m.todos });
-              break;
-            case 'session:step-limit':
-              await write({ type: 'stepLimit', maxSteps: m.maxSteps });
-              break;
-            case 'session:end':
-              await write({ type: 'sessionEnd' });
-              break;
-            case 'session:create':
-            case 'session:compacted':
-            case 'llm:retry':
-              break;
-          }
-        }
-      })();
-      const done = mapped.catch(() => {});
+      subscribe('session:end', () => write({ type: 'sessionEnd' }));
+      subscribe('todo:updated', (d) => write({ type: 'todoUpdated', todos: d.todos }));
+      subscribe('session:step-limit', (d) => write({ type: 'stepLimit', maxSteps: d.maxSteps }));
 
       stream.onAbort(() => {
         attached.detach(sessionID);
         for (const off of offs) off();
-        void done;
       });
       await new Promise(() => undefined);
     });
@@ -545,6 +671,32 @@ export function createApp(deps: ServerDeps) {
       }
     });
   }
+
+  // The base server's officecli tool file calls back here to execute real,
+  // draft-aware officecli commands (ADR 0033). Outside /api/*: gated by the
+  // per-spawn base token, not Basic auth — only the base process holds it.
+  app.post('/internal/officecli', async (c) => {
+    if (c.req.header('x-openoffice-base-token') !== deps.baseToken) {
+      return c.json({ error: 'forbidden' }, 403);
+    }
+    const body = await c.req.json().catch(() => ({}));
+    if (
+      typeof body.sessionID !== 'string' ||
+      typeof body.params !== 'object' ||
+      body.params === null
+    ) {
+      return c.json({ error: 'sessionID and params are required' }, 400);
+    }
+    try {
+      const result = await deps.officecliExec(
+        body.params as Record<string, unknown>,
+        body.sessionID,
+      );
+      return c.json(result);
+    } catch (e) {
+      return c.json({ success: false, error: e instanceof Error ? e.message : 'officecli failed' });
+    }
+  });
 
   // Runtime MCP control: per-server status and enable/disable toggles that
   // connect/disconnect without a daemon restart. In-scope toggles only —

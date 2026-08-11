@@ -1,7 +1,9 @@
 // Shared data model — pure types, zero dependencies.
-// Consumed by core (engine), server (daemon wiring), protocol (wire contract),
-// and the web/cloud clients. Ported from opencode's SessionV1 part model
-// (`@opencode-ai/core/v1/session`) and `util/token`.
+// Consumed by core (mirror store), server (daemon wiring), protocol (wire
+// contract), and the web/cloud clients. The agent engine and its part model
+// live in the base (opencode, ADR 0033); this is the daemon's mirror/wire
+// contract — the transcript shape persisted for share replay and the wire
+// Session shape clients already speak.
 
 export type Role = 'user' | 'assistant' | 'tool' | 'system';
 

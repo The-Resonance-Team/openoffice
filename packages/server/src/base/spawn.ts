@@ -1,4 +1,4 @@
-import { spawn, type ChildProcess } from 'node:child_process';
+import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
 
 export type SpawnBaseServerOptions = {
   command: string[];
@@ -7,6 +7,8 @@ export type SpawnBaseServerOptions = {
   password: string;
   config?: Record<string, unknown>;
   timeout?: number;
+  /** Extra env for the child (e.g. OPENCODE_CONFIG_DIR for tool files). */
+  env?: Record<string, string>;
 };
 
 export type SpawnedBaseServer = {
@@ -14,8 +16,24 @@ export type SpawnedBaseServer = {
   close: () => Promise<void>;
 };
 
+// A deliberate, commented fork of the SDK's `createOpencodeServer`
+// (packages/sdk/js/src/server.ts): the SDK hardcodes the `opencode` command on
+// PATH, sets only OPENCODE_CONFIG_CONTENT, and cannot express the vendored
+// binary path, the per-spawn password env, or `--port=0` for ephemeral ports.
+// The listening-line contract ("opencode server listening on http://…") and
+// the timeout/parse/exit error shapes are copied verbatim so the base's
+// readiness protocol stays identical.
 function stop(proc: ChildProcess) {
   if (proc.exitCode !== null || proc.signalCode !== null) return;
+  // Windows kill-tree: SIGTERM to a Bun-compiled child may leave its
+  // descendants (the base server's own workers) alive. Matches the SDK's
+  // stop() (packages/sdk/js/src/process.ts).
+  if (process.platform === 'win32' && proc.pid) {
+    const out = spawnSync('taskkill', ['/pid', String(proc.pid), '/T', '/F'], {
+      windowsHide: true,
+    });
+    if (!out.error && out.status === 0) return;
+  }
   proc.kill();
 }
 
@@ -32,6 +50,7 @@ export function spawnBaseServer(options: SpawnBaseServerOptions): Promise<Spawne
         ...process.env,
         OPENCODE_SERVER_PASSWORD: options.password,
         OPENCODE_CONFIG_CONTENT: JSON.stringify(options.config ?? {}),
+        ...options.env,
       },
       stdio: ['ignore', 'pipe', 'pipe'],
     },

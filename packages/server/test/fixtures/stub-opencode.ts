@@ -51,6 +51,9 @@ const server = Bun.serve({
     if (req.method === 'POST' && url.pathname === '/session/sess_1/message') {
       return Response.json(message('msg_1', 'sess_1'));
     }
+    if (req.method === 'POST' && url.pathname === '/session/sess_1/prompt_async') {
+      return new Response(null, { status: 204 });
+    }
     if (req.method === 'GET' && url.pathname === '/event') {
       const stream = new ReadableStream<Uint8Array>({
         start(controller) {

@@ -57,14 +57,15 @@ function sseChunks(chunks: object[]): Response {
  */
 export async function startFakeLLM(
   script: FakeScript,
-): Promise<{ port: number; stop: () => void }> {
+): Promise<{ port: number; stop: () => void; setScript: (s: FakeScript) => void }> {
   let calls = 0;
+  let current: FakeScript = script;
   const server = Bun.serve({
     port: 0,
     async fetch(req) {
       if (req.method !== 'POST') return new Response('ok');
       const body = await req.json();
-      const resp = script({ index: calls++, body });
+      const resp = current({ index: calls++, body });
       const chunk = (delta: any, finish: string | null) => ({
         id: 'chatcmpl-e2e',
         object: 'chat.completion.chunk',
@@ -98,7 +99,14 @@ export async function startFakeLLM(
       ]);
     },
   });
-  return { port: server.port!, stop: () => server.stop(true) };
+  return {
+    port: server.port!,
+    stop: () => server.stop(true),
+    setScript: (s: FakeScript) => {
+      current = s;
+      calls = 0;
+    },
+  };
 }
 
 export function fakeConfig(baseURL: string, model = 'openai/e2e'): Config {

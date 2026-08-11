@@ -14,6 +14,7 @@ import {
   compareVersions,
   newestRelease,
   artifactName,
+  baseBinaryAssetName,
   fetchChecksums,
   verifySha256,
   sha256,
@@ -183,18 +184,24 @@ describe('performUpdate', () => {
   // on CI).
   const asset = artifactName(process.platform, process.arch);
   const assetURL = `https://github.com/The-Resonance-Team/openoffice/releases/download/v2.0.0/${asset}`;
+  // The base engine binary ships in the same release (ADR 0033).
+  const baseAsset = baseBinaryAssetName(process.platform, process.arch);
+  const baseAssetURL = `https://github.com/The-Resonance-Team/openoffice/releases/download/v2.0.0/${baseAsset}`;
 
   test('downloads, verifies, and swaps', async () => {
     const data = Buffer.from('fresh-binary');
     const hash = sha256(data);
+    const baseData = Buffer.from('fresh-base');
+    const baseHash = sha256(baseData);
     const routes: Record<string, Response> = {
       'https://api.github.com/repos/The-Resonance-Team/openoffice/releases?per_page=50':
         new Response(JSON.stringify([{ tag_name: 'v2.0.0', prerelease: false }]), {
           headers: { 'content-type': 'application/json' },
         }),
       [assetURL]: new Response(data),
+      [baseAssetURL]: new Response(baseData),
       'https://github.com/The-Resonance-Team/openoffice/releases/download/v2.0.0/SHA256SUMS':
-        new Response(`${hash}  ${asset}\n`),
+        new Response(`${hash}  ${asset}\n${baseHash}  ${baseAsset}\n`),
     };
     const fakeFetch = async (url: string | URL | Request) => {
       const u = String(url);
@@ -209,10 +216,17 @@ describe('performUpdate', () => {
     const result = await performUpdate('0.1.0', binPath, dir, fakeFetch);
     expect(result).toEqual({ status: 'updated', version: '2.0.0' });
     expect(readFileSync(binPath, 'utf-8')).toBe('fresh-binary');
+    const baseBinPath = join(
+      dir,
+      'bin',
+      process.platform === 'win32' ? 'opencode.exe' : 'opencode',
+    );
+    expect(readFileSync(baseBinPath, 'utf-8')).toBe('fresh-base');
   });
 
   test('refuses on checksum mismatch', async () => {
     const routes: Record<string, Response> = {
+      [baseAssetURL]: new Response('base'),
       'https://api.github.com/repos/The-Resonance-Team/openoffice/releases?per_page=50':
         new Response(JSON.stringify([{ tag_name: 'v2.0.0', prerelease: false }]), {
           headers: { 'content-type': 'application/json' },

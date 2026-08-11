@@ -31,6 +31,8 @@ function makeApp(overrides: Record<string, any> = {}) {
     askChannel,
     shareStore: new ShareStore(store.db),
     shareMode: 'disabled',
+    baseToken: 'test-token',
+    officecliExec: async () => ({ success: true, output: 'ok' }),
     ...overrides,
   });
   return { ...app, fb };
@@ -163,6 +165,37 @@ describe('server API (base engine)', () => {
     expect(a.status).toBe(200);
     expect(b.status).toBe(200);
     expect(fb.maxConcurrent).toBe(1);
+  });
+
+  test('internal officecli route is token-gated and runs the draft-aware exec', async () => {
+    const called: { params: unknown; sessionID: string }[] = [];
+    const { app } = makeApp({
+      baseToken: 's3cret',
+      officecliExec: async (params: Record<string, unknown>, sessionID: string) => {
+        called.push({ params, sessionID });
+        return { success: true, output: 'draft result' };
+      },
+    });
+
+    const forbidden = await post(app, '/internal/officecli', {
+      sessionID: 'sess_1',
+      params: { command: 'set' },
+    });
+    expect(forbidden.status).toBe(403);
+
+    const res = await app.request('/internal/officecli', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-openoffice-base-token': 's3cret' },
+      body: JSON.stringify({
+        sessionID: 'sess_1',
+        params: { command: 'set', file: '/tmp/a.docx' },
+      }),
+    });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ success: true, output: 'draft result' });
+    expect(called).toEqual([
+      { params: { command: 'set', file: '/tmp/a.docx' }, sessionID: 'sess_1' },
+    ]);
   });
 
   test('turn on unknown session returns 404', async () => {
@@ -381,6 +414,8 @@ describe('MCP routes', () => {
       askChannel,
       shareStore: new ShareStore(store.db),
       shareMode: 'disabled',
+      baseToken: 'test-token',
+      officecliExec: async () => ({ success: true, output: 'ok' }),
       mcp,
       ...overrides,
     });

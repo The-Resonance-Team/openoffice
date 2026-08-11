@@ -2,22 +2,103 @@ import { describe, expect, test } from 'bun:test';
 import { mapBaseEvent } from '../events';
 
 describe('mapBaseEvent', () => {
-  test('text delta maps to llm:token', () => {
+  test('message.part.updated text maps to llm:token (live vocabulary)', () => {
     expect(
       mapBaseEvent({
-        type: 'session.next.text.delta',
-        properties: { sessionID: 'sess_1', textID: 'txt_1', delta: 'Hello' },
+        type: 'message.part.updated',
+        properties: {
+          sessionID: 'sess_1',
+          part: { type: 'text', text: 'Hello', messageID: 'msg_1', id: 'prt_1' },
+        },
       }),
     ).toEqual({ type: 'llm:token', sessionID: 'sess_1', token: 'Hello' });
   });
 
-  test('text ended maps to llm:done', () => {
+  test('session.status idle maps to the internal status signal', () => {
     expect(
       mapBaseEvent({
-        type: 'session.next.text.ended',
-        properties: { sessionID: 'sess_1', textID: 'txt_1', text: 'Done.' },
+        type: 'session.status',
+        properties: { sessionID: 'sess_1', status: { type: 'idle' } },
       }),
-    ).toEqual({ type: 'llm:done', sessionID: 'sess_1', response: 'Done.' });
+    ).toEqual({ type: 'session:status', sessionID: 'sess_1', status: 'idle' });
+  });
+
+  test('session.status busy maps to null', () => {
+    expect(
+      mapBaseEvent({
+        type: 'session.status',
+        properties: { sessionID: 'sess_1', status: { type: 'busy' } },
+      }),
+    ).toBeNull();
+  });
+
+  test('message.part.updated tool running maps to tool:start', () => {
+    expect(
+      mapBaseEvent({
+        type: 'message.part.updated',
+        properties: {
+          sessionID: 'sess_1',
+          part: {
+            type: 'tool',
+            tool: 'officecli',
+            callID: 'call_1',
+            state: { status: 'running', input: { verb: 'set' } },
+            messageID: 'msg_1',
+          },
+        },
+      }),
+    ).toEqual({
+      type: 'tool:start',
+      sessionID: 'sess_1',
+      tool: 'officecli',
+      params: { verb: 'set' },
+    });
+  });
+
+  test('message.part.updated tool completed maps to tool:done', () => {
+    expect(
+      mapBaseEvent({
+        type: 'message.part.updated',
+        properties: {
+          sessionID: 'sess_1',
+          part: {
+            type: 'tool',
+            tool: 'officecli',
+            callID: 'call_1',
+            state: { status: 'completed', output: 'ok', input: {} },
+            messageID: 'msg_1',
+          },
+        },
+      }),
+    ).toEqual({
+      type: 'tool:done',
+      sessionID: 'sess_1',
+      tool: 'officecli',
+      result: { success: true, output: 'ok' },
+    });
+  });
+
+  test('message.part.updated tool error maps to tool:done error', () => {
+    expect(
+      mapBaseEvent({
+        type: 'message.part.updated',
+        properties: {
+          sessionID: 'sess_1',
+          part: {
+            type: 'tool',
+            tool: 'officecli',
+            callID: 'call_1',
+            state: { status: 'error', error: 'boom', input: {} },
+            messageID: 'msg_1',
+          },
+        },
+      }),
+    ).toEqual({
+      type: 'tool:done',
+      sessionID: 'sess_1',
+      tool: 'officecli',
+      result: { success: false, error: 'boom' },
+    });
   });
 
   test('tool called maps to tool:start', () => {

@@ -22,8 +22,7 @@ describe('startBase', () => {
       expect(base.url).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
       const session = await base.client.createSession('/tmp', 'hello');
       expect(session.id).toBe('sess_1');
-      const result = await base.client.prompt('sess_1', 'hi');
-      expect(result.info.id).toBe('msg_1');
+      await base.client.prompt('sess_1', 'hi');
       const events = await base.client.subscribeEvents();
       const seen: string[] = [];
       for await (const event of events) {

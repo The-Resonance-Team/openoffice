@@ -53,7 +53,6 @@ describe('daemon E2E (real process over HTTP/SSE)', () => {
         env: { ...process.env, XDG_DATA_HOME: dataDir },
         stdio: ['ignore', 'pipe', 'pipe'],
       });
-      // The fake-LLM config is a placeholder until the e2e drives the real base.
       let daemonLog = '';
       daemon.stdout!.on('data', (d) => (daemonLog += d));
       daemon.stderr!.on('data', (d) => (daemonLog += d));

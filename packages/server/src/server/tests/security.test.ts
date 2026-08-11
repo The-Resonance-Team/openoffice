@@ -38,6 +38,8 @@ function makeApp(opts: {
     askChannel,
     shareStore: new ShareStore(store.db),
     shareMode: 'disabled',
+    baseToken: 'test-token',
+    officecliExec: async () => ({ success: true, output: 'ok' }),
     ...opts,
   }).app;
 }

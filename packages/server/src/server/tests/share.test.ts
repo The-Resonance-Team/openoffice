@@ -31,6 +31,8 @@ function makeApp(shareMode: ShareMode = 'auto', auth = false) {
       askChannel,
       shareStore,
       shareMode,
+      baseToken: 'test-token',
+      officecliExec: async () => ({ success: true, output: 'ok' }),
       auth: auth ? { username: 'openoffice', password: 'secret' } : undefined,
     }),
     fb,

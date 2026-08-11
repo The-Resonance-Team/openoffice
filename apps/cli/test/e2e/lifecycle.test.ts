@@ -1,4 +1,4 @@
-import { describe, expect, test, beforeAll, afterAll, afterEach } from 'bun:test';
+import { describe, expect, test, beforeAll, afterAll } from 'bun:test';
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
@@ -9,95 +9,36 @@ import {
   filePathHash,
   ShareStore,
   on,
+  createDefaultOfficeCliTool,
 } from '@openoffice/core';
 
-import { AskChannel, createApp, type ServerDeps } from '@openoffice/server';
-
-import { startFakeLLM, tempDir, docContains } from './helpers';
+import {
+  AskChannel,
+  createApp,
+  startBase,
+  buildBaseConfig,
+  writeOfficeCliToolFile,
+  type BaseEngine,
+} from '@openoffice/server';
+import { startFakeLLM, tempDir, docContains, officecliAvailable } from './helpers';
 
 // Full-stack draft lifecycle against the base engine (ADR 0033): the agent
 // turn runs in the opencode server, so the real e2e needs the vendored base
-// binary and officecli tool files — the flagged e2e-gate rework. Until it
-// lands, the whole describe skips.
-const skip = true;
-
-// Minimal in-memory base until the e2e-gate rework drives the real binary.
-function fakeBase(): ServerDeps['base'] {
-  const sessions = new Map<string, { id: string; directory: string; title: string }>();
-  let n = 0;
-  return {
-    url: 'http://127.0.0.1:1',
-    close: async () => {},
-    client: {
-      createSession: async (directory) => {
-        const id = 'sess_' + ++n;
-        sessions.set(id, { id, directory, title: '' });
-        return {
-          id,
-          projectID: 'p',
-          directory,
-          title: '',
-          version: '1.18.15',
-          time: { created: Date.now(), updated: Date.now() },
-        };
-      },
-      getSession: async (id) => {
-        const s = sessions.get(id);
-        if (!s) throw Object.assign(new Error('not found'), { status: 404 });
-        return {
-          id,
-          projectID: 'p',
-          directory: s.directory,
-          title: s.title,
-          version: '1.18.15',
-          time: { created: Date.now(), updated: Date.now() },
-        };
-      },
-      listSessions: async () =>
-        [...sessions.values()].map((s) => ({
-          id: s.id,
-          projectID: 'p',
-          directory: s.directory,
-          title: s.title,
-          version: '1.18.15',
-          time: { created: Date.now(), updated: Date.now() },
-        })),
-      updateSession: async (id, title) => {
-        const s = sessions.get(id);
-        if (!s) throw Object.assign(new Error('not found'), { status: 404 });
-        s.title = title;
-        return {
-          id,
-          projectID: 'p',
-          directory: s.directory,
-          title,
-          version: '1.18.15',
-          time: { created: Date.now(), updated: Date.now() },
-        };
-      },
-      deleteSession: async (id) => {
-        if (!sessions.delete(id)) throw Object.assign(new Error('not found'), { status: 404 });
-        return true;
-      },
-      abortSession: async () => true,
-      prompt: async (id, _text) => ({
-        info: { id: 'msg_1', sessionID: id, role: 'assistant' } as never,
-        parts: [],
-      }),
-      subscribeEvents: async () => (async function* () {})() as never,
-      replyPermission: async () => true,
-      mcpStatus: async () => ({}),
-      mcpConnect: async () => true,
-      mcpDisconnect: async () => true,
-    },
-  };
-}
+// binary and the officecli tool file round trip (writeOfficeCliToolFile +
+// /internal/officecli). Until the base binary is vendored into releases, gate
+// on the env var — same as daemon.test.ts.
+const skip = !officecliAvailable() || !process.env.OPENOFFICE_OPENCODE_BIN;
 
 // bun:test supports { timeout } at runtime; the bundled types lag behind.
 const dataDir = tempDir('ooo-lifecycle-data-');
 const projectDir = tempDir('ooo-lifecycle-project-');
 
-let fake: { port: number; stop: () => void };
+let fake: {
+  port: number;
+  stop: () => void;
+  setScript: (s: (call: { index: number }) => any) => void;
+};
+let base: BaseEngine;
 let store: SessionStore;
 let history: HistoryStore;
 let draftManager: DraftManager;
@@ -148,6 +89,10 @@ function freshFile(): string {
 }
 
 beforeAll(async () => {
+  // One fake LLM + one base server for the whole suite: the base's provider
+  // config pins the fake's port at spawn. Each test swaps the fake's script
+  // (setScript) to drive its own turn sequence.
+  fake = await startFakeLLM(() => ({ kind: 'text', content: 'idle' }));
   store = new SessionStore(join(dataDir, 'openoffice.db'));
   history = new HistoryStore(dataDir);
   askChannel = new AskChannel(10_000);
@@ -169,8 +114,23 @@ beforeAll(async () => {
   });
   draftDir = join(dataDir, 'drafts');
 
+  // The tool file must exist before the base starts: the base discovers
+  // tool files from its config dir at boot (ADR 0033).
+  writeOfficeCliToolFile(join(dataDir, 'base'));
+  base = await startBase({
+    command: [process.env.OPENOFFICE_OPENCODE_BIN!],
+    password: 'e2e-base-pw',
+    config: buildBaseConfig({
+      model: 'openai/e2e',
+      provider: { openai: { apiKey: 'test-key', baseURL: `http://127.0.0.1:${fake.port}/v1` } },
+    }),
+    env: {
+      OPENCODE_CONFIG_DIR: join(dataDir, 'base'),
+      OPENOFFICE_DATA_DIR: dataDir,
+    },
+  });
   const app = createApp({
-    base: fakeBase(),
+    base,
     sessionDefaults: { agent: 'office', model: 'openai/e2e' },
     store,
     draftManager,
@@ -178,17 +138,26 @@ beforeAll(async () => {
     askChannel,
     shareStore: new ShareStore(store.db),
     shareMode: 'auto',
+    baseToken: 'e2e-base-pw',
+    officecliExec: async (params: Record<string, unknown>, sessionID: string) => {
+      const tool = createDefaultOfficeCliTool({ draftManager });
+      return tool.execute(params as never, { sessionID });
+    },
   });
+  // The officecli tool file in the base calls back into the daemon at the
+  // port in daemon.json (ADR 0033): serve the in-process app on a real port
+  // and write that file so the round trip works end to end.
+  const server = Bun.serve({ hostname: '127.0.0.1', port: 0, fetch: app.app.fetch });
+  writeFileSync(
+    join(dataDir, 'daemon.json'),
+    JSON.stringify({ pid: process.pid, port: server.port! }),
+  );
   api = app.app;
 });
 
 afterAll(async () => {
+  await base?.close();
   fake?.stop();
-});
-
-afterEach(() => {
-  fake?.stop();
-  fake = undefined as never;
 });
 
 async function newSession(): Promise<string> {
@@ -266,7 +235,7 @@ async function answer(sessionID: string, promptID: string, text: string) {
 describe('draft lifecycle E2E (full stack, scripted LLM)', () => {
   test.skipIf(skip)('create → agent edit → accept → history', async () => {
     const file = freshFile();
-    fake = await startFakeLLM(standardScript(file));
+    fake.setScript(standardScript(file));
 
     const id = await newSession();
     const { status } = await turn(id, "Create report.docx with paragraph 'Hello E2E'");
@@ -283,7 +252,7 @@ describe('draft lifecycle E2E (full stack, scripted LLM)', () => {
 
   test.skipIf(skip)('undo discards the draft, real file untouched', async () => {
     const file = freshFile();
-    fake = await startFakeLLM(standardScript(file));
+    fake.setScript(standardScript(file));
 
     const id = await newSession();
     await turn(id, 'Create and accept a document');
@@ -302,7 +271,7 @@ describe('draft lifecycle E2E (full stack, scripted LLM)', () => {
 
   test.skipIf(skip)('revert restores through a new draft, never a direct write', async () => {
     const file = freshFile();
-    fake = await startFakeLLM(standardScript(file));
+    fake.setScript(standardScript(file));
 
     const id = await newSession();
     await turn(id, 'Create a document');
@@ -330,7 +299,7 @@ describe('draft lifecycle E2E (full stack, scripted LLM)', () => {
 
   test.skipIf(skip)('cross-session orphan recovery (ended session)', async () => {
     const file = freshFile();
-    fake = await startFakeLLM(
+    fake.setScript(
       (call) =>
         (
           [
@@ -377,7 +346,7 @@ describe('draft lifecycle E2E (full stack, scripted LLM)', () => {
     'stale-lock override orphans the displaced draft, still recoverable',
     async () => {
       const file = freshFile();
-      fake = await startFakeLLM(
+      fake.setScript(
         (call) =>
           (
             [
@@ -428,12 +397,24 @@ describe('draft lifecycle E2E (full stack, scripted LLM)', () => {
 
   test.skipIf(skip)('share round-trip: URL, viewer, replay, revoke', async () => {
     const file = freshFile();
-    fake = await startFakeLLM(standardScript(file));
+    fake.setScript(standardScript(file));
 
     const id = await newSession();
     await turn(id, "Create report.docx with paragraph 'Hello E2E'");
     await post(id, 'accept', { filePath: file });
     expect(docContains(file, 'Hello E2E')).toBe(true);
+    console.log(
+      'STORE MESSAGES',
+      JSON.stringify(
+        store.messages(id).map((m: any) => ({
+          role: m.info.role,
+          text: m.parts
+            .filter((p: any) => p.type === 'text')
+            .map((p: any) => p.text)
+            .join(''),
+        })),
+      ),
+    );
 
     const shareRes = await api.request(`/api/sessions/${id}/share`, {
       method: 'POST',

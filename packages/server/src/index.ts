@@ -4,6 +4,24 @@
 
 export { AskChannel, createApp } from './server';
 export type { ServerDeps, McpApi } from './server';
+export {
+  startBase,
+  spawnBaseServer,
+  buildBaseConfig,
+  mapBaseEvent,
+  writeOfficeCliToolFile,
+  resolveBaseBinary,
+  vendoredBaseBinaryPath,
+  fakeBase,
+  sdkSession,
+} from './base';
+export type {
+  BaseEngine,
+  BaseClient,
+  BaseConfig,
+  SpawnedBaseServer,
+  StartBaseOptions,
+} from './base';
 export { loadAuthConfig, authRequired, createAuthMiddleware, authHeaders } from './server/auth';
 export type { ServerAuthConfig } from './server/auth';
 export { loadCorsOrigins, createCorsMiddleware } from './server/cors';
@@ -15,6 +33,7 @@ export {
   newestRelease,
   listReleases,
   artifactName,
+  baseBinaryAssetName,
   downloadAsset,
   fetchChecksums,
   sha256,

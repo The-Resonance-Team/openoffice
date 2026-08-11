@@ -6,13 +6,6 @@ import {
   performUpdate,
   VERSION,
 } from '@openoffice/server';
-import {
-  CredentialStore,
-  login,
-  resolveConfig,
-  BUILTIN_PROVIDERS,
-  discoverLocalModels,
-} from '@openoffice/core';
 
 const HELP = `openoffice ${VERSION} — an LLM agent CLI for office document work.
 
@@ -20,16 +13,13 @@ Usage:
   openoffice                Show quick start message (web UI guide)
   openoffice serve          Run the daemon in the foreground
   openoffice update         Check GitHub Releases and update the installed binary
-  openoffice auth login <provider>    Store an API key for a provider
-  openoffice auth logout <provider>   Remove a stored credential
-  openoffice auth list                Show providers with stored credentials
-  openoffice models                   List models from running local servers (Ollama, llama.cpp, vLLM)
   openoffice share <sessionID>        Generate a read-only share URL for a session
   openoffice unshare <sessionID>      Revoke a session's share URL
   openoffice --version      Print the version
   openoffice --help         Show this help
 
-Configuration lives in openoffice.json (project) or the global config — see
+Provider credentials are managed by the base engine: run \`opencode auth login <provider>\`
+(ADR 0033). Configuration lives in openoffice.json (project) or the global config — see
 https://github.com/The-Resonance-Team/openoffice (docs/config.md).
 `;
 
@@ -57,64 +47,6 @@ async function runUpdate() {
   } catch (e) {
     console.error('Update failed:', e instanceof Error ? e.message : e);
     process.exit(1);
-  }
-}
-
-function knownProviderNames(): Set<string> {
-  const names = new Set<string>(BUILTIN_PROVIDERS);
-  try {
-    const config = resolveConfig();
-    for (const name of Object.keys(config.provider ?? {})) names.add(name);
-  } catch {
-    // config may reference unset env vars — the built-in set still applies
-  }
-  return names;
-}
-
-async function runAuth(sub?: string, provider?: string) {
-  const store = new CredentialStore();
-  const usage = 'Usage: openoffice auth login <provider> | logout <provider> | list';
-
-  if (sub === 'list') {
-    const names = store.list();
-    if (names.length === 0) {
-    } else {
-    }
-    return;
-  }
-  if (!provider) {
-    console.error(usage);
-    process.exit(1);
-  }
-  if (sub === 'login') {
-    const valid = knownProviderNames();
-    if (!valid.has(provider)) {
-      console.error(`Unknown provider "${provider}". Known providers: ${[...valid].join(', ')}.`);
-      process.exit(1);
-    }
-    const _credential = await login(store, provider);
-
-    return;
-  }
-  if (sub === 'logout') {
-    if (store.remove(provider)) {
-    } else {
-    }
-    return;
-  }
-  console.error(`Unknown auth command "${sub}". ${usage}`);
-  process.exit(1);
-}
-
-async function runModels() {
-  const found = await discoverLocalModels();
-  if (found.length === 0) {
-    return;
-  }
-  for (const server of found) {
-    for (const model of server.models) {
-      console.log(`${server.server}/${model}`);
-    }
   }
 }
 
@@ -163,12 +95,6 @@ async function main() {
     }
     case 'update':
       await runUpdate();
-      return;
-    case 'auth':
-      await runAuth(args[1], args[2]);
-      return;
-    case 'models':
-      await runModels();
       return;
     case 'share':
       await runShareCommand('share', args[1]);
