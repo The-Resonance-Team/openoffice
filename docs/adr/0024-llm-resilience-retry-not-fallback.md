@@ -1,9 +1,5 @@
 # 0024 — LLM resilience: opencode's retry policy, no provider fallback, expanded providers
 
-## Status
-
-Superseded by ADR-0033 (opencode as the base platform) — this decision now lives in the base.
-
 Issue #13 asked for retry/backoff, provider fallback, and five new providers. Grilling settled the shape: **no provider fallback** — the session model stays a single `provider/model-id` string (the glossary's `Model` definition survives untouched, and the DB's single `text NOT NULL` model column needs no schema change) — and the retry policy is ported from opencode's reference implementation (`packages/opencode/src/session/retry.ts`, applied around the whole stream consumption at `processor.ts:660`).
 
 ## Retry policy
