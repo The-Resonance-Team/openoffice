@@ -1,4 +1,5 @@
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
+import type { EventEmitter } from 'node:events';
 
 export type SpawnBaseServerOptions = {
   command: string[];
@@ -42,7 +43,9 @@ export function spawnBaseServer(options: SpawnBaseServerOptions): Promise<Spawne
   const port = options.port ?? 0;
   const timeout = options.timeout ?? 5000;
 
-  const proc: ChildProcess = spawn(
+  // CI's type resolution lacks the emitter methods on ChildProcess; the
+  // intersection with EventEmitter keeps on/off/once across node/bun types.
+  const proc: ChildProcess & EventEmitter = spawn(
     options.command[0],
     [...options.command.slice(1), 'serve', `--hostname=${hostname}`, `--port=${port}`],
     {
@@ -118,7 +121,7 @@ export function spawnBaseServer(options: SpawnBaseServerOptions): Promise<Spawne
   });
 }
 
-function stopAndWait(proc: ChildProcess): Promise<void> {
+function stopAndWait(proc: ChildProcess & EventEmitter): Promise<void> {
   return new Promise((resolve) => {
     if (proc.exitCode !== null || proc.signalCode !== null) return resolve();
     proc.once('exit', () => resolve());
