@@ -45,7 +45,7 @@ export function spawnBaseServer(options: SpawnBaseServerOptions): Promise<Spawne
 
   // CI's type resolution lacks the emitter methods on ChildProcess; the
   // intersection with EventEmitter keeps on/off/once across node/bun types.
-  const proc: ChildProcess & EventEmitter = spawn(
+  const proc = spawn(
     options.command[0],
     [...options.command.slice(1), 'serve', `--hostname=${hostname}`, `--port=${port}`],
     {
@@ -57,7 +57,7 @@ export function spawnBaseServer(options: SpawnBaseServerOptions): Promise<Spawne
       },
       stdio: ['ignore', 'pipe', 'pipe'],
     },
-  );
+  ) as unknown as ChildProcess & EventEmitter;
 
   return new Promise((resolve, reject) => {
     const id = setTimeout(() => {
