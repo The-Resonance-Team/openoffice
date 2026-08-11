@@ -42,7 +42,7 @@ export function spawnBaseServer(options: SpawnBaseServerOptions): Promise<Spawne
   const port = options.port ?? 0;
   const timeout = options.timeout ?? 5000;
 
-  const proc = spawn(
+  const proc: ChildProcess = spawn(
     options.command[0],
     [...options.command.slice(1), 'serve', `--hostname=${hostname}`, `--port=${port}`],
     {

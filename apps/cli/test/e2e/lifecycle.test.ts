@@ -89,6 +89,9 @@ function freshFile(): string {
 }
 
 beforeAll(async () => {
+  // test.skipIf skips tests, not hooks: without the base binary the whole
+  // suite is skipped, so the hooks must no-op instead of crashing.
+  if (skip) return;
   // One fake LLM + one base server for the whole suite: the base's provider
   // config pins the fake's port at spawn. Each test swaps the fake's script
   // (setScript) to drive its own turn sequence.
@@ -156,6 +159,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  if (skip) return;
   await base?.close();
   fake?.stop();
 });
