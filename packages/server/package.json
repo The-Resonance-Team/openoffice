@@ -16,6 +16,7 @@
     "@firecrawl/anydoc": "^0.1.6",
     "@firecrawl/pdf-inspector": "^1.12.0",
     "@firecrawl/pdf-inspector-win32-x64-msvc": "^1.12.0",
+    "@opencode-ai/sdk": "1.18.15",
     "@openoffice/core": "workspace:*",
     "@openoffice/protocol": "workspace:*",
     "@openoffice/schema": "workspace:*",

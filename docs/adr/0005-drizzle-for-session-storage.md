@@ -1,3 +1,7 @@
 # 0005 — Use Drizzle ORM for session storage (supersedes ADR-0004)
 
+## Status
+
+Superseded by ADR-0033 (opencode as the base platform) — this decision now lives in the base.
+
 ADR-0004 chose raw SQL with `bun:sqlite` for ~20 lines of schema. After implementing it, we found that raw SQL required manual parameter binding, `INSERT OR REPLACE` silently reset `created_at`, and the `parts`/`content` duplication was error-prone. Drizzle ORM gives us typed queries, `onConflictDoUpdate` that preserves `createdAt`, a `seq` column for reliable message ordering, and a single source of truth for the schema — all for ~270 lines including the store. The `bun:sqlite` driver is still used underneath; Drizzle is a query builder, not a database.

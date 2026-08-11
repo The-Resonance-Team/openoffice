@@ -6,6 +6,8 @@ Login uses a temporary, one-shot local HTTP listener for the OAuth callback — 
 
 ## Status
 
+Superseded by ADR-0033 (opencode as the base platform) — provider auth is now opencode's auth.json; the Cred Proxy becomes a config generator.
+
 Implemented with a prompt-only login in v1: no pinned `@ai-sdk/*` provider (checked `@ai-sdk/anthropic@4.0.25`) implements an OAuth flow, so every `auth login` prompts for an API key. The store's schema already accepts OAuth-shaped credentials (`{ type: "oauth", access, refresh, expires }`), and the resolution layer hands OAuth access tokens to the SDK via its `authToken` option (`Authorization: Bearer`), so the one-shot callback listener can land behind whichever provider first ships SDK OAuth support. Until then, an expired stored OAuth credential (only reachable by hand-editing `auth.json`) errors with a re-login instruction rather than refreshing.
 
 ## Considered options

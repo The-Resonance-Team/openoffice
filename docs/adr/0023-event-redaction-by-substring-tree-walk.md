@@ -1,5 +1,9 @@
 # Event redaction by substring tree walk
 
+## Status
+
+Superseded by ADR-0033 (opencode as the base platform) — this decision now lives in the base.
+
 Sensitive values (resolved `env:` config, stored Credentials, OAuth tokens) must never appear in events streamed to external clients via SSE. Redaction happens in the event bus `emit()` — every event type (`tool:start`, `tool:done`, `session:message`, etc.) is safe, no caller needs to remember.
 
 The redaction set is a `Set<string>` of resolved `env:` values and stored Credentials with length >= 8 (short values like port numbers or booleans are excluded to avoid false positives). Captured once at config-load time. On each `emit()`, the event payload is walked: every string leaf is checked against the set, and if any known sensitive value appears as a substring, the entire containing string is replaced with `[redacted]`.

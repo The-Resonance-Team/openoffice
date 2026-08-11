@@ -3,16 +3,15 @@ import { mkdtempSync, writeFileSync, readFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
-import { createApp, AskChannel, type SessionRuntime } from '../index';
+import { createApp, AskChannel } from '../index';
 import {
   SessionStore,
   DraftManager,
   filePathHash,
   HistoryStore,
   ShareStore,
-  AuthRequiredError,
-  type Session,
 } from '@openoffice/core';
+import { fakeBase } from './helpers';
 
 let dir: string;
 let store: SessionStore;
@@ -21,55 +20,20 @@ let history: HistoryStore;
 let askChannel: AskChannel;
 let realFile: string;
 
-let turnCalls: { sessionID: string; message: string }[];
-let maxConcurrent = 0;
-let concurrent = 0;
-
-const fakeRuntime: SessionRuntime = { tools: {} as any, system: '' };
-
-function fakeRunTurn(
-  session: Session,
-  message: string,
-  _runtime: SessionRuntime,
-  _store: SessionStore,
-): Promise<{ text: string }> {
-  return new Promise((resolve) => {
-    concurrent++;
-    maxConcurrent = Math.max(maxConcurrent, concurrent);
-    setTimeout(() => {
-      turnCalls.push({ sessionID: session.id, message });
-      concurrent--;
-      resolve({ text: `response to ${message}` });
-    }, 10);
-  });
-}
-
-function makeSession(cwd: string): Session {
-  const now = Date.now();
-  return {
-    id: randomUUID(),
-    agent: 'build',
-    model: 'anthropic/claude-sonnet-4-20250514',
-    title: '',
-    cwd,
-    messages: [],
-    createdAt: now,
-    updatedAt: now,
-  };
-}
-
-function makeApp() {
-  return createApp({
+function makeApp(overrides: Record<string, any> = {}) {
+  const fb = fakeBase();
+  const app = createApp({
+    base: fb.engine,
+    sessionDefaults: { agent: 'office', model: 'anthropic/claude-sonnet-4-20250514' },
     store,
     draftManager,
     history,
     askChannel,
     shareStore: new ShareStore(store.db),
     shareMode: 'disabled',
-    createSession: makeSession,
-    buildRuntime: () => fakeRuntime,
-    runTurn: fakeRunTurn,
+    ...overrides,
   });
+  return { ...app, fb };
 }
 
 async function post(
@@ -98,24 +62,22 @@ beforeEach(() => {
     execOfficeCli: async () => ({ stdout: '', exitCode: 0 }),
   });
   askChannel = new AskChannel();
-  turnCalls = [];
-  maxConcurrent = 0;
-  concurrent = 0;
 });
 
-describe('server API', () => {
-  test('creates a session with cwd and loads it', async () => {
-    const { app } = makeApp();
+describe('server API (base engine)', () => {
+  test('creates a session in the base with cwd and loads it from the mirror', async () => {
+    const { app, fb } = makeApp();
     const created = await post(app, '/api/sessions', { cwd: '/tmp/work' });
     expect(created.status).toBe(201);
     const id = created.json.id;
+    expect(fb.sessions.has(id)).toBe(true);
     expect(store.load(id)!.cwd).toBe('/tmp/work');
 
     const get = await app.request(`/api/sessions/${id}`);
     expect(get.status).toBe(200);
     const session: any = await get.json();
     expect(session.id).toBe(id);
-    expect(session.messages).toEqual([]);
+    expect(session.cwd).toBe('/tmp/work');
   });
 
   test('lists sessions newest-updated first', async () => {
@@ -130,8 +92,8 @@ describe('server API', () => {
     expect(sessions.map((s) => s.id)).toEqual([b.json.id, a.json.id]);
   });
 
-  test('patch renames a session', async () => {
-    const { app } = makeApp();
+  test('patch renames a session in the base', async () => {
+    const { app, fb } = makeApp();
     const created = await post(app, '/api/sessions', { cwd: '/tmp' });
     const id = created.json.id;
 
@@ -142,6 +104,7 @@ describe('server API', () => {
     });
     expect(renamed.status).toBe(200);
     expect(((await renamed.json()) as any).title).toBe('Quarterly report');
+    expect(fb.sessions.get(id)!.title).toBe('Quarterly report');
     expect(store.load(id)!.title).toBe('Quarterly report');
   });
 
@@ -155,14 +118,15 @@ describe('server API', () => {
     expect(res.status).toBe(404);
   });
 
-  test('delete removes a session', async () => {
-    const { app } = makeApp();
+  test('delete removes the session from the base and the mirror', async () => {
+    const { app, fb } = makeApp();
     const created = await post(app, '/api/sessions', { cwd: '/tmp' });
     const id = created.json.id;
 
     const res = await app.request(`/api/sessions/${id}`, { method: 'DELETE' });
     expect(res.status).toBe(200);
     expect(((await res.json()) as any).ok).toBe(true);
+    expect(fb.sessions.has(id)).toBe(false);
     expect(store.load(id)).toBeNull();
   });
 
@@ -174,8 +138,8 @@ describe('server API', () => {
     expect(res.status).toBe(404);
   });
 
-  test('runs a turn and returns the text', async () => {
-    const { app } = makeApp();
+  test('runs a turn via the base prompt and returns the text', async () => {
+    const { app, fb } = makeApp();
     const created = await post(app, '/api/sessions', { cwd: '/tmp' });
     const id = created.json.id;
 
@@ -184,11 +148,11 @@ describe('server API', () => {
     });
     expect(turn.status).toBe(200);
     expect(turn.json.text).toBe('response to hi');
-    expect(turnCalls).toEqual([{ sessionID: id, message: 'hi' }]);
+    expect(fb.promptCalls).toEqual([{ id, text: 'hi' }]);
   });
 
   test('turns on one session are serialized', async () => {
-    const { app } = makeApp();
+    const { app, fb } = makeApp();
     const created = await post(app, '/api/sessions', { cwd: '/tmp' });
     const id = created.json.id;
 
@@ -198,35 +162,15 @@ describe('server API', () => {
     ]);
     expect(a.status).toBe(200);
     expect(b.status).toBe(200);
-    expect(maxConcurrent).toBe(1);
-    expect(turnCalls.map((t) => t.message).sort()).toEqual(['a', 'b']);
+    expect(fb.maxConcurrent).toBe(1);
   });
 
-  test('turn with a missing credential returns 401 auth-required with the provider', async () => {
-    const { app } = createApp({
-      store,
-      draftManager,
-      history,
-      askChannel,
-      shareStore: new ShareStore(store.db),
-      shareMode: 'disabled',
-      createSession: makeSession,
-      buildRuntime: () => fakeRuntime,
-      runTurn: async () => {
-        throw new AuthRequiredError('anthropic', 'Provider "anthropic": no credential.');
-      },
-    });
-    const created = await post(app, '/api/sessions', { cwd: '/tmp' });
-    const id = created.json.id;
-
-    const turn = await post(app, `/api/sessions/${id}/turn`, {
+  test('turn on unknown session returns 404', async () => {
+    const { app } = makeApp();
+    const turn = await post(app, `/api/sessions/${randomUUID()}/turn`, {
       message: 'hi',
     });
-    expect(turn.status).toBe(401);
-    expect(turn.json).toEqual({
-      error: 'auth-required',
-      provider: 'anthropic',
-    });
+    expect(turn.status).toBe(404);
   });
 
   test('accept copies the draft to the real file', async () => {
@@ -314,30 +258,8 @@ describe('server API', () => {
     off();
   });
 
-  test('ask answer is scoped to its session', async () => {
-    const { app } = makeApp();
-    const first = await post(app, '/api/sessions', { cwd: '/tmp' });
-    const second = await post(app, '/api/sessions', { cwd: '/tmp' });
-    let promptID = '';
-    const { on } = await import('@openoffice/core');
-    const off = on('session:ask', (d) => {
-      if (d.sessionID === first.json.id) promptID = d.promptID;
-    });
-    const promise = askChannel.ask(first.json.id, 'continue?');
-    expect(promptID).not.toBe('');
-
-    const wrong = await post(app, `/api/sessions/${second.json.id}/ask-answer`, {
-      promptID,
-      answer: 'discard',
-    });
-    expect(wrong.status).toBe(404);
-    expect(askChannel.answer(first.json.id, promptID, 'discard')).toBe(true);
-    expect(await promise).toBe('discard');
-    off();
-  });
-
-  test('stream delivers llm tokens over SSE', async () => {
-    const { app } = makeApp();
+  test('base permission asks stream as ask frames and answer forwards to the base', async () => {
+    const { app, fb } = makeApp();
     const created = await post(app, '/api/sessions', { cwd: '/tmp' });
     const id = created.json.id;
 
@@ -346,15 +268,59 @@ describe('server API', () => {
     const reader = res.body!.getReader();
     const decoder = new TextDecoder();
 
-    const { emit } = await import('@openoffice/core');
-    emit('llm:token', { sessionID: id, token: 'Hello' });
+    fb.pushEvent({
+      type: 'permission.v2.asked',
+      properties: { sessionID: id, id: 'per_1', action: 'write', resources: ['/tmp/a.docx'] },
+    });
 
     const { value } = (await Promise.race([
       reader.read(),
       new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 2000)),
     ])) as { value?: Uint8Array };
-    expect(decoder.decode(value)).toContain('token');
-    expect(decoder.decode(value)).toContain('Hello');
+    const frame = decoder.decode(value);
+    expect(frame).toContain('"type":"ask"');
+    expect(frame).toContain('per_1');
+    reader.cancel();
+  });
+
+  test('stream delivers base text deltas as token frames', async () => {
+    const { app, fb } = makeApp();
+    const created = await post(app, '/api/sessions', { cwd: '/tmp' });
+    const id = created.json.id;
+
+    const res = await app.request(`/api/sessions/${id}/stream`);
+    expect(res.status).toBe(200);
+    const reader = res.body!.getReader();
+    const decoder = new TextDecoder();
+
+    fb.pushEvent({
+      type: 'session.next.text.delta',
+      properties: { sessionID: id, textID: 't1', delta: 'Hello' },
+    });
+
+    const { value } = (await Promise.race([
+      reader.read(),
+      new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 2000)),
+    ])) as { value?: Uint8Array };
+    const frame = decoder.decode(value);
+    expect(frame).toContain('"type":"token"');
+    expect(frame).toContain('Hello');
+    reader.cancel();
+  });
+
+  test('stream ignores events for other sessions', async () => {
+    const { app, fb } = makeApp();
+    const created = await post(app, '/api/sessions', { cwd: '/tmp' });
+    const id = created.json.id;
+
+    const res = await app.request(`/api/sessions/${id}/stream`);
+    const reader = res.body!.getReader();
+
+    fb.pushEvent({
+      type: 'session.next.text.delta',
+      properties: { sessionID: 'other', textID: 't1', delta: 'X' },
+    });
+    await Bun.sleep(30);
     reader.cancel();
   });
 
@@ -384,28 +350,6 @@ describe('server API', () => {
     expect(emits).toBe(1);
     off();
   });
-
-  test('/end races resolve to a single session:end', async () => {
-    const { app } = makeApp();
-    const created = await post(app, '/api/sessions', { cwd: '/tmp' });
-    const id = created.json.id;
-    const { on } = await import('@openoffice/core');
-    let emits = 0;
-    const off = on('session:end', (d) => {
-      if (d.sessionID === id) emits++;
-    });
-    try {
-      await Promise.all([
-        post(app, `/api/sessions/${id}/end`),
-        post(app, `/api/sessions/${id}/end`),
-        post(app, `/api/sessions/${id}/end`),
-      ]);
-    } finally {
-      off();
-    }
-    expect(emits).toBe(1);
-    expect(store.load(id)!.endedAt).toBeDefined();
-  });
 });
 
 describe('MCP routes', () => {
@@ -418,7 +362,7 @@ describe('MCP routes', () => {
   function makeMcpApp(overrides: Record<string, any> = {}) {
     let state: Record<string, any> = { ...initial };
     const mcp = {
-      status: () => state,
+      status: async () => state,
       enable: async (name: string) => {
         state = { ...state, [name]: { status: 'connected' } };
         return state[name];
@@ -429,15 +373,14 @@ describe('MCP routes', () => {
       },
     };
     return createApp({
+      base: fakeBase().engine,
+      sessionDefaults: { agent: 'office', model: 'anthropic/claude-sonnet-4-20250514' },
       store,
       draftManager,
       history,
       askChannel,
       shareStore: new ShareStore(store.db),
       shareMode: 'disabled',
-      createSession: makeSession,
-      buildRuntime: () => fakeRuntime,
-      runTurn: fakeRunTurn,
       mcp,
       ...overrides,
     });

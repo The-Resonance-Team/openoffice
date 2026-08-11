@@ -4,7 +4,7 @@ A CLI that runs LLM agents equipped with tools to automate office document work.
 
 ## Rules
 
-**Reference source**: When building or improving features, always reference the opencode source at `/Users/xirothedev/workspace/opencode`.
+**Base platform**: The agent engine is opencode's server (vendored fork binary), spawned by the daemon on loopback and driven via `@opencode-ai/sdk` (ADR 0033). opencode is a dependency and a process, not a reference to copy from: ported code is deleted, and features are configured (config, tool files, permissions) or contributed upstream — never mirrored. All base-owned terms below (Agent, Model, Provider, Session, Message, Step, Step-limit, Tool, Permission, Credential) describe opencode's entities.
 
 **Dogfooding**: A configured MCP server whose name matches a native tool is never connected — the native integration (typed verbs, install check, chaining) is strictly better than the MCP `command`-string surface. Native wins. The skip applies at boot; an explicit runtime enable of a dogfooded server connects it — user intent overrides the default.
 
@@ -27,7 +27,7 @@ An LLM service (openai, anthropic, google, ollama, openrouter, ...) addressed by
 _Avoid_: backend, service, backend provider
 
 **Session**:
-One conversation: a live agent instance, its message history, and the active model. Identified by a runtime-generated session ID. Persisted in a SQLite database via Drizzle ORM with `bun:sqlite` driver. Supports querying and concurrent access from day one. Compaction (pruning old tool outputs, then summarizing older turns to stay under the context window) runs at the top of each turn when the last persisted token usage exceeds the model's usable window, sized from models.dev. Owned by #17. Ends via an explicit client call or, once its heartbeat goes stale, a background sweep — never merely on a client's connection dropping. Owned by #39.
+One conversation: a live agent instance, its message history, and the active model. Identified by a runtime-generated session ID. **Owned by the base platform**: created, persisted, compacted, and ended by opencode's server; openoffice never reimplements session lifecycle. openoffice's Drafts attach to a Session by session id + file path hash — the session id is the join key, and nothing in the draft lifecycle (Lock, Accept, Undo, Revert) lives in the Session.
 _Avoid_: chat, conversation, thread
 
 **Message**:
@@ -59,7 +59,7 @@ A callable unit exposed to the agent to perform an action. Defined with a Zod `i
 _Avoid_: action, function, capability
 
 **Plugin**:
-The extensibility surface of openoffice: a configured MCP server. There is no npm-package plugin loader — a Plugin contributes tools, prompts, and resources through the Model Context Protocol and nothing else.
+The extensibility surface of the base platform (opencode): configured MCP servers, local tool files (`{tool,tools}/*.ts` in a config dir), and installable plugins (`opencode plug`). Office tooling (officecli) ships as **local tool files** written into the spawned server's config directory — in-process, permission-ruled, no MCP overhead. MCP servers remain available as plugins for third-party tooling.
 _Avoid_: addon, extension, module
 
 **MCP server**:
@@ -91,7 +91,7 @@ The project's typed configuration, loaded from layered sources (defaults, global
 _Avoid_: settings, options
 
 **Credential**:
-A provider's stored authentication material — OAuth access/refresh tokens or a plain API key — obtained via `openoffice auth login` and persisted locally. Resolution order: an explicit config `env:` reference always wins; a stored Credential is used only when config supplies no value; with neither, the user gets a clear error naming the provider. Never logged and never printed by `auth list`.
+A provider's stored authentication material — OAuth access/refresh tokens or a plain API key — **owned by the base platform**: persisted in opencode's `auth.json` (`~/.local/share/opencode/`), obtained via `opencode auth login`. The cloud Cred Proxy does not store or inject credentials at runtime; it is a config generator that writes `provider.<id>.options.apiKey/baseURL` into the generated `opencode.json`. Never logged and never printed.
 _Avoid_: key, token, secret
 
 **Sensitive value**:
@@ -101,7 +101,7 @@ _Avoid_: secret, confidential data
 ### Daemon & clients
 
 **Daemon**:
-The long-running background process (`openoffice serve`) that hosts the session loop, tools, and the HTTP/SSE API. Auto-spawned detached by the CLI if none is running for the current user. Binds loopback-only (`127.0.0.1`) in v1. All agent work happens in the daemon, never in a client.
+The long-running background process (`openoffice serve`) that hosts the agent base (spawns the vendored opencode server on loopback, ADR 0033), the document engine (officecli tool files, drafts, accept/history), and the HTTP/SSE API that clients reach through. Auto-spawned detached by the CLI if none is running for the current user. Binds loopback-only (`127.0.0.1`) in v1. All agent work happens in the base server, never in a client.
 _Avoid_: server (ambiguous with the HTTP framework), backend
 
 **Daemon auth**:
@@ -113,7 +113,7 @@ A thin process that connects to the daemon over HTTP/SSE instead of running the 
 _Avoid_: UI, frontend, app
 
 **Share**:
-A revocable, unguessable-token URL giving a non-participant read-only access to a session's transcript and edit previews over SSE. Cannot reach accept/undo/revert — those require an authenticated daemon client, not a share token. Not collaboration: single accepting user, others only watch. Lives as long as its session — revoked by unshare or session end; unknown and revoked tokens are indistinguishable (`410`).
+A revocable, unguessable-token URL giving a non-participant read-only access to a session's transcript and edit previews over SSE. Cannot reach accept/undo/revert — those require an authenticated daemon client, not a share token. Not collaboration: single accepting user, others only watch. Lives as long as its session — revoked by unshare or session end; unknown and revoked tokens are indistinguishable (`410`). **Base-owned**: opencode's share client syncs to its hosted API; disabled for now (`share: "disabled"`), to be re-opened through our cloud (ADR 0033).
 _Avoid_: collaboration, multi-user, link
 
 **Sync**:

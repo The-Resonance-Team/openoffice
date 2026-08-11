@@ -3,7 +3,7 @@
 // The engine lives in @openoffice/core; the wire contract in @openoffice/protocol.
 
 export { AskChannel, createApp } from './server';
-export type { SessionRuntime, ServerDeps } from './server';
+export type { ServerDeps, McpApi } from './server';
 export { loadAuthConfig, authRequired, createAuthMiddleware, authHeaders } from './server/auth';
 export type { ServerAuthConfig } from './server/auth';
 export { loadCorsOrigins, createCorsMiddleware } from './server/cors';

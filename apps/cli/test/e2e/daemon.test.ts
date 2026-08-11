@@ -5,7 +5,9 @@ import { spawn } from 'node:child_process';
 import { OpenOfficeClient } from '@openoffice/server';
 import { startFakeLLM, fakeConfig, tempDir, officecliAvailable, docContains } from './helpers';
 
-const skip = !officecliAvailable();
+// The daemon now runs on the opencode base (ADR 0033): a real agent turn needs
+// the vendored base binary. Until it is vendored into releases, gate on the env var.
+const skip = !officecliAvailable() || !process.env.OPENOFFICE_OPENCODE_BIN;
 
 describe('daemon E2E (real process over HTTP/SSE)', () => {
   test.skipIf(skip)(
@@ -51,6 +53,7 @@ describe('daemon E2E (real process over HTTP/SSE)', () => {
         env: { ...process.env, XDG_DATA_HOME: dataDir },
         stdio: ['ignore', 'pipe', 'pipe'],
       });
+      // The fake-LLM config is a placeholder until the e2e drives the real base.
       let daemonLog = '';
       daemon.stdout!.on('data', (d) => (daemonLog += d));
       daemon.stderr!.on('data', (d) => (daemonLog += d));

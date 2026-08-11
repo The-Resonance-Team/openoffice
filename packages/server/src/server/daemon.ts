@@ -1,50 +1,30 @@
 import { execFileSync, spawn } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { basename, dirname, join } from 'node:path';
-import { exiftool } from 'exiftool-vendored';
+import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { toMarkdown } from '@firecrawl/anydoc';
-import { readPdf } from '../read-pdf';
 import {
   resolveConfig,
   SessionStore,
-  runTurn,
-  buildSystemPrompt,
   isStaleSession,
-  type Session,
   HistoryStore,
   DraftManager,
   ShareStore,
-  ToolRegistry,
-  createConvertTool,
-  createGlobTool,
-  createGrepTool,
-  createQuestionTool,
-  createReadTool,
-  createWriteTool,
-  createTodoTool,
-  type ToolDefinition,
-  AgentRegistry,
-  createDefaultOfficeCliTool,
-  createSkillTool,
-  McpManager,
-  createSdkMcpClient,
-  planMcpConnections,
   setSensitiveValues,
   collectEnvValues,
   shareMode,
-  applyEnvOverrides,
   findProjectConfig,
   loadConfigFiles,
   mergeLayers,
+  applyEnvOverrides,
 } from '@openoffice/core';
-import { AskChannel, createApp, endSession, type SessionRuntime } from './index';
+import { AskChannel, createApp, endSession, type McpApi } from './index';
+import type { McpServerStatusInfo } from '@openoffice/protocol';
+import { startBase, buildBaseConfig } from '../base';
 import { checkForUpdate } from '../update';
 import { VERSION } from '../version';
 import { loadAuthConfig, authRequired } from './auth';
 import { loadCorsOrigins } from './cors';
-import { readDocumentSearchData } from '../document-search';
 
 import { getDataDir } from '../data-dir';
 
@@ -137,123 +117,36 @@ export async function startDaemon(
     },
   });
 
-  // Daemon-global runtime pieces: skills dir, agents, MCP connections.
-  const agentRegistry = new AgentRegistry();
-  const skillsDir = join(process.cwd(), 'skills');
-  const mcp = new McpManager({ connect: createSdkMcpClient });
-  const readDocument = (file: string) => toMarkdown(file);
-  const readMetadata = (file: string) => exiftool.read(file) as Promise<Record<string, unknown>>;
-  const readSearchData = (file: string) => readDocumentSearchData(file, readMetadata);
+  // The base platform (ADR 0033): spawn the vendored opencode server and
+  // drive it through the SDK. The office-document domain (drafts, accept,
+  // history) stays here; the agent loop, tools, and sessions are the base's.
+  const base = await startBase({
+    command: [process.env.OPENOFFICE_OPENCODE_BIN ?? 'opencode'],
+    password: randomUUID(),
+    config: buildBaseConfig(config),
+  });
 
-  const baseTools: ToolDefinition[] = [
-    createDefaultOfficeCliTool({ draftManager }),
-    createReadTool({
-      draftManager,
-      readDocument,
-      mcp,
-      readPdf,
-    }),
-    createWriteTool(),
-    createGlobTool(),
-    createGrepTool({
-      readDocument,
-      readSearchData,
-      readPdf,
-      resolveDocument: async (file, ctx) => {
-        const resolved = await draftManager.resolve(file, ctx.sessionID, false);
-        if (resolved.lockError) throw new Error(resolved.lockError);
-        return resolved.path ?? file;
-      },
-      officeExtractLimit: config.grep?.officeExtractLimit,
-    }),
-    createSkillTool(skillsDir),
-  ];
-
-  const convertDeps = {
-    convertFile: async (file: string, format: string) => {
-      const dir = dirname(file);
-      execFileSync('soffice', ['--headless', '--convert-to', format, '--outdir', dir, file], {
-        encoding: 'utf-8',
-        timeout: 60000,
-      });
-      return join(dir, `${basename(file).replace(/\.[^.]+$/, '')}.${format}`);
+  // Runtime MCP control surface, proxied to the base server. opencode's
+  // status vocabulary maps onto the wire protocol's McpServerStatusInfo.
+  const mcp: McpApi = {
+    status: async () => {
+      const statuses = await base.client.mcpStatus();
+      const out: Record<string, McpServerStatusInfo> = {};
+      for (const [name, s] of Object.entries(statuses)) {
+        if (s.status === 'connected') out[name] = { status: 'connected' };
+        else if (s.status === 'disabled') out[name] = { status: 'disabled' };
+        else out[name] = { status: 'error', error: s.error ?? s.status };
+      }
+      return out;
     },
-  };
-
-  const { toConnect, skipped, disabled } = planMcpConnections(
-    config.mcp,
-    baseTools.map((t) => t.name),
-  );
-  for (const name of skipped) {
-    const cfg = config.mcp?.[name];
-    if (cfg) {
-      mcp.declare(name, cfg, 'provided natively, use the built-in tool');
-    }
-    console.warn(`MCP server "${name}" skipped: provided natively, use the built-in tool`);
-  }
-  for (const name of disabled) {
-    const cfg = config.mcp?.[name];
-    if (cfg) mcp.declare(name, cfg);
-  }
-  for (const [name, mcpConfig] of toConnect) {
-    try {
-      await mcp.connect(name, mcpConfig);
-    } catch (e) {
-      // connect() records the error status; the daemon keeps serving the rest.
-      console.warn(`MCP server "${name}" failed to connect: ${e instanceof Error ? e.message : e}`);
-    }
-  }
-  for (const tool of await mcp.listAllTools()) {
-    baseTools.push({
-      name: mcp.toolName(tool.clientName, tool.name),
-      description: tool.description,
-      // ponytail: MCP inputSchema is JSON Schema; AI SDK tool() accepts it directly
-      parameters: tool.inputSchema as unknown as ToolDefinition['parameters'],
-      execute: (args) => mcp.callTool(tool.clientName, tool.name, args as Record<string, unknown>),
-    });
-  }
-
-  const defaultModel = config.model ?? 'anthropic/claude-sonnet-4-20250514';
-  const maxSteps = config.maxSteps ?? 50;
-  const defaultAgent = agentRegistry.getDefault();
-
-  const runtimeCache = new Map<string, SessionRuntime>();
-  const buildRuntime = (session: Session) => {
-    const cached = runtimeCache.get(session.id);
-    if (cached) return cached;
-
-    const registry = new ToolRegistry();
-    const filtered = agentRegistry.filterTools(baseTools, defaultAgent.permission);
-    for (const tool of filtered) registry.register(tool);
-    registry.register(
-      createQuestionTool({
-        askUser: (q) => askChannel.ask(session.id, q),
-      }),
-    );
-    registry.register(
-      createConvertTool({
-        askUser: (q) => askChannel.ask(session.id, q),
-        ...convertDeps,
-      }),
-    );
-    registry.register(
-      createTodoTool({
-        getTodos: (sessionID) => store.getTodos(sessionID),
-        setTodos: (sessionID, todos) => store.setTodos(sessionID, todos),
-      }),
-    );
-
-    const runtime: SessionRuntime = {
-      tools: registry,
-      system: buildSystemPrompt({
-        agent: defaultAgent,
-        skillsDir,
-        mcp,
-        cwd: session.cwd,
-      }),
-    };
-    runtimeCache.set(session.id, runtime);
-    return runtime;
+    enable: async (name) => {
+      const ok = await base.client.mcpConnect(name);
+      return ok ? { status: 'connected' } : { status: 'error', error: 'connect failed' };
+    },
+    disable: async (name) => {
+      const ok = await base.client.mcpDisconnect(name);
+      return ok ? { status: 'disabled' } : { status: 'error', error: 'disconnect failed' };
+    },
   };
 
   const authConfig = loadAuthConfig();
@@ -267,6 +160,11 @@ export async function startDaemon(
   const deps = {
     auth: authConfig,
     corsOrigins,
+    base,
+    sessionDefaults: {
+      agent: 'office',
+      model: config.model ?? 'anthropic/claude-sonnet-4-20250514',
+    },
     store,
     draftManager,
     history,
@@ -274,31 +172,6 @@ export async function startDaemon(
     shareStore,
     shareMode: shareMode(config),
     mcp,
-    createSession: (cwd: string) => {
-      const now = Date.now();
-      return {
-        id: randomUUID(),
-        agent: defaultAgent.name,
-        model: defaultModel,
-        title: '',
-        cwd,
-        messages: [],
-        createdAt: now,
-        updatedAt: now,
-      };
-    },
-    buildRuntime,
-    runTurn: (session: Session, message: string, runtime: SessionRuntime, s: SessionStore) =>
-      runTurn({
-        session,
-        userMessage: message,
-        store: s,
-        agents: agentRegistry,
-        tools: runtime.tools,
-        system: runtime.system,
-        maxSteps,
-        config,
-      }),
     updateStatus: async () => {
       if (config.update?.check === false) {
         return { check: false, available: false };

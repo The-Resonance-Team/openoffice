@@ -14,13 +14,13 @@ import {
   type Session,
   type WithParts,
   type TextPart,
-  type ToolRegistry,
   type DraftManager,
   type HistoryStore,
   type ShareStore,
   type ShareMode,
 } from '@openoffice/core';
 import type { EventMap, McpServerStatusInfo } from '@openoffice/protocol';
+import { mapBaseEvent } from '../base';
 
 import type { UpdateStatus } from '../update';
 
@@ -54,34 +54,24 @@ export class AskChannel {
   }
 }
 
-export interface SessionRuntime {
-  tools: ToolRegistry;
-  system: string;
-}
-
-// The runtime MCP control surface the daemon exposes over HTTP. McpManager
-// satisfies it structurally.
+// The runtime MCP control surface the daemon exposes over HTTP, proxied to
+// the base server (ADR 0033).
 export interface McpApi {
-  status(): Record<string, McpServerStatusInfo>;
+  status(): Promise<Record<string, McpServerStatusInfo>>;
   enable(name: string): Promise<McpServerStatusInfo>;
   disable(name: string): Promise<McpServerStatusInfo>;
 }
 
 export interface ServerDeps {
+  base: import('../base').BaseEngine;
+  /** agent/model the wire Session reports; the base owns the actual values. */
+  sessionDefaults: { agent: string; model: string };
   store: SessionStore;
   draftManager: DraftManager;
   history: HistoryStore;
   askChannel: AskChannel;
   shareStore: ShareStore;
   shareMode: ShareMode;
-  createSession: (cwd: string) => Session;
-  buildRuntime: (session: Session) => SessionRuntime;
-  runTurn: (
-    session: Session,
-    message: string,
-    runtime: SessionRuntime,
-    store: SessionStore,
-  ) => Promise<{ text: string }>;
   updateStatus?: () => Promise<UpdateStatus>;
   /** Runtime MCP control surface; absent means no /api/mcp routes. */
   mcp?: McpApi;
@@ -89,6 +79,33 @@ export interface ServerDeps {
   auth?: ServerAuthConfig;
   /** Allowed browser origins. Empty (the default) sends no CORS headers. */
   corsOrigins?: string[];
+}
+
+// Maps a base (opencode) session to the wire Session clients already speak.
+// The base owns the session; agent/model defaults are the daemon's config.
+function toWireSession(
+  sdk: { id: string; title: string; directory: string; time: { created: number; updated: number } },
+  defaults: { agent: string; model: string },
+): Session {
+  return {
+    id: sdk.id,
+    agent: defaults.agent,
+    model: defaults.model,
+    title: sdk.title,
+    cwd: sdk.directory,
+    messages: [],
+    createdAt: sdk.time.created,
+    updatedAt: sdk.time.updated,
+  };
+}
+
+function isNotFound(err: unknown): boolean {
+  return (
+    err instanceof Error &&
+    'status' in err &&
+    typeof (err as { status: unknown }).status === 'number' &&
+    (err as { status: number }).status === 404
+  );
 }
 
 // Share URLs are scoped to the daemon's own address (the request's Host), so
@@ -150,7 +167,9 @@ export function createApp(deps: ServerDeps) {
 
   app.post('/api/sessions', async (c) => {
     const body = await c.req.json().catch(() => ({}));
-    const session = deps.createSession(typeof body.cwd === 'string' ? body.cwd : process.cwd());
+    const cwd = typeof body.cwd === 'string' ? body.cwd : process.cwd();
+    const sdk = await deps.base.client.createSession(cwd);
+    const session = toWireSession(sdk, deps.sessionDefaults);
     deps.store.save(session);
     emit('session:create', { sessionID: session.id });
     // ponytail: best-effort auto-share, opencode parity — a failed share must
@@ -165,16 +184,26 @@ export function createApp(deps: ServerDeps) {
     return c.json(session, 201);
   });
 
-  app.get('/api/sessions', (c) => {
+  app.get('/api/sessions', async (c) => {
     // List all sessions, newest first. The desktop GUI sidebar needs this;
     // the CLI keeps it in-process.
-    const sessions = deps.store.list().sort((a, b) => b.updatedAt - a.updatedAt);
+    const sdkSessions = await deps.base.client.listSessions();
+    const sessions = sdkSessions
+      .map((s) => toWireSession(s, deps.sessionDefaults))
+      .sort((a, b) => b.updatedAt - a.updatedAt);
     return c.json(sessions);
   });
 
-  app.get('/api/sessions/:id', (c) => {
-    const session = deps.store.load(c.req.param('id'));
-    if (!session) return c.json({ error: 'Session not found' }, 404);
+  app.get('/api/sessions/:id', async (c) => {
+    const sessionID = c.req.param('id');
+    let sdk;
+    try {
+      sdk = await deps.base.client.getSession(sessionID);
+    } catch (err) {
+      if (isNotFound(err)) return c.json({ error: 'Session not found' }, 404);
+      throw err;
+    }
+    const session = toWireSession(sdk, deps.sessionDefaults);
     const token = deps.shareStore.get(session.id);
     return c.json({
       ...session,
@@ -184,22 +213,30 @@ export function createApp(deps: ServerDeps) {
 
   app.patch('/api/sessions/:id', async (c) => {
     const sessionID = c.req.param('id');
-    const session = deps.store.load(sessionID);
-    if (!session) return c.json({ error: 'Session not found' }, 404);
     const body = await c.req.json().catch(() => ({}));
     if (typeof body.title !== 'string') {
       return c.json({ error: 'title is required' }, 400);
     }
-    session.title = body.title;
-    session.updatedAt = Date.now();
+    let sdk;
+    try {
+      sdk = await deps.base.client.updateSession(sessionID, body.title);
+    } catch (err) {
+      if (isNotFound(err)) return c.json({ error: 'Session not found' }, 404);
+      throw err;
+    }
+    const session = toWireSession(sdk, deps.sessionDefaults);
     deps.store.save(session);
     return c.json(session);
   });
 
   app.delete('/api/sessions/:id', async (c) => {
     const sessionID = c.req.param('id');
-    const session = deps.store.load(sessionID);
-    if (!session) return c.json({ error: 'Session not found' }, 404);
+    try {
+      await deps.base.client.deleteSession(sessionID);
+    } catch (err) {
+      if (isNotFound(err)) return c.json({ error: 'Session not found' }, 404);
+      throw err;
+    }
     await deps.draftManager.orphanAll(sessionID);
     deps.store.delete(sessionID);
     emit('session:end', { sessionID });
@@ -208,20 +245,22 @@ export function createApp(deps: ServerDeps) {
 
   app.post('/api/sessions/:id/turn', async (c) => {
     const sessionID = c.req.param('id');
-    const session = deps.store.load(sessionID);
-    if (!session) return c.json({ error: 'Session not found' }, 404);
     const body = await c.req.json().catch(() => ({}));
     const message = typeof body.message === 'string' ? body.message : '';
     if (!message) return c.json({ error: 'message is required' }, 400);
 
     try {
       const text = await enqueueTurn(sessionID, async () => {
-        const runtime = deps.buildRuntime(session);
-        const result = await deps.runTurn(session, message, runtime, deps.store);
-        return result.text;
+        const result = await deps.base.client.prompt(sessionID, message);
+        const text = result.parts
+          .filter((p) => p.type === 'text' && typeof p.text === 'string')
+          .map((p) => (p as { text: string }).text)
+          .join('');
+        return text;
       });
       return c.json({ text });
     } catch (err) {
+      if (isNotFound(err)) return c.json({ error: 'Session not found' }, 404);
       if (err instanceof AuthRequiredError) {
         return c.json({ error: 'auth-required', provider: err.provider }, 401);
       }
@@ -237,13 +276,6 @@ export function createApp(deps: ServerDeps) {
       // attached, so it cannot leak a count.
       attached.attach(sessionID);
       const offs: (() => void)[] = [];
-      const subscribe = <K extends keyof EventMap>(event: K, fn: (d: EventMap[K]) => void) => {
-        offs.push(
-          on(event, (d) => {
-            if (d.sessionID === sessionID) void fn(d);
-          }),
-        );
-      };
       const write = async (data: unknown) => {
         try {
           await stream.writeSSE({ data: JSON.stringify(data) });
@@ -252,23 +284,68 @@ export function createApp(deps: ServerDeps) {
         }
       };
 
-      subscribe('llm:token', (d) => write({ type: 'token', token: d.token }));
-      subscribe('llm:done', (d) => write({ type: 'done', response: d.response }));
-      subscribe('tool:start', (d) => write({ type: 'toolStart', tool: d.tool, params: d.params }));
-      subscribe('tool:done', (d) => write({ type: 'toolDone', tool: d.tool, result: d.result }));
-      subscribe('session:message', (d) =>
-        write({ type: 'message', role: d.role, content: d.content }),
+      // Draft-lifecycle asks (orphaned drafts, accept-or-discard) are local
+      // AskChannel prompts; the base's permission asks arrive as events below.
+      offs.push(
+        on('session:ask', (d) => {
+          if (d.sessionID === sessionID)
+            void write({ type: 'ask', promptID: d.promptID, question: d.question });
+        }),
       );
-      subscribe('session:ask', (d) =>
-        write({ type: 'ask', promptID: d.promptID, question: d.question }),
+      offs.push(
+        on('session:end', (d) => {
+          if (d.sessionID === sessionID) void write({ type: 'sessionEnd' });
+        }),
       );
-      subscribe('session:end', () => write({ type: 'sessionEnd' }));
-      subscribe('todo:updated', (d) => write({ type: 'todoUpdated', todos: d.todos }));
-      subscribe('session:step-limit', (d) => write({ type: 'stepLimit', maxSteps: d.maxSteps }));
+
+      // Everything else comes from the base's event stream, mapped to the
+      // wire protocol (ADR 0033).
+      const events = await deps.base.client.subscribeEvents();
+      const mapped = (async () => {
+        for await (const event of events) {
+          const m = mapBaseEvent(event);
+          if (!m || m.sessionID !== sessionID) continue;
+          switch (m.type) {
+            case 'llm:token':
+              await write({ type: 'token', token: m.token });
+              break;
+            case 'llm:done':
+              await write({ type: 'done', response: m.response });
+              break;
+            case 'tool:start':
+              await write({ type: 'toolStart', tool: m.tool, params: m.params });
+              break;
+            case 'tool:done':
+              await write({ type: 'toolDone', tool: m.tool, result: m.result });
+              break;
+            case 'session:message':
+              await write({ type: 'message', role: m.role, content: m.content });
+              break;
+            case 'session:ask':
+              await write({ type: 'ask', promptID: m.promptID, question: m.question });
+              break;
+            case 'todo:updated':
+              await write({ type: 'todoUpdated', todos: m.todos });
+              break;
+            case 'session:step-limit':
+              await write({ type: 'stepLimit', maxSteps: m.maxSteps });
+              break;
+            case 'session:end':
+              await write({ type: 'sessionEnd' });
+              break;
+            case 'session:create':
+            case 'session:compacted':
+            case 'llm:retry':
+              break;
+          }
+        }
+      })();
+      const done = mapped.catch(() => {});
 
       stream.onAbort(() => {
         attached.detach(sessionID);
         for (const off of offs) off();
+        void done;
       });
       await new Promise(() => undefined);
     });
@@ -316,11 +393,25 @@ export function createApp(deps: ServerDeps) {
   });
 
   app.post('/api/sessions/:id/ask-answer', async (c) => {
+    const sessionID = c.req.param('id');
     const body = await c.req.json().catch(() => ({}));
     if (typeof body.promptID !== 'string' || typeof body.answer !== 'string') {
       return c.json({ error: 'promptID and answer are required' }, 400);
     }
-    if (!deps.askChannel.answer(c.req.param('id'), body.promptID, body.answer)) {
+    // Base permission requests (per_* ids) resolve through the base server;
+    // local AskChannel prompts (draft orphan / question tool) resolve locally.
+    if (body.promptID.startsWith('per_')) {
+      const reply =
+        body.answer === 'always' ? 'always' : body.answer === 'reject' ? 'reject' : 'once';
+      try {
+        await deps.base.client.replyPermission(sessionID, body.promptID, reply);
+      } catch (err) {
+        if (isNotFound(err)) return c.json({ error: 'Unknown prompt' }, 404);
+        throw err;
+      }
+      return c.json({ ok: true });
+    }
+    if (!deps.askChannel.answer(sessionID, body.promptID, body.answer)) {
       return c.json({ error: 'Unknown prompt' }, 404);
     }
     return c.json({ ok: true });
@@ -459,11 +550,12 @@ export function createApp(deps: ServerDeps) {
   // connect/disconnect without a daemon restart. In-scope toggles only —
   // adding/editing servers stays a config-file + restart operation.
   if (deps.mcp) {
-    app.get('/api/mcp', (c) => c.json(deps.mcp!.status()));
+    app.get('/api/mcp', async (c) => c.json(await deps.mcp!.status()));
 
     app.post('/api/mcp/:name/enable', async (c) => {
       const name = c.req.param('name');
-      if (!deps.mcp!.status()[name]) {
+      const statuses = await deps.mcp!.status();
+      if (!statuses[name]) {
         return c.json({ error: `MCP server "${name}" not found` }, 404);
       }
       return c.json(await deps.mcp!.enable(name));
@@ -471,7 +563,8 @@ export function createApp(deps: ServerDeps) {
 
     app.post('/api/mcp/:name/disable', async (c) => {
       const name = c.req.param('name');
-      if (!deps.mcp!.status()[name]) {
+      const statuses = await deps.mcp!.status();
+      if (!statuses[name]) {
         return c.json({ error: `MCP server "${name}" not found` }, 404);
       }
       return c.json(await deps.mcp!.disable(name));
