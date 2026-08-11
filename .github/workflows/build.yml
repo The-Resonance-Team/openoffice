@@ -50,6 +50,22 @@ jobs:
               --define:OOO_VERSION="$VERSION"
           done
 
+      # The base engine (ADR 0033): build the opencode fork at its pinned
+      # commit (1.18.15, SDK-pinned) and ship it in the same release, so the
+      # daemon's update machinery swaps it checksum-verified alongside
+      # openoffice. Pinned by commit, never by branch.
+      - name: Build base engine binaries (opencode fork, pinned)
+        run: |
+          rm -rf /tmp/opencode-fork
+          git clone --depth 1 https://github.com/The-Resonance-Team/opencode.git /tmp/opencode-fork
+          git -C /tmp/opencode-fork checkout ff0382e97145cb6585b575dcc1269fa1512e853b
+          cd /tmp/opencode-fork/packages/opencode
+          for target in darwin-arm64 darwin-x64 linux-arm64 linux-x64 windows-x64; do
+            bun build --compile src/index.ts \
+              --target="bun-$target" \
+              --outfile="$OLDPWD/dist/opencode-$target"
+          done
+
       # ---- macOS signing (Developer ID + notarization) ----
       - name: Import Apple certificate
         if: env.HAS_APPLE == 'true'

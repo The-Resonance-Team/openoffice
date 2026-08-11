@@ -1,4 +1,4 @@
-import { describe, expect, test, beforeAll, afterAll, afterEach } from 'bun:test';
+import { describe, expect, test, beforeAll, afterAll } from 'bun:test';
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
@@ -8,25 +8,37 @@ import {
   DraftManager,
   filePathHash,
   ShareStore,
-  runTurn,
-  ToolRegistry,
-  AgentRegistry,
-  createDefaultOfficeCliTool,
   on,
+  createDefaultOfficeCliTool,
 } from '@openoffice/core';
 
-import { AskChannel, createApp } from '@openoffice/server';
+import {
+  AskChannel,
+  createApp,
+  startBase,
+  buildBaseConfig,
+  writeOfficeCliToolFile,
+  type BaseEngine,
+} from '@openoffice/server';
+import { startFakeLLM, tempDir, docContains, officecliAvailable } from './helpers';
 
-import { startFakeLLM, fakeConfig, tempDir, officecliAvailable, docContains } from './helpers';
-
-const skip = !officecliAvailable();
+// Full-stack draft lifecycle against the base engine (ADR 0033): the agent
+// turn runs in the opencode server, so the real e2e needs the vendored base
+// binary and the officecli tool file round trip (writeOfficeCliToolFile +
+// /internal/officecli). Until the base binary is vendored into releases, gate
+// on the env var — same as daemon.test.ts.
+const skip = !officecliAvailable() || !process.env.OPENOFFICE_OPENCODE_BIN;
 
 // bun:test supports { timeout } at runtime; the bundled types lag behind.
 const dataDir = tempDir('ooo-lifecycle-data-');
 const projectDir = tempDir('ooo-lifecycle-project-');
 
-let fake: { port: number; stop: () => void };
-let config: ReturnType<typeof fakeConfig>;
+let fake: {
+  port: number;
+  stop: () => void;
+  setScript: (s: (call: { index: number }) => any) => void;
+};
+let base: BaseEngine;
 let store: SessionStore;
 let history: HistoryStore;
 let draftManager: DraftManager;
@@ -77,6 +89,13 @@ function freshFile(): string {
 }
 
 beforeAll(async () => {
+  // test.skipIf skips tests, not hooks: without the base binary the whole
+  // suite is skipped, so the hooks must no-op instead of crashing.
+  if (skip) return;
+  // One fake LLM + one base server for the whole suite: the base's provider
+  // config pins the fake's port at spawn. Each test swaps the fake's script
+  // (setScript) to drive its own turn sequence.
+  fake = await startFakeLLM(() => ({ kind: 'text', content: 'idle' }));
   store = new SessionStore(join(dataDir, 'openoffice.db'));
   history = new HistoryStore(dataDir);
   askChannel = new AskChannel(10_000);
@@ -98,52 +117,51 @@ beforeAll(async () => {
   });
   draftDir = join(dataDir, 'drafts');
 
+  // The tool file must exist before the base starts: the base discovers
+  // tool files from its config dir at boot (ADR 0033).
+  writeOfficeCliToolFile(join(dataDir, 'base'));
+  base = await startBase({
+    command: [process.env.OPENOFFICE_OPENCODE_BIN!],
+    password: 'e2e-base-pw',
+    config: buildBaseConfig({
+      model: 'openai/e2e',
+      provider: { openai: { apiKey: 'test-key', baseURL: `http://127.0.0.1:${fake.port}/v1` } },
+    }),
+    env: {
+      OPENCODE_CONFIG_DIR: join(dataDir, 'base'),
+      OPENOFFICE_DATA_DIR: dataDir,
+    },
+  });
   const app = createApp({
+    base,
+    sessionDefaults: { agent: 'office', model: 'openai/e2e' },
     store,
     draftManager,
     history,
     askChannel,
     shareStore: new ShareStore(store.db),
     shareMode: 'auto',
-    createSession: (cwd) => {
-      const now = Date.now();
-      return {
-        id: crypto.randomUUID(),
-        agent: 'default',
-        model: 'openai/e2e',
-        title: '',
-        cwd,
-        messages: [],
-        createdAt: now,
-        updatedAt: now,
-      };
+    baseToken: 'e2e-base-pw',
+    officecliExec: async (params: Record<string, unknown>, sessionID: string) => {
+      const tool = createDefaultOfficeCliTool({ draftManager });
+      return tool.execute(params as never, { sessionID });
     },
-    buildRuntime: () => {
-      const registry = new ToolRegistry();
-      registry.register(createDefaultOfficeCliTool({ draftManager }));
-      return { tools: registry, system: '' };
-    },
-    runTurn: (session, message, runtime, s) =>
-      runTurn({
-        session,
-        userMessage: message,
-        store: s,
-        agents: new AgentRegistry(),
-        tools: runtime.tools,
-        system: runtime.system,
-        config: config!,
-      }),
   });
+  // The officecli tool file in the base calls back into the daemon at the
+  // port in daemon.json (ADR 0033): serve the in-process app on a real port
+  // and write that file so the round trip works end to end.
+  const server = Bun.serve({ hostname: '127.0.0.1', port: 0, fetch: app.app.fetch });
+  writeFileSync(
+    join(dataDir, 'daemon.json'),
+    JSON.stringify({ pid: process.pid, port: server.port! }),
+  );
   api = app.app;
 });
 
 afterAll(async () => {
+  if (skip) return;
+  await base?.close();
   fake?.stop();
-});
-
-afterEach(() => {
-  fake?.stop();
-  fake = undefined as never;
 });
 
 async function newSession(): Promise<string> {
@@ -221,8 +239,7 @@ async function answer(sessionID: string, promptID: string, text: string) {
 describe('draft lifecycle E2E (full stack, scripted LLM)', () => {
   test.skipIf(skip)('create → agent edit → accept → history', async () => {
     const file = freshFile();
-    fake = await startFakeLLM(standardScript(file));
-    config = fakeConfig(`http://127.0.0.1:${fake.port}/v1`);
+    fake.setScript(standardScript(file));
 
     const id = await newSession();
     const { status } = await turn(id, "Create report.docx with paragraph 'Hello E2E'");
@@ -239,8 +256,7 @@ describe('draft lifecycle E2E (full stack, scripted LLM)', () => {
 
   test.skipIf(skip)('undo discards the draft, real file untouched', async () => {
     const file = freshFile();
-    fake = await startFakeLLM(standardScript(file));
-    config = fakeConfig(`http://127.0.0.1:${fake.port}/v1`);
+    fake.setScript(standardScript(file));
 
     const id = await newSession();
     await turn(id, 'Create and accept a document');
@@ -259,8 +275,7 @@ describe('draft lifecycle E2E (full stack, scripted LLM)', () => {
 
   test.skipIf(skip)('revert restores through a new draft, never a direct write', async () => {
     const file = freshFile();
-    fake = await startFakeLLM(standardScript(file));
-    config = fakeConfig(`http://127.0.0.1:${fake.port}/v1`);
+    fake.setScript(standardScript(file));
 
     const id = await newSession();
     await turn(id, 'Create a document');
@@ -288,7 +303,7 @@ describe('draft lifecycle E2E (full stack, scripted LLM)', () => {
 
   test.skipIf(skip)('cross-session orphan recovery (ended session)', async () => {
     const file = freshFile();
-    fake = await startFakeLLM(
+    fake.setScript(
       (call) =>
         (
           [
@@ -309,7 +324,6 @@ describe('draft lifecycle E2E (full stack, scripted LLM)', () => {
           ] as const
         )[call.index] ?? { kind: 'text', content: 'Done.' },
     );
-    config = fakeConfig(`http://127.0.0.1:${fake.port}/v1`);
 
     const sessionA = await newSession();
     const { status } = await turn(sessionA, 'Create an orphaned draft');
@@ -336,7 +350,7 @@ describe('draft lifecycle E2E (full stack, scripted LLM)', () => {
     'stale-lock override orphans the displaced draft, still recoverable',
     async () => {
       const file = freshFile();
-      fake = await startFakeLLM(
+      fake.setScript(
         (call) =>
           (
             [
@@ -357,7 +371,6 @@ describe('draft lifecycle E2E (full stack, scripted LLM)', () => {
             ] as const
           )[call.index] ?? { kind: 'text', content: 'Done.' },
       );
-      config = fakeConfig(`http://127.0.0.1:${fake.port}/v1`);
 
       const sessionA = await newSession();
       await turn(sessionA, 'Create a draft then go stale');
@@ -388,13 +401,24 @@ describe('draft lifecycle E2E (full stack, scripted LLM)', () => {
 
   test.skipIf(skip)('share round-trip: URL, viewer, replay, revoke', async () => {
     const file = freshFile();
-    fake = await startFakeLLM(standardScript(file));
-    config = fakeConfig(`http://127.0.0.1:${fake.port}/v1`);
+    fake.setScript(standardScript(file));
 
     const id = await newSession();
     await turn(id, "Create report.docx with paragraph 'Hello E2E'");
     await post(id, 'accept', { filePath: file });
     expect(docContains(file, 'Hello E2E')).toBe(true);
+    console.log(
+      'STORE MESSAGES',
+      JSON.stringify(
+        store.messages(id).map((m: any) => ({
+          role: m.info.role,
+          text: m.parts
+            .filter((p: any) => p.type === 'text')
+            .map((p: any) => p.text)
+            .join(''),
+        })),
+      ),
+    );
 
     const shareRes = await api.request(`/api/sessions/${id}/share`, {
       method: 'POST',

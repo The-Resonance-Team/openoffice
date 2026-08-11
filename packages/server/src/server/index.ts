@@ -8,19 +8,18 @@ import {
   on,
   emit,
   filePathHash,
-  AuthRequiredError,
   shareViewerPage,
   type SessionStore,
   type Session,
   type WithParts,
   type TextPart,
-  type ToolRegistry,
   type DraftManager,
   type HistoryStore,
   type ShareStore,
   type ShareMode,
 } from '@openoffice/core';
 import type { EventMap, McpServerStatusInfo } from '@openoffice/protocol';
+import { mapBaseEvent } from '../base';
 
 import type { UpdateStatus } from '../update';
 
@@ -54,34 +53,32 @@ export class AskChannel {
   }
 }
 
-export interface SessionRuntime {
-  tools: ToolRegistry;
-  system: string;
-}
-
-// The runtime MCP control surface the daemon exposes over HTTP. McpManager
-// satisfies it structurally.
+// The runtime MCP control surface the daemon exposes over HTTP, proxied to
+// the base server (ADR 0033).
 export interface McpApi {
-  status(): Record<string, McpServerStatusInfo>;
+  status(): Promise<Record<string, McpServerStatusInfo>>;
   enable(name: string): Promise<McpServerStatusInfo>;
   disable(name: string): Promise<McpServerStatusInfo>;
 }
 
 export interface ServerDeps {
+  base: import('../base').BaseEngine;
+  /** agent/model the wire Session reports; the base owns the actual values. */
+  sessionDefaults: { agent: string; model: string };
   store: SessionStore;
   draftManager: DraftManager;
   history: HistoryStore;
   askChannel: AskChannel;
   shareStore: ShareStore;
   shareMode: ShareMode;
-  createSession: (cwd: string) => Session;
-  buildRuntime: (session: Session) => SessionRuntime;
-  runTurn: (
-    session: Session,
-    message: string,
-    runtime: SessionRuntime,
-    store: SessionStore,
-  ) => Promise<{ text: string }>;
+  /**
+   * The officecli tool executor the base's tool file calls back into (ADR
+   * 0033). Runs the draft-aware createDefaultOfficeCliTool. The base token is
+   * the password the daemon set on the spawned base server's env — only the
+   * base process knows it, so the internal route is unreachable by clients.
+   */
+  officecliExec: (params: Record<string, unknown>, sessionID: string) => Promise<unknown>;
+  baseToken: string;
   updateStatus?: () => Promise<UpdateStatus>;
   /** Runtime MCP control surface; absent means no /api/mcp routes. */
   mcp?: McpApi;
@@ -89,6 +86,171 @@ export interface ServerDeps {
   auth?: ServerAuthConfig;
   /** Allowed browser origins. Empty (the default) sends no CORS headers. */
   corsOrigins?: string[];
+}
+
+// Maps a base (opencode) session to the wire Session clients already speak.
+// The base owns the session; agent/model defaults are the daemon's config.
+function toWireSession(
+  sdk: { id: string; title: string; directory: string; time: { created: number; updated: number } },
+  defaults: { agent: string; model: string },
+): Session {
+  return {
+    id: sdk.id,
+    agent: defaults.agent,
+    model: defaults.model,
+    title: sdk.title,
+    cwd: sdk.directory,
+    messages: [],
+    createdAt: sdk.time.created,
+    updatedAt: sdk.time.updated,
+  };
+}
+
+function isNotFound(err: unknown): boolean {
+  return (
+    err instanceof Error &&
+    'status' in err &&
+    typeof (err as { status: unknown }).status === 'number' &&
+    (err as { status: number }).status === 404
+  );
+}
+
+// Bridges the base server's event stream into the daemon event bus. The bus
+// is the single redaction choke point (CONTEXT.md Event safety): mapped events
+// are emitted here so every consumer — stream routes, share replay, anything
+// future — sees redacted payloads without remembering to redact (ADR 0023).
+//
+// Turn semantics: opencode streams `session.next.text.delta` fragments and
+// ends the turn with `session.status: idle`. The bridge accumulates deltas per
+// session and emits ONE `llm:done` per turn at idle — matching the wire
+// protocol's "one done per turn" contract — and persists the user message
+// (prompt.admitted) and the assistant reply so share replay has a transcript
+// even when no client stream was open (ADR 0033).
+export async function bridgeBaseEvents(
+  base: import('../base').BaseEngine,
+  store?: SessionStore,
+  userTexts?: Map<string, string>,
+): Promise<void> {
+  const events = await base.client.subscribeEvents();
+  const acc = new Map<string, string>();
+  for await (const event of events) {
+    const mapped = mapBaseEvent(event);
+    if (!mapped) continue;
+
+    if (mapped.type === 'llm:token') {
+      acc.set(mapped.sessionID, (acc.get(mapped.sessionID) ?? '') + mapped.token);
+      emit(mapped.type, mapped);
+      continue;
+    }
+    if (mapped.type === 'llm:done') {
+      // text.ended carries the full part text; keep it as the fallback for
+      // the turn's final done, but don't emit per-part — one done per turn
+      // at idle keeps the wire contract and the turn route's await correct.
+      acc.set(mapped.sessionID, mapped.response);
+      continue;
+    }
+    if (mapped.type === 'session:status' && mapped.status === 'idle') {
+      let text = acc.get(mapped.sessionID);
+      acc.delete(mapped.sessionID);
+      // The base re-emits the user's message as a text part during the turn;
+      // strip the known user text so the reply is assistant-only.
+      const userText = userTexts?.get(mapped.sessionID);
+      if (text !== undefined && userText && text.startsWith(userText)) {
+        text = text.slice(userText.length);
+      }
+      if (text !== undefined) {
+        const done = { type: 'llm:done' as const, sessionID: mapped.sessionID, response: text };
+        emit(done.type, done);
+        persistAssistant(store, done.sessionID, done.response);
+      }
+      continue;
+    }
+    if (mapped.type === 'session:status' && mapped.status === 'busy') {
+      // Turn boundary: assistant text starts accumulating after busy; the
+      // user echo (emitted as a text part before busy) must not leak into
+      // the assistant reply.
+      acc.set(mapped.sessionID, '');
+      continue;
+    }
+    if (mapped.type === 'session:status' && mapped.status === 'retry') {
+      emit('llm:retry', {
+        sessionID: mapped.sessionID,
+        attempt: mapped.attempt ?? 0,
+        message: mapped.message ?? 'retrying',
+        next: mapped.next ?? 0,
+      });
+      continue;
+    }
+
+    // Remaining types are wire EventMap members only (status was handled
+    // above); narrow for the emit call.
+    const wire = mapped as { [K in keyof EventMap]: { type: K } & EventMap[K] }[keyof EventMap];
+    emit(wire.type, wire);
+  }
+}
+
+function persistUser(store: SessionStore | undefined, sessionID: string, content: string): void {
+  if (!store) return;
+  const messageID = randomUUID();
+  store.updateMessage(sessionID, {
+    id: messageID,
+    role: 'user',
+    time: { created: Date.now() },
+  });
+  store.updatePart(sessionID, messageID, {
+    id: undefined,
+    type: 'text',
+    text: content,
+  });
+}
+
+function persistAssistant(store: SessionStore | undefined, sessionID: string, text: string): void {
+  if (!store) return;
+  const messageID = randomUUID();
+  store.updateMessage(sessionID, {
+    id: messageID,
+    role: 'assistant',
+    finish: 'done',
+    time: { created: Date.now() },
+  });
+  store.updatePart(sessionID, messageID, {
+    id: undefined,
+    type: 'text',
+    text,
+  });
+}
+
+// Fires a turn on the base and waits for its completion. The base streams
+// text deltas and ends the turn with `session.status: idle`; the bridge turns
+// that into one llm:done per turn, which the stream routes also relay. The
+// blocking POST /turn contract is preserved by awaiting that done here.
+async function runTurnViaBase(
+  deps: ServerDeps,
+  sessionID: string,
+  message: string,
+): Promise<string> {
+  let doneOff: (() => void) | undefined;
+  const done = new Promise<string>((resolve) => {
+    const timer = setTimeout(
+      () => {
+        // A stuck turn must not hold the queue forever; resolve with "" so the
+        // client can reconnect and read the stream.
+        doneOff?.();
+        resolve('');
+      },
+      5 * 60 * 1000,
+    );
+    doneOff = on('llm:done', (d) => {
+      if (d.sessionID !== sessionID) return;
+      doneOff?.();
+      clearTimeout(timer);
+      resolve(d.response);
+    });
+  });
+
+  await deps.base.client.prompt(sessionID, message);
+  const text = await done;
+  return text;
 }
 
 // Share URLs are scoped to the daemon's own address (the request's Host), so
@@ -123,6 +285,20 @@ export async function endSession(deps: ServerDeps, sessionID: string): Promise<v
 
 export function createApp(deps: ServerDeps) {
   const app = new Hono();
+  // The base event stream is per-instance (per-directory), so the bridge
+  // starts after the first session pins the instance directory (ADR 0033).
+  const userTexts = new Map<string, string>();
+  let bridgeStarted = false;
+  const startBridge = () => {
+    if (bridgeStarted) return;
+    bridgeStarted = true;
+    // The bus is the single redaction choke point (CONTEXT.md Event safety).
+    // Messages are also mirrored to the store for share replay. A bridge
+    // failure (base gone) must not crash the daemon; streams go quiet.
+    void bridgeBaseEvents(deps.base, deps.store, userTexts).catch((err) => {
+      console.error(`base event bridge failed: ${err instanceof Error ? err.message : err}`);
+    });
+  };
   const attached = new AttachedClients();
 
   // Cross-cutting middleware must be registered before any route: a Hono
@@ -150,8 +326,11 @@ export function createApp(deps: ServerDeps) {
 
   app.post('/api/sessions', async (c) => {
     const body = await c.req.json().catch(() => ({}));
-    const session = deps.createSession(typeof body.cwd === 'string' ? body.cwd : process.cwd());
+    const cwd = typeof body.cwd === 'string' ? body.cwd : process.cwd();
+    const sdk = await deps.base.client.createSession(cwd);
+    const session = toWireSession(sdk, deps.sessionDefaults);
     deps.store.save(session);
+    startBridge();
     emit('session:create', { sessionID: session.id });
     // ponytail: best-effort auto-share, opencode parity — a failed share must
     // never fail session creation
@@ -165,16 +344,26 @@ export function createApp(deps: ServerDeps) {
     return c.json(session, 201);
   });
 
-  app.get('/api/sessions', (c) => {
+  app.get('/api/sessions', async (c) => {
     // List all sessions, newest first. The desktop GUI sidebar needs this;
     // the CLI keeps it in-process.
-    const sessions = deps.store.list().sort((a, b) => b.updatedAt - a.updatedAt);
+    const sdkSessions = await deps.base.client.listSessions();
+    const sessions = sdkSessions
+      .map((s) => toWireSession(s, deps.sessionDefaults))
+      .sort((a, b) => b.updatedAt - a.updatedAt);
     return c.json(sessions);
   });
 
-  app.get('/api/sessions/:id', (c) => {
-    const session = deps.store.load(c.req.param('id'));
-    if (!session) return c.json({ error: 'Session not found' }, 404);
+  app.get('/api/sessions/:id', async (c) => {
+    const sessionID = c.req.param('id');
+    let sdk;
+    try {
+      sdk = await deps.base.client.getSession(sessionID);
+    } catch (err) {
+      if (isNotFound(err)) return c.json({ error: 'Session not found' }, 404);
+      throw err;
+    }
+    const session = toWireSession(sdk, deps.sessionDefaults);
     const token = deps.shareStore.get(session.id);
     return c.json({
       ...session,
@@ -184,22 +373,30 @@ export function createApp(deps: ServerDeps) {
 
   app.patch('/api/sessions/:id', async (c) => {
     const sessionID = c.req.param('id');
-    const session = deps.store.load(sessionID);
-    if (!session) return c.json({ error: 'Session not found' }, 404);
     const body = await c.req.json().catch(() => ({}));
     if (typeof body.title !== 'string') {
       return c.json({ error: 'title is required' }, 400);
     }
-    session.title = body.title;
-    session.updatedAt = Date.now();
+    let sdk;
+    try {
+      sdk = await deps.base.client.updateSession(sessionID, body.title);
+    } catch (err) {
+      if (isNotFound(err)) return c.json({ error: 'Session not found' }, 404);
+      throw err;
+    }
+    const session = toWireSession(sdk, deps.sessionDefaults);
     deps.store.save(session);
     return c.json(session);
   });
 
   app.delete('/api/sessions/:id', async (c) => {
     const sessionID = c.req.param('id');
-    const session = deps.store.load(sessionID);
-    if (!session) return c.json({ error: 'Session not found' }, 404);
+    try {
+      await deps.base.client.deleteSession(sessionID);
+    } catch (err) {
+      if (isNotFound(err)) return c.json({ error: 'Session not found' }, 404);
+      throw err;
+    }
     await deps.draftManager.orphanAll(sessionID);
     deps.store.delete(sessionID);
     emit('session:end', { sessionID });
@@ -208,23 +405,26 @@ export function createApp(deps: ServerDeps) {
 
   app.post('/api/sessions/:id/turn', async (c) => {
     const sessionID = c.req.param('id');
-    const session = deps.store.load(sessionID);
-    if (!session) return c.json({ error: 'Session not found' }, 404);
     const body = await c.req.json().catch(() => ({}));
     const message = typeof body.message === 'string' ? body.message : '';
     if (!message) return c.json({ error: 'message is required' }, 400);
 
     try {
       const text = await enqueueTurn(sessionID, async () => {
-        const runtime = deps.buildRuntime(session);
-        const result = await deps.runTurn(session, message, runtime, deps.store);
-        return result.text;
+        // Persist the user message only when the session exists in the
+        // mirror (the base 404s unknown sessions; the FK would reject).
+        if (deps.store.load(sessionID)) {
+          persistUser(deps.store, sessionID, message);
+        }
+        userTexts.set(sessionID, message);
+        return runTurnViaBase(deps, sessionID, message);
       });
       return c.json({ text });
     } catch (err) {
-      if (err instanceof AuthRequiredError) {
-        return c.json({ error: 'auth-required', provider: err.provider }, 401);
-      }
+      if (isNotFound(err)) return c.json({ error: 'Session not found' }, 404);
+      // Provider auth errors surface from the base with its own shape; the
+      // daemon passes them through as 500s rather than guessing opencode's
+      // error vocabulary (ADR 0033).
       throw err;
     }
   });
@@ -252,6 +452,9 @@ export function createApp(deps: ServerDeps) {
         }
       };
 
+      // Every event type flows through the bus (bridgeBaseEvents emits the
+      // base's mapped events into it, redacted at the single choke point —
+      // CONTEXT.md Event safety). Frame shaping lives here, once per type.
       subscribe('llm:token', (d) => write({ type: 'token', token: d.token }));
       subscribe('llm:done', (d) => write({ type: 'done', response: d.response }));
       subscribe('tool:start', (d) => write({ type: 'toolStart', tool: d.tool, params: d.params }));
@@ -316,11 +519,25 @@ export function createApp(deps: ServerDeps) {
   });
 
   app.post('/api/sessions/:id/ask-answer', async (c) => {
+    const sessionID = c.req.param('id');
     const body = await c.req.json().catch(() => ({}));
     if (typeof body.promptID !== 'string' || typeof body.answer !== 'string') {
       return c.json({ error: 'promptID and answer are required' }, 400);
     }
-    if (!deps.askChannel.answer(c.req.param('id'), body.promptID, body.answer)) {
+    // Base permission requests (per_* ids) resolve through the base server;
+    // local AskChannel prompts (draft orphan / question tool) resolve locally.
+    if (body.promptID.startsWith('per_')) {
+      const reply =
+        body.answer === 'always' ? 'always' : body.answer === 'reject' ? 'reject' : 'once';
+      try {
+        await deps.base.client.replyPermission(sessionID, body.promptID, reply);
+      } catch (err) {
+        if (isNotFound(err)) return c.json({ error: 'Unknown prompt' }, 404);
+        throw err;
+      }
+      return c.json({ ok: true });
+    }
+    if (!deps.askChannel.answer(sessionID, body.promptID, body.answer)) {
       return c.json({ error: 'Unknown prompt' }, 404);
     }
     return c.json({ ok: true });
@@ -455,15 +672,42 @@ export function createApp(deps: ServerDeps) {
     });
   }
 
+  // The base server's officecli tool file calls back here to execute real,
+  // draft-aware officecli commands (ADR 0033). Outside /api/*: gated by the
+  // per-spawn base token, not Basic auth — only the base process holds it.
+  app.post('/internal/officecli', async (c) => {
+    if (c.req.header('x-openoffice-base-token') !== deps.baseToken) {
+      return c.json({ error: 'forbidden' }, 403);
+    }
+    const body = await c.req.json().catch(() => ({}));
+    if (
+      typeof body.sessionID !== 'string' ||
+      typeof body.params !== 'object' ||
+      body.params === null
+    ) {
+      return c.json({ error: 'sessionID and params are required' }, 400);
+    }
+    try {
+      const result = await deps.officecliExec(
+        body.params as Record<string, unknown>,
+        body.sessionID,
+      );
+      return c.json(result);
+    } catch (e) {
+      return c.json({ success: false, error: e instanceof Error ? e.message : 'officecli failed' });
+    }
+  });
+
   // Runtime MCP control: per-server status and enable/disable toggles that
   // connect/disconnect without a daemon restart. In-scope toggles only —
   // adding/editing servers stays a config-file + restart operation.
   if (deps.mcp) {
-    app.get('/api/mcp', (c) => c.json(deps.mcp!.status()));
+    app.get('/api/mcp', async (c) => c.json(await deps.mcp!.status()));
 
     app.post('/api/mcp/:name/enable', async (c) => {
       const name = c.req.param('name');
-      if (!deps.mcp!.status()[name]) {
+      const statuses = await deps.mcp!.status();
+      if (!statuses[name]) {
         return c.json({ error: `MCP server "${name}" not found` }, 404);
       }
       return c.json(await deps.mcp!.enable(name));
@@ -471,7 +715,8 @@ export function createApp(deps: ServerDeps) {
 
     app.post('/api/mcp/:name/disable', async (c) => {
       const name = c.req.param('name');
-      if (!deps.mcp!.status()[name]) {
+      const statuses = await deps.mcp!.status();
+      if (!statuses[name]) {
         return c.json({ error: `MCP server "${name}" not found` }, 404);
       }
       return c.json(await deps.mcp!.disable(name));

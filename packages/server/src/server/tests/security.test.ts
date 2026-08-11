@@ -2,36 +2,14 @@ import { describe, expect, test, beforeEach } from 'bun:test';
 import { mkdtempSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { randomUUID } from 'node:crypto';
-import { createApp, AskChannel, type SessionRuntime } from '../index';
-import {
-  SessionStore,
-  DraftManager,
-  HistoryStore,
-  ShareStore,
-  type Session,
-} from '@openoffice/core';
+import { createApp, AskChannel } from '../index';
+import { SessionStore, DraftManager, HistoryStore, ShareStore } from '@openoffice/core';
+import { fakeBase } from './helpers';
 
 let store: SessionStore;
 let draftManager: DraftManager;
 let history: HistoryStore;
 let askChannel: AskChannel;
-
-const fakeRuntime: SessionRuntime = { tools: {} as any, system: '' };
-
-function makeSession(cwd: string): Session {
-  const now = Date.now();
-  return {
-    id: randomUUID(),
-    agent: 'build',
-    model: 'anthropic/claude-sonnet-4-20250514',
-    title: '',
-    cwd,
-    messages: [],
-    createdAt: now,
-    updatedAt: now,
-  };
-}
 
 beforeEach(() => {
   const dir = mkdtempSync(join(tmpdir(), 'openoffice-security-test-'));
@@ -50,16 +28,18 @@ function makeApp(opts: {
   auth?: { username: string; password: string | null };
   corsOrigins?: string[];
 }) {
+  const fb = fakeBase();
   return createApp({
+    base: fb.engine,
+    sessionDefaults: { agent: 'office', model: 'anthropic/claude-sonnet-4-20250514' },
     store,
     draftManager,
     history,
     askChannel,
     shareStore: new ShareStore(store.db),
     shareMode: 'disabled',
-    createSession: makeSession,
-    buildRuntime: () => fakeRuntime,
-    runTurn: async () => ({ text: 'ok' }),
+    baseToken: 'test-token',
+    officecliExec: async () => ({ success: true, output: 'ok' }),
     ...opts,
   }).app;
 }

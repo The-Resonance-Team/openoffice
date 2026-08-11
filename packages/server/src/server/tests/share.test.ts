@@ -2,16 +2,15 @@ import { describe, expect, test, beforeEach } from 'bun:test';
 import { mkdtempSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { randomUUID } from 'node:crypto';
-import { createApp, AskChannel, type SessionRuntime } from '../index';
+import { createApp, AskChannel } from '../index';
 import {
   SessionStore,
   DraftManager,
   HistoryStore,
   ShareStore,
-  type Session,
   type ShareMode,
 } from '@openoffice/core';
+import { fakeBase } from './helpers';
 
 let dir: string;
 let store: SessionStore;
@@ -20,35 +19,24 @@ let draftManager: DraftManager;
 let history: HistoryStore;
 let askChannel: AskChannel;
 
-const fakeRuntime: SessionRuntime = { tools: {} as any, system: '' };
-
-function makeSession(cwd: string): Session {
-  const now = Date.now();
-  return {
-    id: randomUUID(),
-    agent: 'build',
-    model: 'anthropic/claude-sonnet-4-20250514',
-    title: '',
-    cwd,
-    messages: [],
-    createdAt: now,
-    updatedAt: now,
-  };
-}
-
 function makeApp(shareMode: ShareMode = 'auto', auth = false) {
-  return createApp({
-    store,
-    draftManager,
-    history,
-    askChannel,
-    shareStore,
-    shareMode,
-    auth: auth ? { username: 'openoffice', password: 'secret' } : undefined,
-    createSession: makeSession,
-    buildRuntime: () => fakeRuntime,
-    runTurn: async () => ({ text: 'ok' }),
-  });
+  const fb = fakeBase();
+  return {
+    ...createApp({
+      base: fb.engine,
+      sessionDefaults: { agent: 'office', model: 'anthropic/claude-sonnet-4-20250514' },
+      store,
+      draftManager,
+      history,
+      askChannel,
+      shareStore,
+      shareMode,
+      baseToken: 'test-token',
+      officecliExec: async () => ({ success: true, output: 'ok' }),
+      auth: auth ? { username: 'openoffice', password: 'secret' } : undefined,
+    }),
+    fb,
+  };
 }
 
 async function post(
@@ -333,9 +321,19 @@ describe('session share routes', () => {
   });
 
   test('write routes reject a share token even when guessed', async () => {
-    const { app } = makeApp('auto', true);
-    const session = makeSession('/tmp');
-    store.save(session);
+    const { app, fb } = makeApp('auto', true);
+    const sdk = fb.sessions.get('sess_1') ?? (await fb.engine.client.createSession('/tmp'));
+    store.save({
+      id: sdk.id,
+      agent: 'office',
+      model: 'm',
+      title: sdk.title,
+      cwd: sdk.directory,
+      messages: [],
+      createdAt: sdk.time.created,
+      updatedAt: sdk.time.updated,
+    });
+    const session = store.load(sdk.id)!;
     const token = shareStore.create(session.id);
 
     const withShareToken = await app.request(`/api/sessions/${session.id}/accept`, {

@@ -6,10 +6,6 @@ export type { Agent } from './agent';
 export { AgentRegistry, evaluate, fromConfig, merge } from './agent';
 export type { Ruleset, Rule, Action } from './agent';
 
-export { CredentialStore } from './auth/store';
-export type { ApiCredential } from './auth/store';
-export { login } from './auth/login';
-
 export { ConfigSchema, resolveConfig, collectEnvValues, shareMode } from './config';
 export type { Config, ResolveOptions, ShareMode } from './config';
 export {
@@ -42,20 +38,6 @@ export { ShareStore } from './share';
 export { shareViewerPage } from './share';
 
 export {
-  resolveModel,
-  resolveCredential,
-  BUILTIN_PROVIDERS,
-  AuthRequiredError,
-  chat,
-  complete,
-  getModel,
-  splitModel,
-  maxOutputTokens,
-  discoverLocalModels,
-} from './llm';
-export type { ChatOptions, CompleteOptions, Model, ModelLimits, DiscoveredModel } from './llm';
-
-export {
   McpManager,
   createSdkMcpClient,
   planMcpConnections,
@@ -84,34 +66,9 @@ export {
 } from './office';
 export type { OfficeCliDeps } from './office';
 
-export {
-  SessionStore,
-  runTurn,
-  isStaleSession,
-  SESSION_STALE_AFTER_MS,
-  buildSystemPrompt,
-  create,
-  process,
-  prune,
-  applyPrune,
-  select,
-  buildPrompt,
-  isOverflow,
-  usable,
-  toModelMessages,
-  filterCompacted,
-  truncateToolOutput,
-  PRUNE_MINIMUM,
-  PRUNE_PROTECT,
-  SUMMARY_OUTPUT_TOKENS,
-} from './session';
+export { SessionStore, isStaleSession, SESSION_STALE_AFTER_MS } from './session';
 export type {
   Session,
-  RunTurnOptions,
-  CompactionDeps,
-  ProcessInput,
-  ProcessResult,
-  OverflowConfig,
   Part,
   TextPart,
   ToolPart,

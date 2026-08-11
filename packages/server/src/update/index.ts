@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { getDataDir } from '../data-dir';
 
@@ -105,6 +105,19 @@ export function artifactName(platform: string, arch: string): string {
   return `openoffice-${os}-${a}${suffix}`;
 }
 
+/** The base (opencode fork) binary asset in the same release + SHA256SUMS. */
+export function baseBinaryAssetName(platform: string, arch: string): string {
+  const os =
+    platform === 'win32' || platform === 'windows'
+      ? 'windows'
+      : platform === 'darwin'
+        ? 'darwin'
+        : 'linux';
+  const a = arch === 'x64' ? 'x64' : arch === 'arm64' ? 'arm64' : 'x64';
+  const suffix = os === 'windows' ? '.exe' : '';
+  return `opencode-${os}-${a}${suffix}`;
+}
+
 export async function downloadAsset(
   tag: string,
   asset: string,
@@ -139,14 +152,20 @@ export function verifySha256(data: Buffer, expected: string): boolean {
 }
 
 export function swapBinary(data: Buffer, binPath: string): string {
+  // The base binary lives under <dataDir>/bin, which may not exist yet
+  // (first update on an old install). swapBinary stays directory-agnostic.
+  const dir = binPath.slice(0, Math.max(binPath.lastIndexOf('/'), binPath.lastIndexOf('\\')));
+  if (dir) mkdirSync(dir, { recursive: true });
   writeFileSync(`${binPath}.new`, data, { mode: 0o755 });
+  // First placement (no existing binary — e.g. the base engine on an old
+  // install) has nothing to keep; only an existing file is renamed to .old.
   const oldPath = `${binPath}.old`;
   if (existsSync(oldPath)) rmSync(oldPath, { force: true });
-  renameSync(binPath, oldPath);
+  if (existsSync(binPath)) renameSync(binPath, oldPath);
   try {
     renameSync(`${binPath}.new`, binPath);
   } catch (e) {
-    renameSync(oldPath, binPath); // roll the old binary back into place
+    if (existsSync(oldPath)) renameSync(oldPath, binPath); // roll back
     throw e;
   }
   return oldPath;
@@ -161,11 +180,15 @@ export function cleanupPendingUpdate(dataDir = getDataDir()): void {
   try {
     const marker = pendingMarkerPath(dataDir);
     if (!existsSync(marker)) return;
-    const { oldPath } = JSON.parse(readFileSync(marker, 'utf-8')) as {
+    const { oldPath, baseOldPath } = JSON.parse(readFileSync(marker, 'utf-8')) as {
       oldPath?: string;
+      baseOldPath?: string;
     };
     if (typeof oldPath === 'string' && existsSync(oldPath)) {
       rmSync(oldPath, { force: true });
+    }
+    if (typeof baseOldPath === 'string' && existsSync(baseOldPath)) {
+      rmSync(baseOldPath, { force: true });
     }
     rmSync(marker, { force: true });
   } catch {
@@ -261,6 +284,29 @@ export async function performUpdate(
     return { status: 'error', error: `checksum mismatch for ${asset}` };
   }
   const oldPath = swapBinary(data, binPath);
-  writeFileSync(pendingMarkerPath(dataDir), JSON.stringify({ oldPath }));
+
+  // The base engine binary rides the same release, pinned and checksum-
+  // verified (ADR 0033). A missing or mismatched base artifact fails the
+  // update — the daemon cannot run without it — and nothing is swapped.
+  const baseAsset = baseBinaryAssetName(process.platform, process.arch);
+  const [baseData, baseChecksums] = await Promise.all([
+    downloadAsset(newest.tag, baseAsset, fetchFn),
+    checksums.size > 0 ? Promise.resolve(checksums) : fetchChecksums(newest.tag, fetchFn),
+  ]);
+  const baseExpected = baseChecksums.get(baseAsset);
+  if (!baseExpected) {
+    return { status: 'error', error: `no checksum published for ${baseAsset}` };
+  }
+  if (!verifySha256(baseData, baseExpected)) {
+    return { status: 'error', error: `checksum mismatch for ${baseAsset}` };
+  }
+  const baseBinPath = join(
+    dataDir,
+    'bin',
+    process.platform === 'win32' ? 'opencode.exe' : 'opencode',
+  );
+  const baseOld = swapBinary(baseData, baseBinPath);
+
+  writeFileSync(pendingMarkerPath(dataDir), JSON.stringify({ oldPath, baseOldPath: baseOld }));
   return { status: 'updated', version: newest.version };
 }
